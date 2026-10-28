@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build Output
+dist/
+build/
+out/
+target/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment and Secrets
+.env
+.env.*
+*.key
+*.pem
+*.token
+
+# OS and Editor Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Browser Profiles and Caches
+.cache/
+profiles/

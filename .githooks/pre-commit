@@ -1,0 +1,38 @@
+#!/bin/sh
+# Neutrino Browser - Git Pre-commit Hook
+# Runs code quality, type checks, and security validations before allowing commit.
+
+echo "[Neutrino Hook] Running pre-commit validations..."
+
+# 1. Check Rust formatting & syntax
+if command -v cargo >/dev/null 2>&1; then
+    echo "[Neutrino Hook] Checking Rust native module..."
+    cd native || exit 1
+    cargo check --quiet || {
+        echo "[Neutrino Hook] ERROR: Cargo check failed in native/ module."
+        exit 1
+    }
+    cd ..
+fi
+
+# 2. Check TypeScript & React linting
+if command -v npm >/dev/null 2>&1; then
+    if [ -d "ui/node_modules" ]; then
+        echo "[Neutrino Hook] Checking TypeScript / React UI..."
+        cd ui || exit 1
+        npm run typecheck --silent || {
+            echo "[Neutrino Hook] ERROR: TypeScript typecheck failed in ui/."
+            exit 1
+        }
+        cd ..
+    fi
+fi
+
+# 3. Prevent committing sensitive files
+if git diff --cached --name-only | grep -E "(\.env|\.pem|\.key|user\.js\.backup)$"; then
+    echo "[Neutrino Hook] ERROR: Attempting to commit potentially sensitive or backup files!"
+    exit 1
+fi
+
+echo "[Neutrino Hook] Pre-commit checks passed successfully!"
+exit 0

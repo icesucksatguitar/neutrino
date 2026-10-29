@@ -1,0 +1,10 @@
+{
+  "name": "neutrino.host",
+  "description": "Neutrino Browser Native Privacy and IPC Host",
+  "path": "C:\\Users\\simpl\\OneDrive\\Desktop\\neutrino\\native\\target\\release\\neutrino-host.exe",
+  "type": "stdio",
+  "allowed_extensions": [
+    "shield@neutrino.local",
+    "ui@neutrino.local"
+  ]
+}

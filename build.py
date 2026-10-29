@@ -155,52 +155,55 @@ def run_tests() -> bool:
     log_success("All test suites passed successfully!")
     return True
 
+STANDALONE_DIR = ROOT_DIR / "dist" / "Neutrino-win32-x64"
+
 def package_distribution() -> bool:
-    """Assemble standalone distribution folder."""
-    log_info(f"Packaging Neutrino Browser distribution to: {DIST_DIR}")
+    """Assemble standalone desktop browser application distribution."""
+    log_info("Packaging standalone Neutrino Desktop Application...")
+    npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
 
-    if DIST_DIR.exists():
-        shutil.rmtree(DIST_DIR)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    # 1. Package the native desktop binary
+    log_info("Running electron-packager for win32-x64...")
+    if not run_cmd([npm_cmd, "run", "package:win"], cwd=UI_DIR):
+        log_error("Failed to package standalone desktop application.")
+        return False
 
-    # 1. Copy Rust native binaries
-    bin_dir = DIST_DIR / "bin"
-    bin_dir.mkdir(exist_ok=True)
+    standalone_exe = STANDALONE_DIR / "Neutrino.exe"
+    if not standalone_exe.exists():
+        log_error(f"Expected standalone executable not found at: {standalone_exe}")
+        return False
+
+    # 2. Bundle Rust native binaries into standalone application
+    res_bin_dir = STANDALONE_DIR / "resources" / "bin"
+    res_bin_dir.mkdir(parents=True, exist_ok=True)
     rust_release = NATIVE_DIR / "target" / "release"
     for item in rust_release.glob("neutrino*"):
         if item.is_file() and not item.name.endswith(".d"):
-            shutil.copy2(item, bin_dir / item.name)
-            log_info(f"Packaged binary: {item.name}")
-            if item.name == "neutrino.exe":
-                # Place main application executable at root of distribution
-                shutil.copy2(item, DIST_DIR / "neutrino.exe")
-                log_success("Created primary application executable: dist/neutrino-browser/neutrino.exe")
+            shutil.copy2(item, res_bin_dir / item.name)
+            log_info(f"Bundled native engine binary: {item.name}")
 
-    # 2. Copy React UI dist
-    ui_dist = DIST_DIR / "ui"
-    if (UI_DIR / "dist").exists():
-        shutil.copytree(UI_DIR / "dist", ui_dist)
-        log_info("Packaged React UI assets")
-    else:
-        log_warn("ui/dist does not exist. Run 'build' first!")
-
-    # 3. Copy Engine profiles & policies
-    engine_dest = DIST_DIR / "engine"
+    # 3. Bundle engine profiles and policies
+    engine_dest = STANDALONE_DIR / "engine"
+    if engine_dest.exists():
+        shutil.rmtree(engine_dest)
     shutil.copytree(ENGINE_DIR / "config", engine_dest / "config")
     shutil.copytree(ENGINE_DIR / "manifests", engine_dest / "manifests")
-    log_info("Packaged engine profiles, user.js, and policies.json")
+    log_info("Bundled engine profiles and privacy policies.")
 
-    # 4. Generate Launcher script
-    launcher_bat = DIST_DIR / "neutrino.bat"
-    with open(launcher_bat, "w", encoding="utf-8") as f:
-        f.write("@echo off\n")
-        f.write("title Neutrino Browser\n")
-        f.write("echo [Neutrino] Initializing hardened local browser session...\n")
-        f.write("start \"\" \"%~dp0bin\\neutrino-host.exe\" --help 2>nul\n")
-        f.write("start \"\" \"%~dp0ui\\index.html\"\n")
-        f.write("exit /b 0\n")
+    log_success(f"Standalone Desktop Browser built successfully!")
+    log_success(f"Executable: {BOLD}{standalone_exe}{RESET} ({standalone_exe.stat().st_size // (1024*1024)} MB)")
+    return True
 
-    log_success(f"Standalone distribution created at: {DIST_DIR}")
+def run_app():
+    """Launch the standalone Neutrino Browser desktop application."""
+    standalone_exe = STANDALONE_DIR / "Neutrino.exe"
+    if not standalone_exe.exists():
+        log_error(f"Standalone executable not found at {standalone_exe}. Run 'package' first!")
+        return False
+
+    log_info(f"Launching Neutrino Browser: {standalone_exe}")
+    subprocess.Popen([str(standalone_exe)])
+    log_success("Neutrino Browser desktop application launched successfully!")
     return True
 
 def start_dev():
@@ -211,7 +214,7 @@ def start_dev():
 
 def main():
     parser = argparse.ArgumentParser(description="Neutrino Browser Build & Orchestration Tool")
-    parser.add_argument("action", choices=["check", "build", "test", "package", "dev", "all"],
+    parser.add_argument("action", choices=["check", "build", "test", "package", "dev", "run", "all"],
                         default="all", nargs="?", help="Action to execute")
     parser.add_argument("--debug", action="store_true", help="Build in debug mode instead of release")
 
@@ -232,6 +235,8 @@ def main():
     elif args.action == "dev":
         start_dev()
         return 0
+    elif args.action == "run":
+        return 0 if run_app() else 1
     elif args.action == "all":
         success = (
             check_env()

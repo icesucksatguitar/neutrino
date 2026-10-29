@@ -28,6 +28,8 @@ export const Viewport: React.FC<ViewportProps> = ({
     );
   }
 
+  const isElectron = typeof window !== 'undefined' && Boolean((window as unknown as { neutrino?: { isElectron?: boolean } }).neutrino?.isElectron);
+
   return (
     <div className="browser-viewport">
       {/* Top progress loader */}
@@ -35,13 +37,22 @@ export const Viewport: React.FC<ViewportProps> = ({
 
       {/* Embedded Web View Container */}
       <div className="webview-container">
-        {/* We can use an iframe for preview or host the native Gecko render surface */}
-        <iframe
-          src={activeTab.url}
-          className="web-frame"
-          title={activeTab.title}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        />
+        {isElectron ? (
+          // Standalone native browser webview (no X-Frame-Options restrictions)
+          React.createElement('webview', {
+            src: activeTab.url,
+            className: 'web-frame',
+            partition: 'persist:neutrino',
+            allowpopups: 'true',
+          })
+        ) : (
+          <iframe
+            src={activeTab.url}
+            className="web-frame"
+            title={activeTab.title}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          />
+        )}
 
         {/* Floating Safe Shield Toast */}
         <div className="viewport-shield-toast">

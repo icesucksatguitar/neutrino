@@ -81,8 +81,33 @@ export function useNativeBridge() {
     }
   }, []);
 
-  // Check Mozilla native messaging host bridge if available
+  // Check Mozilla native messaging host or Electron native bridge
   useEffect(() => {
+    const neutrinoApi = (window as unknown as { neutrino?: {
+      onTrackerBlocked: (cb: (item: { url: string; domain: string; category?: string; rule?: string }) => void) => () => void;
+    } }).neutrino;
+
+    if (neutrinoApi) {
+      setIsConnected(true);
+      const unsubscribe = neutrinoApi.onTrackerBlocked((data) => {
+        const newItem: BlockedItem = {
+          domain: data.domain || 'tracker',
+          category: (data.category as BlockedItem['category']) || 'Tracker',
+          rule: data.rule || 'Rust Privacy Engine Block',
+          timestamp: Date.now(),
+        };
+
+        setBlockedItems((prev) => [newItem, ...prev.slice(0, 49)]);
+        setStats((prev) => ({
+          ...prev,
+          totalBlocked: prev.totalBlocked + 1,
+          trackersBlocked: prev.trackersBlocked + 1,
+        }));
+      });
+
+      return () => unsubscribe();
+    }
+
     // If running inside browser extension context
     const hasWebExtension = typeof window !== 'undefined' && (window as unknown as { browser?: { runtime?: { sendNativeMessage?: unknown } } }).browser?.runtime?.sendNativeMessage;
     if (hasWebExtension) {

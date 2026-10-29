@@ -54,6 +54,11 @@ class TestNeutrinoIntegrity(unittest.TestCase):
         self.assertTrue(app_bin.exists(), "neutrino.exe must be compiled")
         self.assertGreater(app_bin.stat().st_size, 100_000, "neutrino.exe must be non-empty")
 
+    def test_standalone_desktop_app_bundle(self):
+        standalone_exe = ROOT_DIR / "dist" / "Neutrino-win32-x64" / "Neutrino.exe"
+        self.assertTrue(standalone_exe.exists(), "Standalone Neutrino.exe must exist in dist/")
+        self.assertGreater(standalone_exe.stat().st_size, 50_000_000, "Standalone executable must be a full desktop binary")
+
 if __name__ == "__main__":
     unittest.main()
 

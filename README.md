@@ -62,19 +62,27 @@ Compiles the Rust privacy host in `--release` mode and bundles the React fronten
 py build.py build
 ```
 
-### 4. Package Standalone Distribution
-Assembles all binaries, UI assets, manifests, and profiles into `dist/neutrino-browser/`:
+### 4. Package Standalone Desktop Application
+Packages a complete, standalone Windows desktop application binary (like Google Chrome):
 ```powershell
 py build.py package
 ```
+Output: `dist/Neutrino-win32-x64/Neutrino.exe`
 
-### 5. Launch Live UI Development
+### 5. Launch the Standalone Desktop Browser
+Launch the browser as an independent desktop application:
+```powershell
+py build.py run
+```
+*(Or double-click `dist\Neutrino-win32-x64\Neutrino.exe` in File Explorer.)*
+
+### 6. Launch Live UI Development
 Starts the React UI with hot module reloading (HMR) at `http://localhost:3000`:
 ```powershell
 py build.py dev
 ```
 
-### 6. Register Native Host & Deploy Hardened Profile
+### 7. Register Native Host & Deploy Hardened Profile
 Registers the Native Messaging Host in `HKCU\Software\Mozilla\NativeMessagingHosts\neutrino.host` and deploys the hardened `user.js`:
 ```powershell
 py engine/scripts/setup_profile.py

@@ -171,6 +171,10 @@ def package_distribution() -> bool:
         if item.is_file() and not item.name.endswith(".d"):
             shutil.copy2(item, bin_dir / item.name)
             log_info(f"Packaged binary: {item.name}")
+            if item.name == "neutrino.exe":
+                # Place main application executable at root of distribution
+                shutil.copy2(item, DIST_DIR / "neutrino.exe")
+                log_success("Created primary application executable: dist/neutrino-browser/neutrino.exe")
 
     # 2. Copy React UI dist
     ui_dist = DIST_DIR / "ui"

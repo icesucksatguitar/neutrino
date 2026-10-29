@@ -10,6 +10,10 @@ name = "neutrino_core"
 crate-type = ["rlib", "cdylib"]
 
 [[bin]]
+name = "neutrino"
+path = "src/app.rs"
+
+[[bin]]
 name = "neutrino-host"
 path = "src/main.rs"
 

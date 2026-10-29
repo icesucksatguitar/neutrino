@@ -48,7 +48,11 @@ class TestNeutrinoIntegrity(unittest.TestCase):
     def test_rust_binary_exists(self):
         release_bin = ROOT_DIR / "native" / "target" / "release" / "neutrino-host.exe"
         self.assertTrue(release_bin.exists(), "neutrino-host.exe must be compiled")
-        self.assertGreater(release_bin.stat().st_size, 100_000, "Binary must be non-empty")
+        self.assertGreater(release_bin.stat().st_size, 100_000, "neutrino-host.exe must be non-empty")
+
+        app_bin = ROOT_DIR / "native" / "target" / "release" / "neutrino.exe"
+        self.assertTrue(app_bin.exists(), "neutrino.exe must be compiled")
+        self.assertGreater(app_bin.stat().st_size, 100_000, "neutrino.exe must be non-empty")
 
 if __name__ == "__main__":
     unittest.main()

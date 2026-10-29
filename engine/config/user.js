@@ -69,3 +69,4 @@ user_pref("browser.compactmode.show", true);
 user_pref("browser.uidensity", 1);
 user_pref("browser.newtabpage.enabled", false);
 user_pref("browser.startup.page", 3); // Restore previous session
+

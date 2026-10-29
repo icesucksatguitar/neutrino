@@ -68,3 +68,4 @@ if __name__ == "__main__":
     setup_isolated_profile()
     register_native_messaging_host()
     print("[Neutrino] Environment preparation complete!")
+

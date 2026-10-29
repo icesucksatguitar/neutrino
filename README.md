@@ -144,3 +144,4 @@ neutrino/
 ## 📜 License
 
 MIT License - Designed for personal customization and local high-performance privacy browsing.
+

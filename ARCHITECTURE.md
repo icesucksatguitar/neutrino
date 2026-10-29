@@ -82,3 +82,4 @@ sequenceDiagram
 
 - **Non-Destructive**: All engine policies and profile settings reside inside the isolated `engine/` and dedicated profile directories, without overwriting existing personal Firefox profiles.
 - **Registry Hygiene**: The native messaging host is registered exclusively under `HKEY_CURRENT_USER\Software\Mozilla\NativeMessagingHosts\neutrino.host`, requiring no administrator escalation and easily uninstalled by removing the key.
+

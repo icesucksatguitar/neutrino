@@ -17,3 +17,4 @@
 +pref("toolkit.telemetry.enabled", false);
 +pref("toolkit.telemetry.unified", false);
 +pref("experiments.supported", false);
+

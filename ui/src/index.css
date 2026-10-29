@@ -168,7 +168,8 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
-.nav-controls, .browser-actions {
+.nav-controls,
+.browser-actions {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -203,8 +204,13 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Omnibox / Search & Address Bar */
@@ -321,9 +327,17 @@ body {
 }
 
 @keyframes loadSlide {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(0); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  50% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .webview-container {
@@ -366,7 +380,8 @@ body {
   opacity: 0.4;
 }
 
-.toast-btn, .toast-link {
+.toast-btn,
+.toast-link {
   background: transparent;
   border: none;
   color: var(--text-dim);
@@ -377,7 +392,8 @@ body {
   padding: 2px;
 }
 
-.toast-btn:hover, .toast-link:hover {
+.toast-btn:hover,
+.toast-link:hover {
   color: var(--text-main);
 }
 
@@ -636,23 +652,33 @@ body {
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.shield-modal-header, .settings-header {
+.shield-modal-header,
+.settings-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.shield-header-title, .settings-title-group {
+.shield-header-title,
+.settings-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.shield-header-title h3, .settings-title-group h3 {
+.shield-header-title h3,
+.settings-title-group h3 {
   font-size: 17px;
   font-weight: 700;
 }
@@ -745,11 +771,11 @@ body {
   border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: var(--shield-green);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -779,10 +805,25 @@ input:checked + .slider:before {
   justify-content: center;
 }
 
-.stat-icon-wrapper.red { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.stat-icon-wrapper.purple { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; }
-.stat-icon-wrapper.green { background-color: rgba(16, 185, 129, 0.15); color: #10b981; }
-.stat-icon-wrapper.blue { background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.stat-icon-wrapper.red {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.stat-icon-wrapper.purple {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.stat-icon-wrapper.green {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.stat-icon-wrapper.blue {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
 
 .stat-details {
   display: flex;
@@ -856,11 +897,30 @@ input:checked + .slider:before {
   border-radius: 4px;
 }
 
-.category-tag.tracker { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.category-tag.analytics { background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-.category-tag.advertising { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; }
-.category-tag.fingerprinter { background-color: rgba(236, 72, 153, 0.15); color: #ec4899; }
-.category-tag.telemetry { background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.category-tag.tracker {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.category-tag.analytics {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.category-tag.advertising {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.category-tag.fingerprinter {
+  background-color: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+}
+
+.category-tag.telemetry {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
 
 .empty-blocked {
   font-size: 12px;

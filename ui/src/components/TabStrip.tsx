@@ -94,3 +94,4 @@ export const TabStrip: React.FC<TabStripProps> = ({
     </div>
   );
 };
+

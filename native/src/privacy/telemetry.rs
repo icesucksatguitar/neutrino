@@ -74,3 +74,4 @@ mod tests {
         assert_eq!(cleaned, "https://example.com/page");
     }
 }
+

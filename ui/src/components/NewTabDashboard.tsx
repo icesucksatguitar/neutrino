@@ -114,3 +114,4 @@ export const NewTabDashboard: React.FC<NewTabDashboardProps> = ({
     </div>
   );
 };
+

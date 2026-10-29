@@ -5,3 +5,4 @@
 +  if (StaticPrefs::privacy_resistFingerprinting()) {
 +    ApplyNeutrinoCanvasJitter(aSurface, aOrigin);
 +  }
+

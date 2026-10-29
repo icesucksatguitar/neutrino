@@ -37,3 +37,4 @@ export interface BrowserSettings {
   autoCleanUtmParams: boolean;
   theme: 'dark' | 'light' | 'system';
 }
+

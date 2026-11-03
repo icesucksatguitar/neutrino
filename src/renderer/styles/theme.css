@@ -1,3 +1,19 @@
+@font-face {
+  font-family: 'Soria';
+  font-style: normal;
+  font-weight: normal;
+  src: local('Soria'), url('../fonts/Soria-Bold.woff') format('woff'), url('https://fonts.cdnfonts.com/s/78809/Soria-Bold.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Soria';
+  font-style: italic;
+  font-weight: normal;
+  src: local('Soria'), url('../fonts/Soria-Bold.woff') format('woff'), url('https://fonts.cdnfonts.com/s/78809/Soria-Bold.woff') format('woff');
+  font-display: swap;
+}
+
 :root {
   /* ==========================================================================
      ARC BROWSER DESIGN TOKENS (DARK OBSIDIAN / CHARCOAL)
@@ -44,7 +60,7 @@
   --shadow-popup:     0 20px 48px -8px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--border);
 
   /* Typography */
-  --font-heading:     'Fraunces', 'Instrument Serif', Georgia, serif;
+  --font-heading:     'Soria', 'Fraunces', 'Instrument Serif', Georgia, serif;
   --font-ui:          'DM Sans', 'Switzer', 'General Sans', system-ui, -apple-system, sans-serif;
   --font-mono:        'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
 
@@ -94,11 +110,13 @@ html, body {
    2. ARC SIGNATURE VERTICAL SIDEBAR
    ========================================================================== */
 .arc-sidebar {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
   height: 100vh;
-  background-color: var(--bg-sidebar);
+  background-color: rgba(12, 15, 22, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -113,7 +131,7 @@ html, body {
 }
 
 .arc-sidebar.collapsed {
-  margin-left: -280px !important;
+  margin-left: -300px !important;
   opacity: 0 !important;
   visibility: hidden;
   pointer-events: none !important;
@@ -363,6 +381,40 @@ html, body {
   min-height: 0;
 }
 
+/* Top Arrow trigger for Tabs Dropdown */
+.arc-tabs-dropdown-trigger {
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.arc-tabs-dropdown-trigger .arc-dropdown-chevron {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arc-tabs-dropdown-trigger.open .arc-dropdown-chevron {
+  transform: rotate(0deg);
+  color: var(--accent);
+}
+
+.arc-tabs-dropdown-trigger.closed .arc-dropdown-chevron {
+  transform: rotate(-90deg);
+  color: var(--text-faint);
+}
+
+/* 4. Arc Tabs Section - Sits on Transparent Background */
+.arc-tabs-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+  transition: all 0.25s var(--ease-arc);
+}
+
+.arc-tabs-section.collapsed {
+  flex: 0;
+}
+
 .arc-tabs-header-strip {
   display: flex;
   align-items: center;
@@ -371,12 +423,50 @@ html, body {
   flex-shrink: 0;
 }
 
+.arc-tabs-title-trigger-btn {
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.arc-tabs-title-trigger-btn:hover {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.arc-tabs-strip-arrow {
+  transition: transform 0.2s var(--ease-arc);
+}
+
+.arc-tabs-strip-arrow.closed {
+  transform: rotate(-90deg);
+}
+
+.arc-tabs-strip-arrow.open {
+  transform: rotate(0deg);
+}
+
 .arc-section-title {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-faint);
+}
+
+.arc-tabs-count-badge {
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  color: var(--text-muted);
 }
 
 .arc-new-tab-btn {
@@ -399,140 +489,302 @@ html, body {
   background-color: var(--bg-sidebar-hover);
 }
 
-.arc-tabs-scroll-list {
+/* Transparent Tabs Scroll List */
+.arc-tabs-scroll-list.transparent-bg {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-right: 2px;
+  gap: 8px;
+  padding: 6px 2px;
+  background: transparent;
 }
 
-.arc-tabs-scroll-list::-webkit-scrollbar {
+.arc-tabs-scroll-list.transparent-bg::-webkit-scrollbar {
   width: 3px;
 }
 
-.arc-tabs-scroll-list::-webkit-scrollbar-thumb {
+.arc-tabs-scroll-list.transparent-bg::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 3px;
 }
 
-.arc-tab-pill {
-  height: 38px;
+/* ==========================================================================
+   MACOS NOTIFICATION TAB CARD (Image 3 Reference)
+   ========================================================================== */
+.arc-macos-tab-card {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 10px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  gap: 12px;
+  padding: 9px 12px;
+  background-color: rgba(30, 34, 46, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  font-size: 13.5px;
-  position: relative;
-  transition: all 0.14s ease;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
-.arc-tab-pill:hover {
-  background-color: var(--bg-sidebar-hover);
-  color: var(--text-main);
+.arc-macos-tab-card:hover {
+  background-color: rgba(38, 44, 58, 0.85);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.arc-tab-pill.active {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-strong);
-  color: var(--text-main);
-  font-weight: 500;
-  box-shadow: var(--shadow-sm);
+.arc-macos-tab-card.active {
+  background-color: rgba(44, 52, 70, 0.92);
+  border-color: rgba(124, 156, 255, 0.55);
+  box-shadow: 0 0 16px rgba(124, 156, 255, 0.25), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-.arc-tab-active-indicator {
+.arc-macos-tab-active-glow {
   position: absolute;
-  left: 3px;
-  top: 7px;
-  bottom: 7px;
-  width: 3px;
-  border-radius: 2px;
+  left: 4px;
+  top: 10px;
+  bottom: 10px;
+  width: 3.5px;
+  border-radius: 9999px;
   background-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
-.arc-tab-favicon-wrapper {
-  width: 15px;
-  height: 15px;
+/* Notification Left Squircle Icon */
+.arc-macos-tab-squircle {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.arc-tab-favicon {
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
+.arc-macos-tab-favicon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 3px;
 }
 
-.arc-tab-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background-color: var(--text-faint);
-}
-
-.arc-tab-pill.active .arc-tab-dot {
-  background-color: var(--accent);
-}
-
-.arc-tab-title {
+/* Notification Body Content */
+.arc-macos-tab-body {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arc-macos-tab-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.arc-macos-tab-app-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
 }
 
-.arc-status-media {
-  color: var(--accent);
+.arc-macos-tab-right-meta {
   display: flex;
   align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.arc-status-sleep {
-  color: var(--accent);
-  display: flex;
-  align-items: center;
+.arc-macos-tab-timestamp {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
 }
 
-.arc-tab-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.14s ease;
-}
-
-.arc-tab-pill:hover .arc-tab-actions {
-  opacity: 1;
-}
-
-.arc-tab-action-btn {
+.arc-macos-tab-close {
   background: transparent;
   border: none;
   color: var(--text-faint);
   cursor: pointer;
-  padding: 3px;
-  border-radius: 3px;
+  padding: 2px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.arc-macos-tab-card:hover .arc-macos-tab-close {
+  opacity: 1;
+}
+
+.arc-macos-tab-close:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.arc-macos-tab-title-row {
+  font-size: 12px;
+  color: #a4adc1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.arc-meta-icon {
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
 
-.arc-tab-action-btn:hover {
-  color: var(--text-main);
-  background-color: var(--border-strong);
+/* ==========================================================================
+   GROUPED SIMILAR TABS - MACOS NOTIFICATION STACK (Image 3 Reference)
+   ========================================================================== */
+.arc-tab-stack-container {
+  position: relative;
+  margin-bottom: 12px;
 }
 
-/* 5. Arc Spaces & Utility Strip (Bottom Section) */
+.arc-tab-stack-container .stacked-card {
+  position: relative;
+  z-index: 2;
+  margin-bottom: 6px;
+}
+
+/* Peek layers under the top card */
+.arc-stack-peek-layer.arc-peek-1 {
+  position: absolute;
+  bottom: 24px;
+  left: 8px;
+  right: 8px;
+  height: 14px;
+  background-color: rgba(30, 34, 46, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.arc-stack-peek-layer.arc-peek-2 {
+  position: absolute;
+  bottom: 20px;
+  left: 16px;
+  right: 16px;
+  height: 14px;
+  background-color: rgba(30, 34, 46, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* macOS "7 more notifications" style pill */
+.arc-stack-toggle-pill {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  margin: 0 auto;
+  width: fit-content;
+  transition: all 0.15s ease;
+}
+
+.arc-stack-toggle-pill:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Expanded Group Container */
+.arc-tab-stack-container.expanded {
+  background-color: rgba(20, 24, 34, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arc-group-expanded-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.arc-group-expanded-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.arc-group-badge {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 9999px;
+  color: var(--text-muted);
+}
+
+.arc-group-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s ease;
+}
+
+.arc-group-collapse-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.arc-group-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ==========================================================================
+   5. SPACES SLIDER (Text Removed, Slider Added - Image 1 Reference)
+   ========================================================================== */
 .arc-sidebar-bottom {
   display: flex;
   flex-direction: column;
@@ -546,83 +798,113 @@ html, body {
   display: flex;
   align-items: center;
   gap: 5px;
-  background-color: var(--bg-input);
+  background-color: rgba(20, 24, 34, 0.55);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 3px;
+  border-radius: 9999px;
+  padding: 3px 5px;
 }
 
-.arc-spaces-list {
-  flex: 1;
+.arc-spaces-slider-wrapper {
   display: flex;
   align-items: center;
-  gap: 3px;
-  overflow-x: auto;
+  gap: 6px;
+  width: 100%;
 }
 
-.arc-spaces-list::-webkit-scrollbar {
-  display: none;
-}
-
-.arc-space-pill {
+.arc-spaces-slider-track {
   flex: 1;
+  height: 26px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  overflow: hidden;
+}
+
+.arc-slider-tick {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+  transition: transform 0.15s ease;
 }
 
-.arc-space-pill:hover {
-  background-color: var(--bg-sidebar-hover);
-  color: var(--text-main);
-}
-
-.arc-space-pill.active {
-  background-color: var(--bg-sidebar);
-  border-color: var(--border-strong);
-  color: var(--text-main);
-  box-shadow: var(--shadow-sm);
-}
-
-.arc-space-dot {
+.arc-slider-tick-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  flex-shrink: 0;
+  opacity: 0.6;
+  transition: all 0.2s ease;
 }
 
-.arc-space-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.arc-slider-tick:hover .arc-slider-tick-dot,
+.arc-slider-tick.active .arc-slider-tick-dot {
+  opacity: 1;
+  transform: scale(1.3);
+  box-shadow: 0 0 8px currentColor;
 }
 
-.arc-space-delete-btn {
-  display: none;
+.arc-slider-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-faint);
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.25s ease;
+  z-index: 1;
+}
+
+.arc-thumb-glow-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  padding: 1px;
-  margin-left: 2px;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.arc-spaces-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
   cursor: pointer;
+  z-index: 3;
 }
 
-.arc-space-pill:hover .arc-space-delete-btn {
-  display: inline-flex;
+.arc-add-space-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
-.arc-space-delete-btn:hover {
-  color: #fb7185;
+.arc-add-space-btn:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .arc-add-space-btn {
@@ -1058,12 +1340,13 @@ webview,
 }
 
 .homepage-wordmark {
-  font-family: var(--font-heading);
-  font-size: 48px;
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-family: 'Soria', var(--font-heading);
+  font-style: italic;
+  font-size: 58px;
+  font-weight: normal;
+  letter-spacing: -0.01em;
   color: var(--text-main);
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.7);
 }
 
 .homepage-search-form {

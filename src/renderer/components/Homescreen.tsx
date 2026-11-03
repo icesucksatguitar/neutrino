@@ -64,7 +64,7 @@ export const Homescreen: React.FC<HomescreenProps> = ({
             <span className="homepage-badge-dot" />
             <span className="homepage-badge-text">LOCAL-FIRST DESKTOP BROWSER</span>
           </div>
-          <h1 className="homepage-wordmark">Neutrino</h1>
+          <h1 className="homepage-wordmark">NEUTRINO</h1>
         </div>
 
         {/* Central Search / Address Bar */}

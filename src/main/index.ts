@@ -23,8 +23,16 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
+const DESKTOP_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 function setupNetworkInterception() {
   const currentSession = session.defaultSession;
+  const neutrinoSession = session.fromPartition('persist:neutrino');
+
+  // Enforce standard clean desktop Chrome user agent across all sessions
+  currentSession.setUserAgent(DESKTOP_USER_AGENT);
+  neutrinoSession.setUserAgent(DESKTOP_USER_AGENT);
 
   // Intercept all web requests with Brave-grade ad & tracker blocker
   currentSession.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details, callback) => {

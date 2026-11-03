@@ -14,6 +14,9 @@ interface BrowserViewportProps {
   mediaCommand?: { action: string; tabId?: string; value?: number; timestamp: number } | null;
 }
 
+export const DESKTOP_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   activeTab,
   tabs = [],
@@ -84,7 +87,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     }
   }, [activeMediaTabId, onMediaStateChange]);
 
-  // Periodic media heartbeat (every 1s)
+  // Periodic media heartbeat (every 1.2s)
   useEffect(() => {
     const timer = setInterval(() => {
       for (const tab of tabs) {
@@ -96,7 +99,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     return () => clearInterval(timer);
   }, [tabs, checkTabMedia]);
 
-  // Handle media commands from mini player or MCP (Section 8)
+  // Handle media commands from mini player or MCP
   useEffect(() => {
     if (!mediaCommand) return;
     const targetTabId = mediaCommand.tabId || activeMediaTabId || activeTab?.id;
@@ -126,6 +129,16 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   // Attach event listeners for each tab webview
   const attachWebviewEvents = (tabId: string, webview: any) => {
     if (!webview) return;
+
+    // Reset zoom and enforce full desktop scale factor on dom-ready
+    const handleDomReady = () => {
+      try {
+        if (webview.setZoomFactor) webview.setZoomFactor(1.0);
+        if (webview.setVisualZoomLevelLimits) webview.setVisualZoomLevelLimits(1, 1);
+      } catch {
+        // ignore
+      }
+    };
 
     const handleStartLoading = () => onUpdateTab(tabId, { isLoading: true });
     const handleStopLoading = () => {
@@ -160,6 +173,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     const handleMediaPlay = () => checkTabMedia(tabId);
     const handleMediaPause = () => checkTabMedia(tabId);
 
+    webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
     webview.addEventListener('page-title-updated', handleTitle);
@@ -172,13 +186,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
   if (!activeTab) {
     return (
-      <div className="webview-host" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--text-muted)' }}>No active tab</p>
+      <div className="webview-host empty-state">
+        <p className="empty-message">No active tab</p>
       </div>
     );
   }
 
-  const isCurrentTabNewTab = !activeTab.url || activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank';
+  const isCurrentTabNewTab =
+    !activeTab.url || activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank';
 
   return (
     <div className="webview-host">
@@ -194,34 +209,10 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
       {/* If active tab is sleeping (Zen mode), show low-memory placeholder */}
       {activeTab.isSleeping && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '12px',
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'var(--bg-app)',
-        }}>
-          <div style={{
-            width: '54px',
-            height: '54px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--zen-blue-bg)',
-            border: '1px solid var(--zen-blue)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--zen-blue)',
-            fontSize: '24px',
-          }}>
-            💤
-          </div>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
-            Tab is Sleeping (Zen Mode)
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', maxWidth: '340px', textAlign: 'center' }}>
+        <div className="tab-sleeping-container">
+          <div className="tab-sleeping-badge">💤</div>
+          <h3 className="tab-sleeping-title">Tab is Sleeping (Zen Mode)</h3>
+          <p className="tab-sleeping-desc">
             This background tab was put to sleep to save system memory. Click anywhere to wake it instantly.
           </p>
           <button
@@ -233,7 +224,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         </div>
       )}
 
-      {/* Keep webviews of all open web tabs alive in the background (Section 8) */}
+      {/* Keep webviews of all open web tabs alive in the background */}
       {tabs.map((tab) => {
         if (!tab.url || tab.url === 'neutrino://newtab' || tab.url === 'about:blank') {
           return null;
@@ -244,10 +235,27 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         return (
           <div
             key={tab.id}
+            className={`tab-webview-wrapper ${isActive ? 'active' : 'inactive'}`}
             style={
               isActive
-                ? { width: '100%', height: '100%', display: 'flex' }
-                : { width: '1px', height: '1px', position: 'absolute', left: '-9999px', opacity: 0 }
+                ? {
+                    display: 'flex',
+                    flex: '1 1 100%',
+                    width: '100%',
+                    height: '100%',
+                    minWidth: 0,
+                    minHeight: 0,
+                    position: 'relative',
+                  }
+                : {
+                    display: 'none',
+                    width: '1px',
+                    height: '1px',
+                    position: 'absolute',
+                    left: '-9999px',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                  }
             }
           >
             {React.createElement('webview', {
@@ -261,7 +269,18 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               className: 'chromium-webview',
               partition: 'persist:neutrino',
               allowpopups: 'true',
+              useragent: DESKTOP_USER_AGENT,
               webpreferences: 'contextIsolation=yes',
+              style: {
+                display: 'flex',
+                flex: '1 1 100%',
+                width: '100%',
+                height: '100%',
+                minWidth: 0,
+                minHeight: 0,
+                border: 'none',
+                outline: 'none',
+              },
             })}
           </div>
         );

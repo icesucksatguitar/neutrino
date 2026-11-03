@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Plus, X } from 'lucide-react';
 import { Space } from '../types';
 
 interface WorkspaceSliderProps {
@@ -13,6 +14,7 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
   activeSpaceId,
   onSelectSpace,
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -20,9 +22,9 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
   const activeIndex = Math.max(0, spaces.findIndex((s) => s.id === activeSpaceId));
   const total = Math.max(1, spaces.length);
   const activeSpace = spaces[activeIndex] || spaces[0];
-  const activeColor = activeSpace?.color || '#2563eb';
+  const activeColor = activeSpace?.color || '#7c9cff';
 
-  // Compute position percentage for the thumb (0% to 100%)
+  // Compute percentage (0% to 100%)
   const percentage = total > 1 ? (activeIndex / (total - 1)) * 100 : 50;
 
   // Update root CSS variable --workspace-accent smoothly
@@ -61,19 +63,32 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
     };
   }, [isDragging, spaces, activeSpaceId]);
 
-  // Clean dynamic track gradient for dark theme
-  const trackGradient =
-    total <= 2
-      ? `linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, ${activeColor}40 100%)`
-      : `linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.16) 50%, ${activeColor}60 100%)`;
+  // Priority 4: Default state shows only minimal '+' icon
+  if (!isOpen) {
+    return (
+      <div className="spaces-launcher-container">
+        <button
+          className="spaces-minimal-plus-btn"
+          onClick={() => setIsOpen(true)}
+          title="Spaces: Click to switch workspaces"
+          aria-label="Reveal Spaces"
+        >
+          <Plus size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  // Dynamic track gradient based on active space
+  const trackGradient = `linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.12) 50%, ${activeColor}40 100%)`;
 
   return (
     <div
-      className="workspace-slider-minimal"
+      className="spaces-slider-expanded-panel"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Tooltip on hover or drag displaying mode name (Section 6) */}
+      {/* Tooltip on hover or drag displaying mode/space name */}
       {(isHovered || isDragging) && (
         <div
           className="workspace-slider-tooltip"
@@ -82,11 +97,11 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
             transform: 'translateX(-50%)',
           }}
         >
-          {activeSpace?.name || 'Default'}
+          {activeSpace?.name || 'Space'} ({activeIndex + 1}/{total})
         </div>
       )}
 
-      {/* Slider Track with Snap Ticks & Thumb (No text labels, Section 5) */}
+      {/* Slider Track with Snap Ticks & Thumb (Priority 4: 1 slide per Space) */}
       <div
         ref={trackRef}
         className="workspace-slider-track-minimal"
@@ -104,7 +119,7 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
               className="workspace-slider-tick-minimal"
               style={{
                 left: `${tickPct}%`,
-                opacity: idx === activeIndex ? 0 : 0.6,
+                opacity: idx === activeIndex ? 0 : 0.5,
               }}
             />
           );
@@ -114,19 +129,30 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
         <div
           className="workspace-slider-fill-minimal"
           style={{
-            background: `radial-gradient(circle at ${percentage}% 50%, ${activeColor}80 0%, transparent 70%)`,
+            background: `radial-gradient(circle at ${percentage}% 50%, ${activeColor}60 0%, transparent 70%)`,
           }}
         />
 
-        {/* Thumb */}
+        {/* Thumb Handle */}
         <div
           className="workspace-slider-thumb-minimal"
           style={{
             left: `calc(${percentage}% - 8px)`,
-            boxShadow: `0 2px 6px rgba(15, 23, 42, 0.2), 0 0 8px ${activeColor}`,
+            borderColor: activeColor,
+            boxShadow: `0 2px 6px rgba(0, 0, 0, 0.6), 0 0 10px ${activeColor}80`,
           }}
         />
       </div>
+
+      {/* Dismiss / Collapse button */}
+      <button
+        className="spaces-collapse-btn"
+        onClick={() => setIsOpen(false)}
+        title="Hide Spaces Slider"
+        aria-label="Hide Spaces"
+      >
+        <X size={12} />
+      </button>
     </div>
   );
 };

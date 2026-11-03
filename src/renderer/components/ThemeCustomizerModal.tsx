@@ -16,74 +16,62 @@ export interface SimpleTheme {
 
 export const MAC_THEMES: SimpleTheme[] = [
   {
-    id: 'pure-light',
-    name: 'Pure Light',
-    mode: 'light',
-    bgApp: '#fbfbfa',
-    bgSidebar: '#ffffff',
-    bgCard: '#ffffff',
-    bgInput: '#ffffff',
-    textMain: '#0f172a',
-    textMuted: '#475569',
-    borderSubtle: '#e2e8f0',
+    id: 'obsidian-dark',
+    name: 'Obsidian',
+    mode: 'dark',
+    bgApp: '#0b0d12',
+    bgSidebar: '#12151d',
+    bgCard: '#151821',
+    bgInput: '#151821',
+    textMain: '#eceef4',
+    textMuted: '#939aa8',
+    borderSubtle: 'rgba(255, 255, 255, 0.08)',
   },
   {
-    id: 'warm-linen',
-    name: 'Warm Linen',
-    mode: 'light',
-    bgApp: '#f8f6f0',
-    bgSidebar: '#f1eee5',
-    bgCard: '#ffffff',
-    bgInput: '#ffffff',
-    textMain: '#1c1917',
-    textMuted: '#57534e',
-    borderSubtle: '#e7e3da',
+    id: 'midnight-slate',
+    name: 'Midnight',
+    mode: 'dark',
+    bgApp: '#0e1117',
+    bgSidebar: '#161b22',
+    bgCard: '#1a202c',
+    bgInput: '#1a202c',
+    textMain: '#f0f6fc',
+    textMuted: '#8b949e',
+    borderSubtle: 'rgba(255, 255, 255, 0.1)',
   },
   {
-    id: 'soft-slate',
-    name: 'Soft Slate',
-    mode: 'light',
-    bgApp: '#f1f5f9',
-    bgSidebar: '#ffffff',
-    bgCard: '#ffffff',
-    bgInput: '#ffffff',
-    textMain: '#0f172a',
-    textMuted: '#475569',
-    borderSubtle: '#cbd5e1',
+    id: 'deep-charcoal',
+    name: 'Charcoal',
+    mode: 'dark',
+    bgApp: '#121214',
+    bgSidebar: '#18181b',
+    bgCard: '#1f1f23',
+    bgInput: '#1f1f23',
+    textMain: '#fafafa',
+    textMuted: '#a1a1aa',
+    borderSubtle: 'rgba(255, 255, 255, 0.08)',
   },
   {
-    id: 'minimal-gray',
-    name: 'Minimal Gray',
-    mode: 'light',
-    bgApp: '#f4f4f5',
-    bgSidebar: '#e4e4e7',
-    bgCard: '#ffffff',
-    bgInput: '#ffffff',
-    textMain: '#18181b',
-    textMuted: '#52525b',
-    borderSubtle: '#d4d4d8',
-  },
-  {
-    id: 'ice-blue',
-    name: 'Ice Blue',
-    mode: 'light',
-    bgApp: '#f0f9ff',
-    bgSidebar: '#e0f2fe',
-    bgCard: '#ffffff',
-    bgInput: '#ffffff',
-    textMain: '#082f49',
-    textMuted: '#0369a1',
-    borderSubtle: '#bae6fd',
+    id: 'graphite-black',
+    name: 'Graphite',
+    mode: 'dark',
+    bgApp: '#08090b',
+    bgSidebar: '#0f1013',
+    bgCard: '#14151a',
+    bgInput: '#14151a',
+    textMain: '#e5e7eb',
+    textMuted: '#9ca3af',
+    borderSubtle: 'rgba(255, 255, 255, 0.06)',
   },
 ];
 
 export const ACCENT_COLORS = [
-  { name: 'Blue', hex: '#2563eb' },
-  { name: 'Amber', hex: '#d97706' },
-  { name: 'Forest', hex: '#15803d' },
-  { name: 'Purple', hex: '#7c3aed' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Graphite', hex: '#475569' },
+  { name: 'Indigo', hex: '#7c9cff' },
+  { name: 'Cyan', hex: '#38bdf8' },
+  { name: 'Emerald', hex: '#4ade80' },
+  { name: 'Violet', hex: '#a78bfa' },
+  { name: 'Rose', hex: '#fb7185' },
+  { name: 'Amber', hex: '#fbbf24' },
 ];
 
 export interface ThemeModalProps {
@@ -92,23 +80,25 @@ export interface ThemeModalProps {
 }
 
 export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('pure-light');
-  const [selectedAccent, setSelectedAccent] = useState('#2563eb');
-  const [textSize, setTextSize] = useState<number>(14);
+  const [selectedThemeId, setSelectedThemeId] = useState('obsidian-dark');
+  const [selectedAccent, setSelectedAccent] = useState('#7c9cff');
+  const [textSize, setTextSize] = useState<number>(13.5);
 
   const applyTheme = useCallback((theme: SimpleTheme, accent: string, size: number) => {
     const root = document.documentElement;
+    root.style.setProperty('--bg', theme.bgApp);
     root.style.setProperty('--bg-app', theme.bgApp);
-    root.style.setProperty('--bg-app-gradient', 'none');
-    root.style.setProperty('--bg-sidebar', theme.bgSidebar);
+    root.style.setProperty('--bg-elevated', theme.bgSidebar);
+    root.style.setProperty('--surface-solid', theme.bgCard);
     root.style.setProperty('--bg-card', theme.bgCard);
     root.style.setProperty('--bg-input', theme.bgInput);
+    root.style.setProperty('--text', theme.textMain);
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--text-muted', theme.textMuted);
-    root.style.setProperty('--border-subtle', theme.borderSubtle);
+    root.style.setProperty('--border', theme.borderSubtle);
     root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-soft', `${accent}25`);
     root.style.setProperty('--accent-glow', `${accent}40`);
-    root.style.setProperty('--border-focus', accent);
     root.style.setProperty('--font-size-base', `${size}px`);
 
     localStorage.setItem(
@@ -124,14 +114,14 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
         const { themeId, accent, size } = JSON.parse(saved);
         const t = MAC_THEMES.find((x) => x.id === themeId) || MAC_THEMES[0];
         setSelectedThemeId(t.id);
-        setSelectedAccent(accent || '#0a84ff');
-        setTextSize(size || 14);
-        applyTheme(t, accent || '#0a84ff', size || 14);
+        setSelectedAccent(accent || '#7c9cff');
+        setTextSize(size || 13.5);
+        applyTheme(t, accent || '#7c9cff', size || 13.5);
       } else {
-        applyTheme(MAC_THEMES[0], '#0a84ff', 14);
+        applyTheme(MAC_THEMES[0], '#7c9cff', 13.5);
       }
     } catch {
-      applyTheme(MAC_THEMES[0], '#0a84ff', 14);
+      applyTheme(MAC_THEMES[0], '#7c9cff', 13.5);
     }
   }, [applyTheme]);
 
@@ -155,32 +145,49 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="mac-modal-overlay" onClick={onClose}>
-      <div className="mac-modal-card" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="mac-modal-header">
-          <span className="mac-modal-title">Appearance</span>
-          <button className="mac-modal-close" onClick={onClose} title="Close">
+        <div className="modal-header">
+          <span className="modal-title">Theme & Appearance</span>
+          <button className="close-btn" onClick={onClose} title="Close">
             <X size={15} />
           </button>
         </div>
 
         {/* Theme Options */}
-        <div className="mac-section">
-          <span className="mac-section-label">Theme</span>
-          <div className="mac-theme-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Theme Palette</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
             {MAC_THEMES.map((t) => {
               const isSelected = t.id === selectedThemeId;
               return (
                 <button
                   key={t.id}
-                  className={`mac-theme-btn ${isSelected ? 'selected' : ''}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                    backgroundColor: isSelected ? 'var(--surface-hover)' : 'var(--bg-elevated)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
                   onClick={() => handleSelectTheme(t)}
                 >
-                  <div className="mac-theme-preview" style={{ backgroundColor: t.bgApp }}>
-                    <div className="mac-theme-subpreview" style={{ backgroundColor: t.bgCard }} />
-                  </div>
-                  <span className="mac-theme-name">{t.name}</span>
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      backgroundColor: t.bgApp,
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                    }}
+                  />
+                  <span style={{ fontSize: '12.5px', fontWeight: 500 }}>{t.name}</span>
                 </button>
               );
             })}
@@ -188,20 +195,30 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Accent Color Options */}
-        <div className="mac-section">
-          <span className="mac-section-label">Accent Color</span>
-          <div className="mac-accent-row">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Accent Color</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {ACCENT_COLORS.map((a) => {
               const isSelected = selectedAccent.toLowerCase() === a.hex.toLowerCase();
               return (
                 <button
                   key={a.name}
-                  className={`mac-accent-dot ${isSelected ? 'selected' : ''}`}
-                  style={{ backgroundColor: a.hex }}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: a.hex,
+                    border: isSelected ? '2px solid #ffffff' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? '0 0 8px var(--accent-glow)' : 'none',
+                  }}
                   onClick={() => handleSelectAccent(a.hex)}
                   title={a.name}
                 >
-                  {isSelected && <Check size={11} style={{ color: '#ffffff' }} />}
+                  {isSelected && <Check size={12} style={{ color: '#0b0d12' }} />}
                 </button>
               );
             })}
@@ -209,19 +226,29 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Text Size */}
-        <div className="mac-section">
-          <span className="mac-section-label">Text Size</span>
-          <div className="mac-size-row">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Interface Scale</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
             {[
               { label: 'Compact', size: 12.5 },
-              { label: 'Default', size: 14 },
-              { label: 'Large', size: 15.5 },
+              { label: 'Default', size: 13.5 },
+              { label: 'Relaxed', size: 15 },
             ].map((s) => {
               const isSelected = textSize === s.size;
               return (
                 <button
                   key={s.label}
-                  className={`mac-size-chip ${isSelected ? 'selected' : ''}`}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                    backgroundColor: isSelected ? 'var(--accent-soft)' : 'var(--bg-elevated)',
+                    color: isSelected ? 'var(--accent)' : 'var(--text)',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
                   onClick={() => handleSelectSize(s.size)}
                 >
                   {s.label}

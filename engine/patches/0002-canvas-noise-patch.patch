@@ -1,8 +1,0 @@
---- a/dom/canvas/CanvasRenderingContext2D.cpp
-+++ b/dom/canvas/CanvasRenderingContext2D.cpp
-@@ -1500,6 +1500,14 @@
-+  // Neutrino Engine Patch: Deterministic canvas noise injection to defeat cross-site fingerprinting.
-+  if (StaticPrefs::privacy_resistFingerprinting()) {
-+    ApplyNeutrinoCanvasJitter(aSurface, aOrigin);
-+  }
-

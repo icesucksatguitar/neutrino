@@ -168,3 +168,4 @@ export const McpModal: React.FC<McpModalProps> = ({ isOpen, onClose }) => {
     </div>
   );
 };
+

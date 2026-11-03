@@ -148,3 +148,4 @@ export const Omnibox: React.FC<OmniboxProps> = ({
     </header>
   );
 };
+

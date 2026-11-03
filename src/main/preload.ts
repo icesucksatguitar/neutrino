@@ -42,3 +42,4 @@ contextBridge.exposeInMainWorld('neutrino', {
     return () => ipcRenderer.removeListener('neutrino:tracker-blocked', handler);
   },
 });
+

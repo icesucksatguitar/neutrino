@@ -186,3 +186,4 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
     </div>
   );
 };
+

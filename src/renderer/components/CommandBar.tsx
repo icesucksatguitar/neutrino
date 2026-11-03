@@ -177,3 +177,4 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     </div>
   );
 };
+

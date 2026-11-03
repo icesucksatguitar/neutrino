@@ -111,3 +111,4 @@ Neutrino natively exposes the following tools via MCP JSON-RPC:
 - `browser_get_adblock_stats`: Return real-time tracker blocking stats.
 - `browser_zen_optimize`: Hibernate background tabs to purge RAM.
 - `browser_get_status`: Return browser engine health and version.
+

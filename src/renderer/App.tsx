@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { PanelLeftOpen } from 'lucide-react';
 import { useBrowser } from './hooks/useBrowser';
 import { Sidebar } from './components/Sidebar';
@@ -73,6 +73,7 @@ export function App() {
     setBrowserZoom(next);
     try {
       localStorage.setItem('neutrino_browser_zoom', next.toString());
+      document.documentElement.style.zoom = `${next}`;
       window.neutrino?.setBrowserZoom?.(next);
     } catch {
       // ignore
@@ -96,7 +97,8 @@ export function App() {
 
   // Restore saved UI zoom on mount
   useEffect(() => {
-    if (browserZoom && browserZoom !== 1.0) {
+    if (browserZoom) {
+      document.documentElement.style.zoom = `${browserZoom}`;
       window.neutrino?.setBrowserZoom?.(browserZoom);
     }
   }, [browserZoom]);

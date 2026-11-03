@@ -97,6 +97,8 @@ declare global {
       deleteSpace?: (spaceId: string) => Promise<void>;
       reorderTabs?: (draggedTabId: string, targetTabId: string) => Promise<void>;
       setZoomFactor?: (factor: number) => Promise<void>;
+      setBrowserZoom?: (factor: number) => void;
+      getBrowserZoom?: () => number;
       onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;
       toggleShields: () => Promise<boolean>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;

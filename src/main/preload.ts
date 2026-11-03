@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 contextBridge.exposeInMainWorld('neutrino', {
   isElectron: true,
@@ -21,6 +21,22 @@ contextBridge.exposeInMainWorld('neutrino', {
   deleteSpace: (spaceId: string) => ipcRenderer.invoke('neutrino:delete-space', spaceId),
   reorderTabs: (draggedTabId: string, targetTabId: string) => ipcRenderer.invoke('neutrino:reorder-tabs', { draggedTabId, targetTabId }),
   setZoomFactor: (factor: number) => ipcRenderer.invoke('neutrino:set-zoom-factor', factor),
+
+  // Browser UI Scaling
+  setBrowserZoom: (factor: number) => {
+    try {
+      webFrame.setZoomFactor(factor);
+    } catch {
+      // ignore
+    }
+  },
+  getBrowserZoom: () => {
+    try {
+      return webFrame.getZoomFactor();
+    } catch {
+      return 1.0;
+    }
+  },
 
   // Zoom events
   onZoomUpdated: (callback: (data: { zoomFactor: number }) => void) => {

@@ -42,6 +42,65 @@ export function App() {
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
 
+  // Browser UI Scale state (persisted across sessions)
+  const [browserZoom, setBrowserZoom] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('neutrino_browser_zoom');
+      return saved ? parseFloat(saved) : 1.0;
+    } catch {
+      return 1.0;
+    }
+  });
+
+  const [zoomNotification, setZoomNotification] = useState<string | null>(null);
+  const zoomNotifTimer = useRef<any>(null);
+
+  const notifyZoom = (msg: string) => {
+    setZoomNotification(msg);
+    if (zoomNotifTimer.current) clearTimeout(zoomNotifTimer.current);
+    zoomNotifTimer.current = setTimeout(() => {
+      setZoomNotification(null);
+    }, 1800);
+  };
+
+  const changeBrowserZoom = (delta: number | 'reset') => {
+    let next = 1.0;
+    if (delta === 'reset') {
+      next = 1.0;
+    } else {
+      next = Math.max(0.6, Math.min(2.5, Math.round((browserZoom + delta) * 100) / 100));
+    }
+    setBrowserZoom(next);
+    try {
+      localStorage.setItem('neutrino_browser_zoom', next.toString());
+      window.neutrino?.setBrowserZoom?.(next);
+    } catch {
+      // ignore
+    }
+
+    // Also scale active webview to match
+    const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
+    if (webview?.setZoomFactor) {
+      try {
+        webview.setZoomFactor(next);
+      } catch {
+        // ignore
+      }
+    }
+    if (activeTab) {
+      handleUpdateTab(activeTab.id, { zoomFactor: next });
+    }
+
+    notifyZoom(`Browser Scale: ${Math.round(next * 100)}%`);
+  };
+
+  // Restore saved UI zoom on mount
+  useEffect(() => {
+    if (browserZoom && browserZoom !== 1.0) {
+      window.neutrino?.setBrowserZoom?.(browserZoom);
+    }
+  }, [browserZoom]);
+
   // Persistent Media Player state (PiP when backgrounded)
   const [activeMediaState, setActiveMediaState] = useState<ActiveMediaState | null>(null);
   const [mediaCommand, setMediaCommand] = useState<{
@@ -109,44 +168,35 @@ export function App() {
           handleSelectSpace(state.spaces[idx].id);
         }
       }
-      // Ctrl+- or Ctrl+_ -> Zoom Out
-      else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+      // Ctrl+- or Ctrl+_ -> Make browser smaller
+      else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '-' || e.key === '_' || e.code === 'Minus' || e.code === 'NumpadSubtract' || (e as any).keyCode === 189 || (e as any).keyCode === 109)
+      ) {
         e.preventDefault();
-        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
-        if (webview?.getZoomFactor && webview?.setZoomFactor) {
-          webview.getZoomFactor((current: number) => {
-            const next = Math.max(0.25, Math.round((current - 0.1) * 100) / 100);
-            webview.setZoomFactor(next);
-            if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: next });
-          });
-        }
+        changeBrowserZoom(-0.1);
       }
-      // Ctrl+= or Ctrl++ -> Zoom In
-      else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+      // Ctrl+= or Ctrl++ -> Make browser bigger!
+      else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '=' || e.key === '+' || e.code === 'Equal' || e.code === 'NumpadAdd' || (e as any).keyCode === 187 || (e as any).keyCode === 107)
+      ) {
         e.preventDefault();
-        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
-        if (webview?.getZoomFactor && webview?.setZoomFactor) {
-          webview.getZoomFactor((current: number) => {
-            const next = Math.min(5.0, Math.round((current + 0.1) * 100) / 100);
-            webview.setZoomFactor(next);
-            if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: next });
-          });
-        }
+        changeBrowserZoom(+0.1);
       }
-      // Ctrl+0 -> Reset Zoom
-      else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+      // Ctrl+0 -> Reset browser zoom to 100%
+      else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '0' || e.code === 'Digit0' || e.code === 'Numpad0' || (e as any).keyCode === 48 || (e as any).keyCode === 96)
+      ) {
         e.preventDefault();
-        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
-        if (webview?.setZoomFactor) {
-          webview.setZoomFactor(1.0);
-          if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: 1.0 });
-        }
+        changeBrowserZoom('reset');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen]);
+  }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen, browserZoom]);
 
   // Listen for media commands from MCP or external calls
   useEffect(() => {
@@ -218,6 +268,13 @@ export function App() {
 
   return (
     <div className="arc-app-shell">
+      {/* Floating Browser Scale Notification */}
+      {zoomNotification && (
+        <div className="arc-browser-zoom-pill">
+          <span>{zoomNotification}</span>
+        </div>
+      )}
+
       {/* Space Name Animation Overlay */}
       {spaceOverlay && (
         <div className="macos-space-name-overlay">

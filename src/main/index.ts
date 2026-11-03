@@ -237,7 +237,7 @@ app.whenReady().then(() => {
   app.on('web-contents-created', (_, contents) => {
     contents.on('before-input-event', (event, input) => {
       if (input.type === 'keyDown' && (input.control || input.meta)) {
-        if (input.key === '-' || input.key === '_') {
+        if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
           event.preventDefault();
           const current = contents.getZoomFactor();
           const next = Math.max(0.25, Math.round((current - 0.1) * 100) / 100);
@@ -249,7 +249,7 @@ app.whenReady().then(() => {
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
           }
-        } else if (input.key === '=' || input.key === '+') {
+        } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
           event.preventDefault();
           const current = contents.getZoomFactor();
           const next = Math.min(5.0, Math.round((current + 0.1) * 100) / 100);

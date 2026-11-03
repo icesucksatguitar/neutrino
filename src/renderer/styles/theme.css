@@ -906,6 +906,32 @@ webview,
   color: var(--accent);
 }
 
+/* Floating Browser Scale Notification */
+.arc-browser-zoom-pill {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 9999;
+  background-color: rgba(18, 22, 32, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px var(--accent-glow);
+  pointer-events: none;
+  animation: zoomPillPop 0.2s var(--ease-arc) forwards;
+}
+
+@keyframes zoomPillPop {
+  0% { transform: translateY(-8px) scale(0.95); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
 /* Space Name Overlay (macOS-inspired desktop slide) */
 .macos-space-name-overlay {
   position: fixed;

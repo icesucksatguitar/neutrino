@@ -17,6 +17,7 @@ export interface TabState {
   isSleeping: boolean;
   hasActiveMedia?: boolean;
   blockedCount: number;
+  zoomFactor?: number;
 }
 
 export class BrowserManager {

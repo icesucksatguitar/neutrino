@@ -7,6 +7,7 @@ import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 
 // Chrome-level performance flags
+app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -165,6 +166,17 @@ function setupIpcHandlers() {
     browserManager.reorderTabs(draggedTabId, targetTabId);
   });
 
+  ipcMain.handle('neutrino:update-tab', async (_, { tabId, partial }: { tabId: string; partial: any }) => {
+    browserManager.updateTab(tabId, partial);
+  });
+
+  ipcMain.handle('neutrino:set-zoom-factor', async (_, factor: number) => {
+    const active = browserManager.getActiveTab();
+    if (active) {
+      browserManager.updateTab(active.id, { zoomFactor: factor });
+    }
+  });
+
   ipcMain.handle('neutrino:toggle-shields', async () => {
     const current = adblockEngine.isEnabled();
     adblockEngine.setEnabled(!current);
@@ -220,6 +232,49 @@ app.whenReady().then(() => {
   setupNetworkInterception();
   setupIpcHandlers();
   createWindow();
+
+  // Universal zoom handlers for all WebContents (browser UI & webview tabs)
+  app.on('web-contents-created', (_, contents) => {
+    contents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown' && (input.control || input.meta)) {
+        if (input.key === '-' || input.key === '_') {
+          event.preventDefault();
+          const current = contents.getZoomFactor();
+          const next = Math.max(0.25, Math.round((current - 0.1) * 100) / 100);
+          contents.setZoomFactor(next);
+          const active = browserManager.getActiveTab();
+          if (active) {
+            browserManager.updateTab(active.id, { zoomFactor: next });
+          }
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+          }
+        } else if (input.key === '=' || input.key === '+') {
+          event.preventDefault();
+          const current = contents.getZoomFactor();
+          const next = Math.min(5.0, Math.round((current + 0.1) * 100) / 100);
+          contents.setZoomFactor(next);
+          const active = browserManager.getActiveTab();
+          if (active) {
+            browserManager.updateTab(active.id, { zoomFactor: next });
+          }
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+          }
+        } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
+          event.preventDefault();
+          contents.setZoomFactor(1.0);
+          const active = browserManager.getActiveTab();
+          if (active) {
+            browserManager.updateTab(active.id, { zoomFactor: 1.0 });
+          }
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+          }
+        }
+      }
+    });
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

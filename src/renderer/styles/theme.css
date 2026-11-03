@@ -49,7 +49,7 @@
   --font-mono:        'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
 
   --font-family-base: var(--font-ui);
-  --font-size-base:   13px;
+  --font-size-base:   14px;
   --letter-spacing:   -0.01em;
 
   --ease-arc:         cubic-bezier(0.16, 1, 0.3, 1);
@@ -94,16 +94,16 @@ html, body {
    2. ARC SIGNATURE VERTICAL SIDEBAR
    ========================================================================== */
 .arc-sidebar {
-  width: 260px;
-  min-width: 260px;
-  max-width: 260px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   height: 100vh;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 8px 10px;
-  gap: 8px;
+  padding: 10px 12px;
+  gap: 10px;
   z-index: 50;
   position: relative;
   overflow: hidden;
@@ -113,7 +113,7 @@ html, body {
 }
 
 .arc-sidebar.collapsed {
-  margin-left: -260px !important;
+  margin-left: -280px !important;
   opacity: 0 !important;
   visibility: hidden;
   pointer-events: none !important;
@@ -188,14 +188,14 @@ html, body {
 
 .arc-omnibox-form {
   width: 100%;
-  height: 32px;
+  height: 36px;
   background-color: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
-  padding: 0 8px;
-  gap: 7px;
+  padding: 0 10px;
+  gap: 8px;
   position: relative;
   transition: all var(--transition-fast);
 }
@@ -231,7 +231,7 @@ html, body {
   border: none;
   outline: none;
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-main);
   letter-spacing: -0.01em;
   width: 100%;
@@ -243,7 +243,7 @@ html, body {
 
 .arc-omnibox-display-pill {
   position: absolute;
-  left: 28px;
+  left: 30px;
   right: 8px;
   top: 0;
   bottom: 0;
@@ -254,7 +254,7 @@ html, body {
 }
 
 .arc-display-domain {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-main);
   font-weight: 500;
   white-space: nowrap;
@@ -418,17 +418,17 @@ html, body {
 }
 
 .arc-tab-pill {
-  height: 34px;
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   padding: 0 10px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: 13.5px;
   position: relative;
   transition: all 0.14s ease;
 }
@@ -487,7 +487,8 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 12.5px;
+  font-size: 13.5px;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -568,14 +569,14 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 4px 6px;
+  gap: 6px;
+  padding: 6px 8px;
   border-radius: var(--radius-xs);
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 500;
   transition: all var(--transition-fast);
   white-space: nowrap;
@@ -680,11 +681,11 @@ html, body {
 
 .arc-util-pill {
   border-radius: var(--radius-full);
-  padding: 3px 7px;
+  padding: 4px 9px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -836,6 +837,75 @@ webview,
   background-color: #ffffff;
 }
 
+/* Floating Arc Zoom Pill Widget */
+.arc-zoom-pill {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(18, 22, 32, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-popup);
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.arc-zoom-pill.compact {
+  opacity: 0.6;
+}
+
+.arc-zoom-pill:hover,
+.arc-zoom-pill.visible {
+  opacity: 1;
+  box-shadow: var(--shadow-popup), 0 0 0 1px var(--accent-soft);
+}
+
+.arc-zoom-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 600;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all var(--transition-fast);
+}
+
+.arc-zoom-btn:hover {
+  background-color: var(--bg-sidebar-hover);
+  color: var(--accent);
+}
+
+.arc-zoom-label {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+}
+
+.arc-zoom-label:hover {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+}
+
 /* Space Name Overlay (macOS-inspired desktop slide) */
 .macos-space-name-overlay {
   position: fixed;
@@ -944,11 +1014,11 @@ webview,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--text-faint);
@@ -963,7 +1033,7 @@ webview,
 
 .homepage-wordmark {
   font-family: var(--font-heading);
-  font-size: 42px;
+  font-size: 48px;
   font-weight: 500;
   letter-spacing: -0.03em;
   color: var(--text-main);
@@ -972,15 +1042,15 @@ webview,
 
 .homepage-search-form {
   width: 100%;
-  max-width: 520px;
-  height: 48px;
+  max-width: 560px;
+  height: 54px;
   background: #141720;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
-  padding: 0 14px;
-  gap: 10px;
+  padding: 0 16px;
+  gap: 12px;
   box-shadow: var(--shadow-md);
   transition: all var(--transition-fast);
 }
@@ -1006,7 +1076,7 @@ webview,
   border: none;
   outline: none;
   font-family: var(--font-ui);
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--text-main);
   letter-spacing: -0.01em;
 }
@@ -1018,8 +1088,8 @@ webview,
 .homepage-search-submit-btn {
   background: var(--accent);
   border: none;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
@@ -1039,21 +1109,21 @@ webview,
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: -4px;
+  gap: 10px;
+  margin-top: 2px;
 }
 
 .homepage-shortcut-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.03);
+  gap: 7px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   color: var(--text-muted);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1079,7 +1149,7 @@ webview,
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--text-faint);
 }
 

@@ -18,6 +18,7 @@ export interface TabState {
   isSleeping: boolean;
   hasActiveMedia?: boolean;
   blockedCount: number;
+  zoomFactor?: number;
 }
 
 export interface ActiveMediaState {
@@ -86,6 +87,7 @@ declare global {
       goForward: () => Promise<void>;
       reload: () => Promise<void>;
       createTab: (url?: string, spaceId?: string) => Promise<TabState>;
+      updateTab?: (tabId: string, partial: Partial<TabState>) => Promise<void>;
       closeTab: (tabId: string) => Promise<void>;
       selectTab: (tabId: string) => Promise<void>;
       togglePinTab: (tabId: string) => Promise<void>;
@@ -94,6 +96,8 @@ declare global {
       createSpace?: (name: string, color?: string) => Promise<Space>;
       deleteSpace?: (spaceId: string) => Promise<void>;
       reorderTabs?: (draggedTabId: string, targetTabId: string) => Promise<void>;
+      setZoomFactor?: (factor: number) => Promise<void>;
+      onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;
       toggleShields: () => Promise<boolean>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;
       getShieldStats: () => Promise<ShieldStats>;

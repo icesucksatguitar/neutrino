@@ -30,6 +30,81 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const [activeMediaTabId, setActiveMediaTabId] = useState<string | null>(null);
+  const [zoomIndicator, setZoomIndicator] = useState<{ factor: number; visible: boolean }>({
+    factor: 1.0,
+    visible: false,
+  });
+  const zoomTimerRef = useRef<any>(null);
+  const tabZoomMap = useRef<Record<string, number>>({});
+
+  // Unified Zoom Controller
+  const changeZoom = useCallback(
+    (direction: 'in' | 'out' | 'reset' | number) => {
+      if (!activeTab) return;
+      const webview = webviewRefs.current[activeTab.id];
+      const current = tabZoomMap.current[activeTab.id] ?? activeTab.zoomFactor ?? 1.0;
+      let next = current;
+
+      if (typeof direction === 'number') {
+        next = direction;
+      } else if (direction === 'in') {
+        next = Math.min(3.0, Math.round((current + 0.1) * 10) / 10);
+      } else if (direction === 'out') {
+        next = Math.max(0.3, Math.round((current - 0.1) * 10) / 10);
+      } else if (direction === 'reset') {
+        next = 1.0;
+      }
+
+      tabZoomMap.current[activeTab.id] = next;
+      if (webview?.setZoomFactor) {
+        try {
+          webview.setZoomFactor(next);
+        } catch {
+          // ignore
+        }
+      }
+      onUpdateTab(activeTab.id, { zoomFactor: next });
+
+      setZoomIndicator({ factor: next, visible: true });
+      if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+      zoomTimerRef.current = setTimeout(() => {
+        setZoomIndicator((prev) => ({ ...prev, visible: false }));
+      }, 2400);
+    },
+    [activeTab, onUpdateTab]
+  );
+
+  // Sync with main process zoom updates
+  useEffect(() => {
+    if (!window.neutrino?.onZoomUpdated) return;
+    const unsub = window.neutrino.onZoomUpdated((data) => {
+      if (activeTab) {
+        tabZoomMap.current[activeTab.id] = data.zoomFactor;
+        setZoomIndicator({ factor: data.zoomFactor, visible: true });
+        if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+        zoomTimerRef.current = setTimeout(() => {
+          setZoomIndicator((prev) => ({ ...prev, visible: false }));
+        }, 2400);
+      }
+    });
+    return () => unsub?.();
+  }, [activeTab]);
+
+  // Handle Ctrl + Wheel zooming on the canvas
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          changeZoom('in');
+        } else if (e.deltaY > 0) {
+          changeZoom('out');
+        }
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [changeZoom]);
 
   // Poll / Query media state from webviews
   const checkTabMedia = useCallback(async (tabId: string) => {
@@ -130,11 +205,12 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   const attachWebviewEvents = (tabId: string, webview: any) => {
     if (!webview) return;
 
-    // Reset zoom and enforce full desktop scale factor on dom-ready
+    // Restore zoom and enforce full visual zoom flexibility on dom-ready
     const handleDomReady = () => {
       try {
-        if (webview.setZoomFactor) webview.setZoomFactor(1.0);
-        if (webview.setVisualZoomLevelLimits) webview.setVisualZoomLevelLimits(1, 1);
+        const factor = tabZoomMap.current[tabId] ?? activeTab?.zoomFactor ?? 1.0;
+        if (webview.setZoomFactor) webview.setZoomFactor(factor);
+        if (webview.setVisualZoomLevelLimits) webview.setVisualZoomLevelLimits(0.25, 5.0);
       } catch {
         // ignore
       }
@@ -285,6 +361,35 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
           </div>
         );
       })}
+
+      {/* Floating Arc Zoom Pill Widget */}
+      {(zoomIndicator.visible || (tabZoomMap.current[activeTab.id] && tabZoomMap.current[activeTab.id] !== 1.0)) && (
+        <div className={`arc-zoom-pill ${zoomIndicator.visible ? 'visible' : 'compact'}`}>
+          <button
+            className="arc-zoom-btn"
+            onClick={() => changeZoom('out')}
+            title="Zoom Out (Ctrl -)"
+            aria-label="Zoom Out"
+          >
+            −
+          </button>
+          <span
+            className="arc-zoom-label"
+            onClick={() => changeZoom('reset')}
+            title="Click to reset zoom to 100% (Ctrl 0)"
+          >
+            {Math.round((tabZoomMap.current[activeTab.id] ?? activeTab.zoomFactor ?? 1.0) * 100)}%
+          </span>
+          <button
+            className="arc-zoom-btn"
+            onClick={() => changeZoom('in')}
+            title="Zoom In (Ctrl +)"
+            aria-label="Zoom In"
+          >
+            +
+          </button>
+        </div>
+      )}
     </div>
   );
 };

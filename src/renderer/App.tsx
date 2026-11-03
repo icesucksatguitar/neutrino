@@ -109,11 +109,44 @@ export function App() {
           handleSelectSpace(state.spaces[idx].id);
         }
       }
+      // Ctrl+- or Ctrl+_ -> Zoom Out
+      else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
+        if (webview?.getZoomFactor && webview?.setZoomFactor) {
+          webview.getZoomFactor((current: number) => {
+            const next = Math.max(0.25, Math.round((current - 0.1) * 100) / 100);
+            webview.setZoomFactor(next);
+            if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: next });
+          });
+        }
+      }
+      // Ctrl+= or Ctrl++ -> Zoom In
+      else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
+        if (webview?.getZoomFactor && webview?.setZoomFactor) {
+          webview.getZoomFactor((current: number) => {
+            const next = Math.min(5.0, Math.round((current + 0.1) * 100) / 100);
+            webview.setZoomFactor(next);
+            if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: next });
+          });
+        }
+      }
+      // Ctrl+0 -> Reset Zoom
+      else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        const webview: any = document.querySelector('.tab-webview-wrapper.active webview');
+        if (webview?.setZoomFactor) {
+          webview.setZoomFactor(1.0);
+          if (activeTab) handleUpdateTab(activeTab.id, { zoomFactor: 1.0 });
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.activeTabId, state.spaces, closeTab, handleSelectSpace, setIsCommandBarOpen]);
+  }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen]);
 
   // Listen for media commands from MCP or external calls
   useEffect(() => {
@@ -127,8 +160,8 @@ export function App() {
     }
   }, []);
 
-  const handleUpdateTab = () => {
-    // updates from webview
+  const handleUpdateTab = (tabId: string, partial: Partial<TabState>) => {
+    window.neutrino?.updateTab?.(tabId, partial);
   };
 
   const handleGoBack = () => {

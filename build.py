@@ -169,14 +169,16 @@ def run_tests() -> bool:
 
 def run_app():
     """Launch the standalone Neutrino Browser executable."""
+    env = os.environ.copy()
+    env.pop("ELECTRON_RUN_AS_NODE", None)
     if not STANDALONE_EXE.exists():
         log_warn("Standalone executable not found. Running packaged app or launching via electron...")
         npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
-        subprocess.Popen([npm_cmd, "start"], cwd=ROOT_DIR)
+        subprocess.Popen([npm_cmd, "start"], cwd=ROOT_DIR, env=env)
         return True
 
     log_info(f"Launching standalone executable: {STANDALONE_EXE}")
-    subprocess.Popen([str(STANDALONE_EXE)])
+    subprocess.Popen([str(STANDALONE_EXE)], env=env)
     log_success("Neutrino Browser desktop application launched successfully!")
     return True
 

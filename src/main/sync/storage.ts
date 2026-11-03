@@ -61,10 +61,9 @@ export class LocalStorageManager {
     settings: Record<string, unknown>;
   } {
     const defaultSpaces: Space[] = [
-      { id: 'space-personal', name: 'Personal', icon: 'Home', color: '#6366f1' },
-      { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#3b82f6' },
-      { id: 'space-dev', name: 'Dev & AI', icon: 'Terminal', color: '#10b981' },
-      { id: 'space-research', name: 'Research', icon: 'Compass', color: '#f59e0b' },
+      { id: 'space-default', name: 'DEFAULT', icon: 'Home', color: '#6366f1' },
+      { id: 'space-plan', name: 'PLAN', icon: 'Briefcase', color: '#10b981' },
+      { id: 'space-max', name: 'MAX', icon: 'Terminal', color: '#f59e0b' },
     ];
 
     if (!fs.existsSync(this.stateFilePath)) {
@@ -72,10 +71,10 @@ export class LocalStorageManager {
         spaces: defaultSpaces,
         bookmarks: [],
         settings: {
-          searchEngine: 'https://duckduckgo.com/?q=',
+          searchEngine: 'https://www.google.com/search?q=',
           adblockEnabled: true,
           zenSleepEnabled: true,
-          theme: 'dark',
+          theme: 'light',
         },
       };
     }

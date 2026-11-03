@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('neutrino', {
   callMcp: (method: string, params?: unknown) => ipcRenderer.invoke('neutrino:mcp-call', { method, params }),
   getMcpLogs: () => ipcRenderer.invoke('neutrino:mcp-get-logs'),
 
+  // Media Control & Picture-in-Picture
+  mediaControl: (action: string, params?: unknown) => ipcRenderer.invoke('neutrino:media-control', { action, params }),
+
   // Window Controls
   windowControl: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.invoke('neutrino:window-control', action),
 
@@ -42,4 +45,3 @@ contextBridge.exposeInMainWorld('neutrino', {
     return () => ipcRenderer.removeListener('neutrino:tracker-blocked', handler);
   },
 });
-

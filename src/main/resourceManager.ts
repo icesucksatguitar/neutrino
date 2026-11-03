@@ -83,9 +83,9 @@ export class ZenResourceManager {
     return count;
   }
 
-  public sleepAllBackgroundTabs(activeTabId: string) {
+  public sleepAllBackgroundTabs(activeTabId: string, exemptTabIds: Set<string> = new Set()) {
     for (const [id, info] of this.tabInfos.entries()) {
-      if (id !== activeTabId && !info.isSleeping) {
+      if (id !== activeTabId && !info.isSleeping && !exemptTabIds.has(id)) {
         this.sleepTab(id);
       }
     }

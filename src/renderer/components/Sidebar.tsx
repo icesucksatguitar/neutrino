@@ -1,29 +1,23 @@
 import React from 'react';
 import {
-  Shield,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Search,
   Plus,
   X,
   Moon,
   Pin,
   Globe,
-  Home,
-  Briefcase,
-  Terminal,
-  Compass,
+  Volume2,
 } from 'lucide-react';
-import { Space, TabState } from '../types';
+import { TabState } from '../types';
 
 interface SidebarProps {
-  spaces: Space[];
+  spaces: any[];
   activeSpaceId: string;
   tabs: TabState[];
   activeTabId: string | null;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
+  isOpen: boolean;
+  onClose: () => void;
   onOpenCommandBar: () => void;
+  onOpenThemeStudio?: () => void;
   onSelectTab: (id: string) => void;
   onCloseTab: (id: string) => void;
   onTogglePinTab: (id: string) => void;
@@ -32,169 +26,125 @@ interface SidebarProps {
   onCreateTab: (url?: string, spaceId?: string) => void;
 }
 
-const PINNED_FAVORITES = [
-  { name: 'DuckDuckGo', url: 'https://duckduckgo.com', icon: '🦆' },
-  { name: 'GitHub', url: 'https://github.com', icon: '🐙' },
-  { name: 'Hacker News', url: 'https://news.ycombinator.com', icon: '🟧' },
-  { name: 'Wikipedia', url: 'https://wikipedia.org', icon: '📖' },
-];
-
 export const Sidebar: React.FC<SidebarProps> = ({
-  spaces,
   activeSpaceId,
   tabs,
   activeTabId,
-  isCollapsed,
-  onToggleCollapse,
-  onOpenCommandBar,
+  isOpen,
+  onClose,
   onSelectTab,
   onCloseTab,
   onTogglePinTab,
   onToggleSleepTab,
-  onSelectSpace,
   onCreateTab,
 }) => {
-  const currentSpace = spaces.find((s) => s.id === activeSpaceId) || spaces[0];
+  if (!isOpen && tabs.length === 0) return null;
+
   const unpinnedTabs = tabs.filter((t) => !t.isPinned);
   const pinnedTabs = tabs.filter((t) => t.isPinned);
 
-  const getSpaceIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Briefcase': return <Briefcase size={14} />;
-      case 'Terminal': return <Terminal size={14} />;
-      case 'Compass': return <Compass size={14} />;
-      default: return <Home size={14} />;
-    }
-  };
-
   return (
-    <aside className={`arc-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* Top Header */}
-      <div className="sidebar-header">
-        {!isCollapsed && (
-          <div className="brand-badge">
-            <Shield size={18} className="logo-icon" />
-            <span>Neutrino</span>
-          </div>
-        )}
-        <button
-          className="sidebar-toggle-btn"
-          onClick={onToggleCollapse}
-          title={isCollapsed ? 'Expand Sidebar (Ctrl+S)' : 'Collapse Sidebar (Ctrl+S)'}
-        >
-          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-        </button>
-      </div>
+    <>
+      {/* Invisible / Subtle click-to-dismiss overlay when open */}
+      {isOpen && <div className="tabs-drawer-backdrop" onClick={onClose} />}
 
-      {/* Arc Command Palette Trigger Button */}
-      <button
-        className="command-trigger-btn"
-        onClick={onOpenCommandBar}
-        title="Open Command Palette (Ctrl+T or Ctrl+K)"
-      >
-        <Search size={14} />
-        {!isCollapsed && <span>Search or type URL...</span>}
-        {!isCollapsed && <span className="shortcut-kbd">Ctrl+T</span>}
-      </button>
-
-      {/* Pinned Quick Apps (Arc Style) */}
-      <div className="pinned-section">
-        {!isCollapsed && <div className="section-label">Favorites</div>}
-        <div className="pinned-grid">
-          {PINNED_FAVORITES.map((fav) => (
-            <div
-              key={fav.name}
-              className="pinned-tile"
-              onClick={() => onCreateTab(fav.url, activeSpaceId)}
-              title={fav.name}
-            >
-              <span>{fav.icon}</span>
-            </div>
-          ))}
-          {pinnedTabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`pinned-tile ${tab.id === activeTabId ? 'active' : ''}`}
-              onClick={() => onSelectTab(tab.id)}
-              title={tab.title}
-            >
-              {tab.favicon ? (
-                <img src={tab.favicon} alt="" className="tab-favicon" />
-              ) : (
-                <Globe size={14} />
-              )}
-            </div>
-          ))}
+      {/* 6. Floating Tabs Sidebar: Broader (280px), Light Theme, High Contrast */}
+      <aside className={`floating-tabs-panel ${isOpen ? 'open' : ''}`}>
+        {/* Floating Actions Strip */}
+        <div className="tabs-floating-actions">
+          <button
+            className="floating-new-tab-btn"
+            onClick={() => onCreateTab(undefined, activeSpaceId)}
+            title="New Tab (Ctrl+T)"
+          >
+            <Plus size={15} />
+            <span>New Tab</span>
+          </button>
         </div>
-      </div>
 
-      {/* Tabs List for Active Space */}
-      <div className="tabs-scroll-area">
-        {!isCollapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 6px 4px' }}>
-            <span className="section-label" style={{ marginBottom: 0 }}>
-              {currentSpace?.name || 'Tabs'}
-            </span>
-            <button
-              className="sidebar-toggle-btn"
-              onClick={() => onCreateTab(undefined, activeSpaceId)}
-              title="New Tab"
-            >
-              <Plus size={14} />
-            </button>
+        {/* Pinned Tabs (if any) */}
+        {pinnedTabs.length > 0 && (
+          <div className="pinned-tabs-row">
+            {pinnedTabs.map((tab) => {
+              const isSelected = tab.id === activeTabId;
+              return (
+                <div
+                  key={tab.id}
+                  className={`pinned-tab-chip ${isSelected ? 'active' : ''}`}
+                  onClick={() => onSelectTab(tab.id)}
+                  title={tab.title}
+                >
+                  {tab.favicon ? (
+                    <img src={tab.favicon} alt="" className="tab-favicon-sm" />
+                  ) : (
+                    <Globe size={12} />
+                  )}
+                  <span className="tab-chip-title">{tab.title || 'Tab'}</span>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {unpinnedTabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          return (
-            <div
-              key={tab.id}
-              className={`tab-item-row ${isActive ? 'active' : ''}`}
-              onClick={() => onSelectTab(tab.id)}
-            >
-              {tab.favicon ? (
-                <img src={tab.favicon} alt="" className="tab-favicon" />
-              ) : (
-                <Globe size={14} className="tab-favicon" />
-              )}
-
-              {!isCollapsed && (
-                <>
-                  <span className="tab-title" title={tab.title}>
-                    {tab.title || 'New Tab'}
-                  </span>
-
-                  {tab.isSleeping && (
-                    <span className="tab-sleeping-badge" title="Sleeping (RAM saved)">
-                      <Moon size={11} />
-                    </span>
+        {/* Floating Open Tabs Pills */}
+        <div className="tabs-scroll-container">
+          {unpinnedTabs.map((tab, idx) => {
+            const isActive = tab.id === activeTabId;
+            return (
+              <div
+                key={tab.id}
+                className={`floating-tab-row ${isActive ? 'active' : ''}`}
+                style={{ animationDelay: `${idx * 20}ms` }}
+                onClick={() => onSelectTab(tab.id)}
+              >
+                <div className="tab-icon-wrapper">
+                  {tab.favicon ? (
+                    <img src={tab.favicon} alt="" className="tab-favicon-sm" />
+                  ) : (
+                    <span className="tab-dot-icon" />
                   )}
+                </div>
 
-                  <span
-                    className="tab-action-icon"
+                {/* Truncated readable title (Section 6) */}
+                <span className="floating-tab-title" title={tab.title}>
+                  {tab.title || 'New Tab'}
+                </span>
+
+                {tab.hasActiveMedia && (
+                  <span className="tab-status-media" title="Playing Media (Zen exempt)">
+                    <Volume2 size={12} />
+                  </span>
+                )}
+
+                {tab.isSleeping && (
+                  <span className="tab-status-sleep" title="Sleeping (RAM saved)">
+                    <Moon size={11} />
+                  </span>
+                )}
+
+                <div className="tab-actions-group">
+                  <button
+                    className="tab-action-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       onTogglePinTab(tab.id);
                     }}
                     title="Pin Tab"
                   >
-                    <Pin size={12} />
-                  </span>
-
-                  <span
-                    className="tab-action-icon"
+                    <Pin size={11} />
+                  </button>
+                  <button
+                    className="tab-action-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       onToggleSleepTab(tab.id);
                     }}
-                    title={tab.isSleeping ? 'Wake Tab' : 'Sleep Tab'}
+                    title={tab.isSleeping ? 'Wake' : 'Sleep'}
                   >
-                    <Moon size={12} />
-                  </span>
-
-                  <span
-                    className="tab-action-icon"
+                    <Moon size={11} />
+                  </button>
+                  <button
+                    className="tab-action-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       onCloseTab(tab.id);
@@ -202,32 +152,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     title="Close Tab"
                   >
                     <X size={12} />
-                  </span>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Bottom Spaces Switcher Bar (Arc Style) */}
-      <div className="spaces-bar">
-        {spaces.map((space) => {
-          const isActive = space.id === activeSpaceId;
-          return (
-            <button
-              key={space.id}
-              className={`space-pill ${isActive ? 'active' : ''}`}
-              onClick={() => onSelectSpace(space.id)}
-              title={space.name}
-            >
-              <span className="space-dot" style={{ backgroundColor: space.color }} />
-              {!isCollapsed && <span>{space.name}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </aside>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+    </>
   );
 };
-

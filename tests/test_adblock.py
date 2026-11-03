@@ -25,7 +25,7 @@ TRACKER_URLS = [
 
 # Legitimate URLs that must NOT be blocked
 SAFE_URLS = [
-    "https://duckduckgo.com",
+    "https://www.google.com",
     "https://github.com/rust-lang/rust",
     "https://news.ycombinator.com",
     "https://en.wikipedia.org/wiki/Chromium",

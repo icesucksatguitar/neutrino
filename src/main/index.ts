@@ -92,7 +92,7 @@ function createWindow() {
 
   // Create initial tabs
   mainWindow.webContents.once('did-finish-load', () => {
-    browserManager.createTab('https://duckduckgo.com', 'space-personal');
+    browserManager.createTab('neutrino://newtab', 'space-default');
   });
 
   mainWindow.on('closed', () => {
@@ -122,7 +122,7 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('neutrino:create-tab', async (_, { url, spaceId }: { url?: string; spaceId?: string }) => {
-    return browserManager.createTab(url || 'https://duckduckgo.com', spaceId);
+    return browserManager.createTab(url || 'neutrino://newtab', spaceId);
   });
 
   ipcMain.handle('neutrino:close-tab', async (_, tabId: string) => {
@@ -154,12 +154,23 @@ function setupIpcHandlers() {
   ipcMain.handle('neutrino:zen-optimize', async () => {
     const active = browserManager.getActiveTab();
     if (active) {
-      resourceManager.sleepAllBackgroundTabs(active.id);
+      resourceManager.sleepAllBackgroundTabs(active.id, browserManager.getActiveMediaTabs());
     }
     return {
       memorySavedMb: resourceManager.getTotalMemorySavedMb(),
       sleepingCount: resourceManager.getSleepingTabsCount(),
     };
+  });
+
+  ipcMain.handle('neutrino:media-control', async (_, { action, params }: { action: string; params?: any }) => {
+    if (action === 'report-status' && params?.tabId) {
+      browserManager.setTabMediaStatus(params.tabId, Boolean(params.isPlaying));
+      return { success: true };
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('neutrino:media-command', { action, params });
+    }
+    return { success: true };
   });
 
   ipcMain.handle('neutrino:get-shield-stats', async () => {

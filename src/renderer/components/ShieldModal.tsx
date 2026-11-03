@@ -52,12 +52,12 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
             onClick={onToggleShields}
             style={{
               backgroundColor: 'var(--shield-green)',
-              color: 'black',
+              color: '#ffffff',
               border: 'none',
-              padding: '5px 12px',
+              padding: '6px 14px',
               borderRadius: '16px',
               fontWeight: 700,
-              fontSize: '11px',
+              fontSize: '11.5px',
               cursor: 'pointer',
             }}
           >
@@ -161,9 +161,10 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '3px 6px',
+                    padding: '5px 8px',
                     borderRadius: '4px',
-                    backgroundColor: 'rgba(255,255,255,0.02)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
                   }}
                 >
                   <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{item.domain}</span>

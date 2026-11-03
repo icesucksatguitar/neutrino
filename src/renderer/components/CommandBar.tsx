@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Globe, Plus, Moon, Shield, Folder } from 'lucide-react';
+import { Search, Globe, Plus, Moon, Shield, Folder, Palette } from 'lucide-react';
 import { TabState, Space } from '../types';
 
 interface CommandBarProps {
@@ -13,6 +13,7 @@ interface CommandBarProps {
   onZenOptimize: () => void;
   onToggleShields: () => void;
   onSelectSpace: (spaceId: string) => void;
+  onOpenThemeStudio?: () => void;
 }
 
 export const CommandBar: React.FC<CommandBarProps> = ({
@@ -26,6 +27,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onZenOptimize,
   onToggleShields,
   onSelectSpace,
+  onOpenThemeStudio,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -63,7 +65,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
           if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
             target = 'https://' + target;
           } else if (!target.includes('://')) {
-            target = `https://duckduckgo.com/?q=${encodeURIComponent(target)}`;
+            target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
           }
           onNavigate(target);
         }
@@ -83,6 +85,20 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       icon: <Shield size={16} />,
       execute: () => onToggleShields(),
     },
+    ...(onOpenThemeStudio
+      ? [
+          {
+            id: 'action-theme-studio',
+            title: 'Themes & Appearance',
+            hint: 'Appearance',
+            icon: <Palette size={16} />,
+            execute: () => {
+              onClose();
+              onOpenThemeStudio();
+            },
+          },
+        ]
+      : []),
     ...spaces.map((s) => ({
       id: `action-space-${s.id}`,
       title: `Switch Space: ${s.name}`,

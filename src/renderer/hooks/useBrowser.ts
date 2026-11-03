@@ -3,18 +3,17 @@ import { BrowserAppState, BlockedTrackerItem, TabState } from '../types';
 
 const INITIAL_STATE: BrowserAppState = {
   spaces: [
-    { id: 'space-personal', name: 'Personal', icon: 'Home', color: '#6366f1' },
-    { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#3b82f6' },
-    { id: 'space-dev', name: 'Dev & AI', icon: 'Terminal', color: '#10b981' },
-    { id: 'space-research', name: 'Research', icon: 'Compass', color: '#f59e0b' },
+    { id: 'space-default', name: 'DEFAULT', icon: 'Home', color: '#6366f1' },
+    { id: 'space-plan', name: 'PLAN', icon: 'Briefcase', color: '#10b981' },
+    { id: 'space-max', name: 'MAX', icon: 'Terminal', color: '#f59e0b' },
   ],
-  activeSpaceId: 'space-personal',
+  activeSpaceId: 'space-default',
   tabs: [
     {
       id: 'tab-init',
-      spaceId: 'space-personal',
-      title: 'DuckDuckGo',
-      url: 'https://duckduckgo.com',
+      spaceId: 'space-default',
+      title: 'New Tab',
+      url: 'neutrino://newtab',
       isLoading: false,
       canGoBack: false,
       canGoForward: false,

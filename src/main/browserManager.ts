@@ -15,19 +15,21 @@ export interface TabState {
   canGoForward: boolean;
   isPinned: boolean;
   isSleeping: boolean;
+  hasActiveMedia?: boolean;
   blockedCount: number;
 }
 
 export class BrowserManager {
   private tabs: Map<string, TabState> = new Map();
   private activeTabId: string | null = null;
-  private activeSpaceId: string = 'space-personal';
+  private activeSpaceId: string = 'space-default';
   private spaces: Space[] = [];
   private adblockEngine: BraveShieldEngine;
   private resourceManager: ZenResourceManager;
   private mcpServer: McpServer;
   private storage: LocalStorageManager;
   private mainWindow: BrowserWindow | null = null;
+  private activeMediaTabs: Set<string> = new Set();
 
   constructor(
     adblockEngine: BraveShieldEngine,
@@ -42,6 +44,9 @@ export class BrowserManager {
 
     const savedState = this.storage.loadState();
     this.spaces = savedState.spaces;
+    if (this.spaces.length > 0) {
+      this.activeSpaceId = this.spaces[0].id;
+    }
 
     this.setupResourceEvents();
     this.registerMcpTools();
@@ -66,9 +71,26 @@ export class BrowserManager {
     if (spaceTabs.length > 0) {
       this.setActiveTab(spaceTabs[0].id);
     } else {
-      this.createTab('https://duckduckgo.com', spaceId);
+      this.createTab('neutrino://newtab', spaceId);
     }
     this.notifyState();
+  }
+
+  public setTabMediaStatus(tabId: string, hasMedia: boolean) {
+    if (hasMedia) {
+      this.activeMediaTabs.add(tabId);
+    } else {
+      this.activeMediaTabs.delete(tabId);
+    }
+    const tab = this.tabs.get(tabId);
+    if (tab) {
+      tab.hasActiveMedia = hasMedia;
+      this.notifyState();
+    }
+  }
+
+  public getActiveMediaTabs(): Set<string> {
+    return this.activeMediaTabs;
   }
 
   public getTabs(): TabState[] {
@@ -79,7 +101,7 @@ export class BrowserManager {
     return this.activeTabId ? this.tabs.get(this.activeTabId) || null : null;
   }
 
-  public createTab(url: string = 'https://duckduckgo.com', spaceId?: string, isPinned: boolean = false): TabState {
+  public createTab(url: string = 'neutrino://newtab', spaceId?: string, isPinned: boolean = false): TabState {
     const finalSpaceId = spaceId || this.activeSpaceId;
     const tabId = 'tab-' + Math.random().toString(36).substring(2, 9);
 
@@ -119,7 +141,7 @@ export class BrowserManager {
         this.resourceManager.wakeTab(this.activeTabId);
       } else {
         // create new tab in space
-        this.createTab('https://duckduckgo.com', currentSpaceId);
+        this.createTab('neutrino://newtab', currentSpaceId);
         return;
       }
     }
@@ -267,7 +289,7 @@ export class BrowserManager {
         },
       },
       async (args: { url?: string; spaceId?: string }) => {
-        const tab = this.createTab(args.url || 'https://duckduckgo.com', args.spaceId);
+        const tab = this.createTab(args.url || 'neutrino://newtab', args.spaceId);
         return { tabId: tab.id, url: tab.url, spaceId: tab.spaceId };
       }
     );
@@ -306,11 +328,11 @@ export class BrowserManager {
       }
     );
 
-    // 6. Zen Memory Optimization (Sleep background tabs)
+    // 6. Zen Memory Optimization (Sleep background tabs, skipping tabs with active media)
     this.mcpServer.registerTool(
       {
         name: 'browser_zen_optimize',
-        description: 'Hibernates inactive background tabs to aggressively minimize RAM usage.',
+        description: 'Hibernates inactive background tabs to aggressively minimize RAM usage (skipping tabs with active media).',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -318,13 +340,37 @@ export class BrowserManager {
       },
       async () => {
         if (this.activeTabId) {
-          this.resourceManager.sleepAllBackgroundTabs(this.activeTabId);
+          this.resourceManager.sleepAllBackgroundTabs(this.activeTabId, this.activeMediaTabs);
         }
         return {
           success: true,
           memorySavedMb: this.resourceManager.getTotalMemorySavedMb(),
           sleepingTabsCount: this.resourceManager.getSleepingTabsCount(),
         };
+      }
+    );
+
+    // 7. Media Control tool (expose media control to MCP)
+    this.mcpServer.registerTool(
+      {
+        name: 'browser_media_control',
+        description: 'Controls active media (play, pause, seek, volume, status) across browser tabs.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', enum: ['play', 'pause', 'seek', 'volume', 'status'], description: 'Media command action' },
+            tabId: { type: 'string', description: 'Target tab ID (optional)' },
+            value: { type: 'number', description: 'Parameter value (e.g. seek position in seconds or volume 0.0-1.0)' },
+          },
+          required: ['action'],
+        },
+      },
+      async (args: { action: string; tabId?: string; value?: number }) => {
+        const targetTabId = args.tabId || Array.from(this.activeMediaTabs)[0] || this.activeTabId;
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('neutrino:media-command', { ...args, tabId: targetTabId });
+        }
+        return { success: true, targetTabId, action: args.action, value: args.value };
       }
     );
   }

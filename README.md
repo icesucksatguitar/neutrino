@@ -3,7 +3,15 @@
 A local-first, high-speed **Chromium-based standalone Windows desktop browser** combining:
 - **Brave-Level Ad-Block & Tracker Defense**: Real-time request interception, tracker stripping, cosmetic ad hiding, and Bloom filter domain matching.
 - **Zen-Level Low Resource Usage**: Automatic background tab hibernation and memory purging, dropping background tab CPU usage to 0% and freeing RAM.
-- **Arc-Level Customizability**: Collapsible vertical sidebar (`Ctrl+S`), Spaces (Personal, Work, Dev & AI, Research), Pinned favorites, and a floating Command Palette (`Ctrl+T` / `Ctrl+K`).
+- **Google Search Engine Integration**: Default search queries, omnibox navigation, start tabs, and new tab shortcuts seamlessly powered by Google Search.
+- **Hyper-Customizable Theme Studio (First-Launch & On-Demand)**:
+  - Pops up automatically on first launch, or anytime via Sidebar, Omnibox, or `Ctrl+T` / `Ctrl+K`.
+  - **Any Color or Gradient in Existence**: Linear gradients (0°-360° angle, multi-stop hex pickers, stop offset sliders), Radial gradients, Mesh gradients, and Solid colors.
+  - **12 Curated Aesthetic Presets**: Cyberpunk Neon, Arc Sapphire, Sunset Ember, Emerald Matrix, Sakura Twilight, Glacial Zen, Pitch Black OLED, Solar Amber, Amethyst Royal, Vaporwave Synth, Blood Moon, and Clean Frost (Light).
+  - **Typography & Font Customization**: System Default, Inter, Roboto, Segoe UI, JetBrains Mono, Fira Code, Cascadia Code, Georgia Serif, Poppins, plus a custom input field allowing *any* installed font on your machine.
+  - **Text Size & Metrics**: Dynamic font size slider (11px to 22px), font weights (400 to 700), and letter spacing sliders.
+  - **Glassmorphism & Geometry**: Backdrop blur, sidebar opacity, corner roundness, and accent glow sliders with live real-time browser preview.
+- **Arc-Level Workflow**: Collapsible vertical sidebar (`Ctrl+S`), Spaces (Personal, Work, Dev & AI, Research), Pinned favorites, and a floating Command Palette (`Ctrl+T` / `Ctrl+K`).
 - **Fully Model Context Protocol (MCP) Capable**: Built-in native JSON-RPC MCP server enabling AI agents (Claude, Antigravity) to inspect active tabs, navigate, query DOM, and execute actions.
 - **Easy Local-First Sync**: Local encrypted JSON/SQLite state with export/import sync bundles.
 - **Chrome-Level Speed**: Direct Chromium (Blink + V8) multi-process rendering engine with GPU acceleration and zero-copy rasterization.
@@ -34,12 +42,16 @@ neutrino/
 │       ├── main.tsx
 │       ├── App.tsx                    # Root UI shell
 │       ├── components/
-│       │   ├── Sidebar.tsx            # Collapsible vertical sidebar & Spaces switcher
+│       │   ├── Sidebar.tsx            # Collapsible vertical sidebar
+│       │   ├── WorkspaceSlider.tsx    # Smooth animated workspace track slider (DEFAULT / PLAN / MAX)
+│       │   ├── Homescreen.tsx         # Plane homescreen with centered URL typer
 │       │   ├── Omnibox.tsx            # HTTPS URL bar, search, shields & zen buttons
 │       │   ├── CommandBar.tsx         # Arc-style floating command palette (Ctrl+T/K)
+│       │   ├── ThemeCustomizerModal.tsx # First-launch & on-demand theme studio
+│       │   ├── HexColorGrid.tsx       # Visual hex color matrix palette selector
 │       │   ├── ShieldModal.tsx        # Real-time adblock & tracker stats flyout
 │       │   ├── McpModal.tsx           # MCP protocol & tool inspector
-│       │   └── BrowserViewport.tsx    # Real Chromium webview engine container
+│       │   └── BrowserViewport.tsx    # Real Chromium webview & homescreen container
 │       ├── hooks/
 │       │   └── useBrowser.ts          # Reactive IPC bridge
 │       └── styles/

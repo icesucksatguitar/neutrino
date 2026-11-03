@@ -16,7 +16,19 @@ export interface TabState {
   canGoForward: boolean;
   isPinned: boolean;
   isSleeping: boolean;
+  hasActiveMedia?: boolean;
   blockedCount: number;
+}
+
+export interface ActiveMediaState {
+  tabId: string;
+  tabTitle: string;
+  url: string;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  hasVideo: boolean;
 }
 
 export interface ShieldStats {
@@ -50,6 +62,21 @@ export interface BrowserAppState {
   resourceStats: ResourceStats;
 }
 
+export interface ThemeConfig {
+  id: string;
+  name: string;
+  mode: 'dark' | 'light';
+  bgApp: string;
+  bgSidebar: string;
+  bgCard: string;
+  bgInput: string;
+  accent: string;
+  textMain: string;
+  textMuted: string;
+  borderSubtle: string;
+  fontSize?: number;
+}
+
 declare global {
   interface Window {
     neutrino?: {
@@ -69,10 +96,10 @@ declare global {
       getShieldStats: () => Promise<ShieldStats>;
       callMcp: (method: string, params?: unknown) => Promise<any>;
       getMcpLogs: () => Promise<any[]>;
+      mediaControl?: (action: string, params?: any) => Promise<any>;
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
       onStateUpdate: (cb: (state: BrowserAppState) => void) => () => void;
       onTrackerBlocked: (cb: (item: BlockedTrackerItem) => void) => () => void;
     };
   }
 }
-

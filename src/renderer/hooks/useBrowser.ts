@@ -93,6 +93,18 @@ export function useBrowser() {
     window.neutrino?.selectSpace(spaceId);
   }, []);
 
+  const createSpace = useCallback((name: string, color?: string) => {
+    return window.neutrino?.createSpace?.(name, color);
+  }, []);
+
+  const deleteSpace = useCallback((spaceId: string) => {
+    return window.neutrino?.deleteSpace?.(spaceId);
+  }, []);
+
+  const reorderTabs = useCallback((draggedTabId: string, targetTabId: string) => {
+    return window.neutrino?.reorderTabs?.(draggedTabId, targetTabId);
+  }, []);
+
   const toggleShields = useCallback(() => {
     window.neutrino?.toggleShields();
   }, []);
@@ -128,6 +140,9 @@ export function useBrowser() {
     togglePinTab,
     toggleSleepTab,
     selectSpace,
+    createSpace,
+    deleteSpace,
+    reorderTabs,
     toggleShields,
     zenOptimize,
   };

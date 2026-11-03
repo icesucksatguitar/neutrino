@@ -76,6 +76,50 @@ export class BrowserManager {
     this.notifyState();
   }
 
+  public createSpace(name: string, color: string = '#7c9cff'): Space {
+    const id = `space-${Date.now()}`;
+    const newSpace: Space = { id, name, icon: 'Folder', color };
+    this.spaces.push(newSpace);
+    this.storage.saveState({ spaces: this.spaces });
+    this.setActiveSpace(id);
+    return newSpace;
+  }
+
+  public deleteSpace(spaceId: string) {
+    if (this.spaces.length <= 1) return;
+    this.spaces = this.spaces.filter((s) => s.id !== spaceId);
+    const toRemove = Array.from(this.tabs.values()).filter((t) => t.spaceId === spaceId);
+    for (const t of toRemove) {
+      this.tabs.delete(t.id);
+    }
+    if (this.activeSpaceId === spaceId) {
+      this.activeSpaceId = this.spaces[0].id;
+      const remainingTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === this.activeSpaceId);
+      if (remainingTabs.length > 0) {
+        this.activeTabId = remainingTabs[0].id;
+      } else {
+        this.createTab('neutrino://newtab', this.activeSpaceId);
+      }
+    }
+    this.storage.saveState({ spaces: this.spaces });
+    this.notifyState();
+  }
+
+  public reorderTabs(draggedTabId: string, targetTabId: string) {
+    if (draggedTabId === targetTabId) return;
+    const tabEntries = Array.from(this.tabs.entries());
+    const fromIndex = tabEntries.findIndex(([id]) => id === draggedTabId);
+    const toIndex = tabEntries.findIndex(([id]) => id === targetTabId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const [moved] = tabEntries.splice(fromIndex, 1);
+    tabEntries.splice(toIndex, 0, moved);
+
+    this.tabs = new Map(tabEntries);
+    this.storage.saveState({ spaces: this.spaces });
+    this.notifyState();
+  }
+
   public setTabMediaStatus(tabId: string, hasMedia: boolean) {
     if (hasMedia) {
       this.activeMediaTabs.add(tabId);

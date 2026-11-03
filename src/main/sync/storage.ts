@@ -98,11 +98,17 @@ export class LocalStorageManager {
 
   public saveState(state: {
     spaces: Space[];
-    bookmarks: Bookmark[];
-    settings: Record<string, unknown>;
+    bookmarks?: Bookmark[];
+    settings?: Record<string, unknown>;
   }) {
     try {
-      fs.writeFileSync(this.stateFilePath, JSON.stringify(state, null, 2), 'utf-8');
+      const existing = this.loadState();
+      const payload = {
+        spaces: state.spaces,
+        bookmarks: state.bookmarks || existing.bookmarks,
+        settings: state.settings || existing.settings,
+      };
+      fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2), 'utf-8');
     } catch (err) {
       console.error('[Storage Error] Failed to persist state:', err);
     }

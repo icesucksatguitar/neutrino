@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { PanelLeftOpen } from 'lucide-react';
 import { useBrowser } from './hooks/useBrowser';
 import { Sidebar } from './components/Sidebar';
-import { Omnibox } from './components/Omnibox';
 import { BrowserViewport } from './components/BrowserViewport';
 import { CommandBar } from './components/CommandBar';
 import { ShieldModal } from './components/ShieldModal';
@@ -30,16 +30,19 @@ export function App() {
     togglePinTab,
     toggleSleepTab,
     selectSpace,
+    createSpace,
+    deleteSpace,
+    reorderTabs,
     toggleShields,
     zenOptimize,
   } = useBrowser();
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [isTabsOpen, setIsTabsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
 
-  // 8. Persistent Media Player state (PiP when backgrounded)
+  // Persistent Media Player state (PiP when backgrounded)
   const [activeMediaState, setActiveMediaState] = useState<ActiveMediaState | null>(null);
   const [mediaCommand, setMediaCommand] = useState<{
     action: string;
@@ -48,7 +51,7 @@ export function App() {
     timestamp: number;
   } | null>(null);
 
-  // Fluid space switching animation
+  // Fluid space switching animation (macOS-inspired desktop slide)
   const handleSelectSpace = (spaceId: string) => {
     if (spaceId === state.activeSpaceId) return;
 
@@ -74,6 +77,10 @@ export function App() {
     }, 1100);
   };
 
+  const handleCreateSpace = (name: string, color: string) => {
+    createSpace(name, color);
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,10 +96,10 @@ export function App() {
           closeTab(state.activeTabId);
         }
       }
-      // Ctrl+S -> Toggle Tabs Drawer
+      // Ctrl+S -> Toggle Arc Sidebar
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        setIsTabsOpen((prev) => !prev);
+        setIsSidebarOpen((prev) => !prev);
       }
       // Ctrl+1..4 -> Switch Spaces
       else if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
@@ -125,17 +132,17 @@ export function App() {
   };
 
   const handleGoBack = () => {
-    const webview: any = document.querySelector('webview');
+    const webview: any = document.querySelector('webview.chromium-webview');
     if (webview?.canGoBack?.()) webview.goBack();
   };
 
   const handleGoForward = () => {
-    const webview: any = document.querySelector('webview');
+    const webview: any = document.querySelector('webview.chromium-webview');
     if (webview?.canGoForward?.()) webview.goForward();
   };
 
   const handleReload = () => {
-    const webview: any = document.querySelector('webview');
+    const webview: any = document.querySelector('webview.chromium-webview');
     if (webview?.reload) webview.reload();
   };
 
@@ -170,14 +177,14 @@ export function App() {
     setActiveMediaState(null);
   };
 
-  // Show mini player when media is playing in a tab that is NOT the currently active tab (Section 8)
+  // Show mini player when media is playing in a tab that is NOT the active tab
   const shouldShowMiniPlayer =
     activeMediaState &&
     activeMediaState.isPlaying &&
     activeMediaState.tabId !== state.activeTabId;
 
   return (
-    <div className="app-container">
+    <div className="arc-app-shell">
       {/* Space Name Animation Overlay */}
       {spaceOverlay && (
         <div className="macos-space-name-overlay">
@@ -185,58 +192,70 @@ export function App() {
         </div>
       )}
 
-      {/* Floating Lightweight Tabs Drawer (Left, 280px, Light Theme, Section 6) */}
-      <Sidebar
-        spaces={state.spaces}
-        activeSpaceId={state.activeSpaceId}
-        tabs={currentSpaceTabs}
-        activeTabId={state.activeTabId}
-        isOpen={isTabsOpen}
-        onClose={() => setIsTabsOpen(false)}
-        onOpenCommandBar={() => setIsCommandBarOpen(true)}
-        onOpenThemeStudio={() => setIsThemeModalOpen(true)}
-        onSelectTab={selectTab}
-        onCloseTab={closeTab}
-        onTogglePinTab={togglePinTab}
-        onToggleSleepTab={toggleSleepTab}
-        onSelectSpace={handleSelectSpace}
-        onCreateTab={createTab}
-      />
-
-      {/* Main Browser Viewport Area */}
-      <main className={`main-viewport ${spaceTransitionClass}`}>
-        {/* Omnibox / Top Navigation Bar (Light Theme) */}
-        <Omnibox
-          activeTab={activeTab}
+      {/* Arc Browser Vertical Sidebar */}
+      {isSidebarOpen && (
+        <Sidebar
+          spaces={state.spaces}
+          activeSpaceId={state.activeSpaceId}
+          tabs={currentSpaceTabs}
+          activeTabId={state.activeTabId}
+          isOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(false)}
+          onOpenCommandBar={() => setIsCommandBarOpen(true)}
+          onOpenThemeStudio={() => setIsThemeModalOpen(true)}
+          onToggleShieldModal={() => setIsShieldModalOpen(!isShieldModalOpen)}
+          onToggleMcpModal={() => setIsMcpModalOpen(!isMcpModalOpen)}
+          onZenOptimize={zenOptimize}
           shieldStats={state.shieldStats}
           resourceStats={state.resourceStats}
-          isTabsOpen={isTabsOpen}
-          onToggleTabs={() => setIsTabsOpen(!isTabsOpen)}
+          activeTab={activeTab}
           onNavigate={navigate}
           onGoBack={handleGoBack}
           onGoForward={handleGoForward}
           onReload={handleReload}
-          onToggleShieldModal={() => setIsShieldModalOpen(!isShieldModalOpen)}
-          onToggleMcpModal={() => setIsMcpModalOpen(!isMcpModalOpen)}
-          onToggleThemeModal={() => setIsThemeModalOpen(true)}
-          onZenOptimize={zenOptimize}
-        />
-
-        {/* Real Chromium Webview Viewport (Preserves background tabs with media alive, Section 8) */}
-        <BrowserViewport
-          activeTab={activeTab}
-          tabs={state.tabs}
-          spaces={state.spaces}
-          activeSpaceId={state.activeSpaceId}
+          onSelectTab={selectTab}
+          onCloseTab={closeTab}
+          onTogglePinTab={togglePinTab}
+          onToggleSleepTab={toggleSleepTab}
           onSelectSpace={handleSelectSpace}
-          onUpdateTab={handleUpdateTab}
-          onNavigate={navigate}
-          onMediaStateChange={setActiveMediaState}
-          mediaCommand={mediaCommand}
+          onCreateTab={createTab}
+          onCreateSpace={handleCreateSpace}
+          onDeleteSpace={deleteSpace}
+          onReorderTabs={reorderTabs}
         />
+      )}
+
+      {/* Main Browser Viewport Area (Arc Web Canvas) */}
+      <main className={`arc-viewport-container ${spaceTransitionClass} ${isSidebarOpen ? 'with-sidebar' : 'collapsed-sidebar'}`}>
+        {/* Floating Sidebar Toggle Button when sidebar is collapsed */}
+        {!isSidebarOpen && (
+          <button
+            className="arc-floating-sidebar-trigger"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Expand Sidebar (Ctrl+S)"
+            aria-label="Expand Sidebar"
+          >
+            <PanelLeftOpen size={16} />
+          </button>
+        )}
+
+        {/* Real Chromium Webview Viewport Canvas */}
+        <div className="arc-web-canvas-frame">
+          <BrowserViewport
+            activeTab={activeTab}
+            tabs={state.tabs}
+            spaces={state.spaces}
+            activeSpaceId={state.activeSpaceId}
+            onSelectSpace={handleSelectSpace}
+            onUpdateTab={handleUpdateTab}
+            onNavigate={navigate}
+            onMediaStateChange={setActiveMediaState}
+            mediaCommand={mediaCommand}
+          />
+        </div>
       </main>
 
-      {/* 8. Persistent Floating Media Player (PiP, draggable, resizable, corner-snapping) */}
+      {/* Floating Media Player (PiP) */}
       {shouldShowMiniPlayer && (
         <MediaPlayer
           mediaState={activeMediaState}
@@ -263,7 +282,7 @@ export function App() {
         onOpenThemeStudio={() => setIsThemeModalOpen(true)}
       />
 
-      {/* Brave-style Shield Modal Flyout (Light Theme) */}
+      {/* Shield Modal Flyout */}
       <ShieldModal
         isOpen={isShieldModalOpen}
         onClose={() => setIsShieldModalOpen(false)}
@@ -272,7 +291,7 @@ export function App() {
         onToggleShields={toggleShields}
       />
 
-      {/* 7. Redesigned MCP Panel Right-Side Drawer (Assistants, Local models, Tools) */}
+      {/* MCP Drawer (Right-Side) */}
       <McpModal
         isOpen={isMcpModalOpen}
         onClose={() => setIsMcpModalOpen(false)}
@@ -280,7 +299,7 @@ export function App() {
         onNavigate={navigate}
       />
 
-      {/* Theme Customizer Modal */}
+      {/* Theme Studio Modal */}
       <ThemeCustomizerModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}

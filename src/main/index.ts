@@ -153,6 +153,18 @@ function setupIpcHandlers() {
     browserManager.setActiveSpace(spaceId);
   });
 
+  ipcMain.handle('neutrino:create-space', async (_, { name, color }: { name: string; color?: string }) => {
+    return browserManager.createSpace(name, color);
+  });
+
+  ipcMain.handle('neutrino:delete-space', async (_, spaceId: string) => {
+    browserManager.deleteSpace(spaceId);
+  });
+
+  ipcMain.handle('neutrino:reorder-tabs', async (_, { draggedTabId, targetTabId }: { draggedTabId: string; targetTabId: string }) => {
+    browserManager.reorderTabs(draggedTabId, targetTabId);
+  });
+
   ipcMain.handle('neutrino:toggle-shields', async () => {
     const current = adblockEngine.isEnabled();
     adblockEngine.setEnabled(!current);

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, Zap, Globe } from 'lucide-react';
 import { Space } from '../types';
-import { WorkspaceSlider } from './WorkspaceSlider';
 
 interface HomescreenProps {
   spaces?: Space[];
@@ -10,10 +9,15 @@ interface HomescreenProps {
   onNavigate: (url: string) => void;
 }
 
+const QUICK_SHORTCUTS = [
+  { name: 'Google', url: 'https://www.google.com' },
+  { name: 'GitHub', url: 'https://github.com' },
+  { name: 'YouTube', url: 'https://www.youtube.com' },
+  { name: 'Reddit', url: 'https://www.reddit.com' },
+  { name: 'Wikipedia', url: 'https://www.wikipedia.org' },
+];
+
 export const Homescreen: React.FC<HomescreenProps> = ({
-  spaces = [],
-  activeSpaceId = '',
-  onSelectSpace,
   onNavigate,
 }) => {
   const [query, setQuery] = useState('');
@@ -48,7 +52,7 @@ export const Homescreen: React.FC<HomescreenProps> = ({
 
   return (
     <div className="homepage-hero-canvas">
-      {/* Subtle Ambient Background Composition (Priority 3) */}
+      {/* Subtle Ambient Background Composition */}
       <div className="homepage-ambient-radial" aria-hidden="true" />
       <div className="homepage-micro-grid" aria-hidden="true" />
 
@@ -88,6 +92,21 @@ export const Homescreen: React.FC<HomescreenProps> = ({
           )}
         </form>
 
+        {/* Quick Shortcuts */}
+        <div className="homepage-shortcuts-row">
+          {QUICK_SHORTCUTS.map((item) => (
+            <button
+              key={item.name}
+              className="homepage-shortcut-pill"
+              onClick={() => onNavigate(item.url)}
+              title={`Visit ${item.name}`}
+            >
+              <Globe size={13} className="homepage-shortcut-icon" />
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Subtle, restrained status hints */}
         <div className="homepage-footer-hints">
           <span className="homepage-hint-item">
@@ -105,17 +124,6 @@ export const Homescreen: React.FC<HomescreenProps> = ({
           </span>
         </div>
       </div>
-
-      {/* Priority 4: Spaces System (Hidden by default, starts with minimal '+' icon) */}
-      {spaces.length > 0 && onSelectSpace && (
-        <div className="homepage-spaces-corner">
-          <WorkspaceSlider
-            spaces={spaces}
-            activeSpaceId={activeSpaceId}
-            onSelectSpace={onSelectSpace}
-          />
-        </div>
-      )}
     </div>
   );
 };

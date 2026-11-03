@@ -91,6 +91,9 @@ declare global {
       togglePinTab: (tabId: string) => Promise<void>;
       toggleSleepTab: (tabId: string) => Promise<void>;
       selectSpace: (spaceId: string) => Promise<void>;
+      createSpace?: (name: string, color?: string) => Promise<Space>;
+      deleteSpace?: (spaceId: string) => Promise<void>;
+      reorderTabs?: (draggedTabId: string, targetTabId: string) => Promise<void>;
       toggleShields: () => Promise<boolean>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;
       getShieldStats: () => Promise<ShieldStats>;

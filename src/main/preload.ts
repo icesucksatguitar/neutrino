@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('neutrino', {
   togglePinTab: (tabId: string) => ipcRenderer.invoke('neutrino:toggle-pin-tab', tabId),
   toggleSleepTab: (tabId: string) => ipcRenderer.invoke('neutrino:toggle-sleep-tab', tabId),
   selectSpace: (spaceId: string) => ipcRenderer.invoke('neutrino:select-space', spaceId),
+  createSpace: (name: string, color?: string) => ipcRenderer.invoke('neutrino:create-space', { name, color }),
+  deleteSpace: (spaceId: string) => ipcRenderer.invoke('neutrino:delete-space', spaceId),
+  reorderTabs: (draggedTabId: string, targetTabId: string) => ipcRenderer.invoke('neutrino:reorder-tabs', { draggedTabId, targetTabId }),
 
   // Adblock & Zen Optimization
   toggleShields: () => ipcRenderer.invoke('neutrino:toggle-shields'),

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 import { Space } from '../types';
 
 interface HomescreenProps {
@@ -8,14 +8,6 @@ interface HomescreenProps {
   onSelectSpace?: (spaceId: string) => void;
   onNavigate: (url: string) => void;
 }
-
-const QUICK_SHORTCUTS = [
-  { name: 'Google', url: 'https://www.google.com' },
-  { name: 'GitHub', url: 'https://github.com' },
-  { name: 'YouTube', url: 'https://www.youtube.com' },
-  { name: 'Reddit', url: 'https://www.reddit.com' },
-  { name: 'Wikipedia', url: 'https://www.wikipedia.org' },
-];
 
 export const Homescreen: React.FC<HomescreenProps> = ({
   onNavigate,
@@ -52,7 +44,7 @@ export const Homescreen: React.FC<HomescreenProps> = ({
 
   return (
     <div className="homepage-hero-canvas">
-      {/* Subtle Ambient Background Composition */}
+      {/* Subtle Warm Ambient Background Composition */}
       <div className="homepage-ambient-radial" aria-hidden="true" />
       <div className="homepage-micro-grid" aria-hidden="true" />
 
@@ -92,22 +84,7 @@ export const Homescreen: React.FC<HomescreenProps> = ({
           )}
         </form>
 
-        {/* Quick Shortcuts */}
-        <div className="homepage-shortcuts-row">
-          {QUICK_SHORTCUTS.map((item) => (
-            <button
-              key={item.name}
-              className="homepage-shortcut-pill"
-              onClick={() => onNavigate(item.url)}
-              title={`Visit ${item.name}`}
-            >
-              <Globe size={13} className="homepage-shortcut-icon" />
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Subtle, restrained status hints */}
+        {/* Subtle, restrained status hints (Pins below search bar removed) */}
         <div className="homepage-footer-hints">
           <span className="homepage-hint-item">
             <ShieldCheck size={13} className="homepage-hint-icon" />

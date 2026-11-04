@@ -16,6 +16,42 @@ export interface SimpleTheme {
 
 export const MAC_THEMES: SimpleTheme[] = [
   {
+    id: 'warm-white',
+    name: 'Warm White',
+    mode: 'light',
+    bgApp: '#FAF8F5',
+    bgSidebar: 'rgba(244, 240, 233, 0.88)',
+    bgCard: '#FFFFFF',
+    bgInput: '#FFFFFF',
+    textMain: '#1F1E1D',
+    textMuted: '#686460',
+    borderSubtle: 'rgba(0, 0, 0, 0.08)',
+  },
+  {
+    id: 'cream-linen',
+    name: 'Linen',
+    mode: 'light',
+    bgApp: '#F7F5F0',
+    bgSidebar: '#EFECE4',
+    bgCard: '#FFFFFF',
+    bgInput: '#FFFFFF',
+    textMain: '#242220',
+    textMuted: '#736E67',
+    borderSubtle: 'rgba(0, 0, 0, 0.08)',
+  },
+  {
+    id: 'soft-paper',
+    name: 'Paper',
+    mode: 'light',
+    bgApp: '#FBFBFA',
+    bgSidebar: '#F3F3F1',
+    bgCard: '#FFFFFF',
+    bgInput: '#FFFFFF',
+    textMain: '#181817',
+    textMuted: '#6A6966',
+    borderSubtle: 'rgba(0, 0, 0, 0.07)',
+  },
+  {
     id: 'obsidian-dark',
     name: 'Obsidian',
     mode: 'dark',
@@ -27,51 +63,15 @@ export const MAC_THEMES: SimpleTheme[] = [
     textMuted: '#939aa8',
     borderSubtle: 'rgba(255, 255, 255, 0.08)',
   },
-  {
-    id: 'midnight-slate',
-    name: 'Midnight',
-    mode: 'dark',
-    bgApp: '#0e1117',
-    bgSidebar: '#161b22',
-    bgCard: '#1a202c',
-    bgInput: '#1a202c',
-    textMain: '#f0f6fc',
-    textMuted: '#8b949e',
-    borderSubtle: 'rgba(255, 255, 255, 0.1)',
-  },
-  {
-    id: 'deep-charcoal',
-    name: 'Charcoal',
-    mode: 'dark',
-    bgApp: '#121214',
-    bgSidebar: '#18181b',
-    bgCard: '#1f1f23',
-    bgInput: '#1f1f23',
-    textMain: '#fafafa',
-    textMuted: '#a1a1aa',
-    borderSubtle: 'rgba(255, 255, 255, 0.08)',
-  },
-  {
-    id: 'graphite-black',
-    name: 'Graphite',
-    mode: 'dark',
-    bgApp: '#08090b',
-    bgSidebar: '#0f1013',
-    bgCard: '#14151a',
-    bgInput: '#14151a',
-    textMain: '#e5e7eb',
-    textMuted: '#9ca3af',
-    borderSubtle: 'rgba(255, 255, 255, 0.06)',
-  },
 ];
 
 export const ACCENT_COLORS = [
-  { name: 'Indigo', hex: '#7c9cff' },
-  { name: 'Cyan', hex: '#38bdf8' },
-  { name: 'Emerald', hex: '#4ade80' },
-  { name: 'Violet', hex: '#a78bfa' },
-  { name: 'Rose', hex: '#fb7185' },
-  { name: 'Amber', hex: '#fbbf24' },
+  { name: 'Terracotta', hex: '#C96442' },
+  { name: 'Amber', hex: '#d97706' },
+  { name: 'Indigo', hex: '#6366f1' },
+  { name: 'Sage', hex: '#059669' },
+  { name: 'Rose', hex: '#e11d48' },
+  { name: 'Slate', hex: '#475569' },
 ];
 
 export interface ThemeModalProps {
@@ -80,14 +80,15 @@ export interface ThemeModalProps {
 }
 
 export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('obsidian-dark');
-  const [selectedAccent, setSelectedAccent] = useState('#7c9cff');
+  const [selectedThemeId, setSelectedThemeId] = useState('warm-white');
+  const [selectedAccent, setSelectedAccent] = useState('#C96442');
   const [textSize, setTextSize] = useState<number>(13.5);
 
   const applyTheme = useCallback((theme: SimpleTheme, accent: string, size: number) => {
     const root = document.documentElement;
     root.style.setProperty('--bg', theme.bgApp);
     root.style.setProperty('--bg-app', theme.bgApp);
+    root.style.setProperty('--bg-sidebar', theme.bgSidebar);
     root.style.setProperty('--bg-elevated', theme.bgSidebar);
     root.style.setProperty('--surface-solid', theme.bgCard);
     root.style.setProperty('--bg-card', theme.bgCard);
@@ -95,11 +96,16 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
     root.style.setProperty('--text', theme.textMain);
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--text-muted', theme.textMuted);
+    root.style.setProperty('--text-faint', theme.mode === 'light' ? '#9E9892' : '#71717a');
     root.style.setProperty('--border', theme.borderSubtle);
+    root.style.setProperty('--border-subtle', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)');
+    root.style.setProperty('--border-strong', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)');
+    root.style.setProperty('--bg-sidebar-hover', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)');
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-soft', `${accent}25`);
     root.style.setProperty('--accent-glow', `${accent}40`);
     root.style.setProperty('--font-size-base', `${size}px`);
+    root.style.colorScheme = theme.mode;
 
     localStorage.setItem(
       'neutrino_simple_theme',
@@ -112,16 +118,19 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
       const saved = localStorage.getItem('neutrino_simple_theme');
       if (saved) {
         const { themeId, accent, size } = JSON.parse(saved);
-        const t = MAC_THEMES.find((x) => x.id === themeId) || MAC_THEMES[0];
-        setSelectedThemeId(t.id);
-        setSelectedAccent(accent || '#7c9cff');
+        const validTheme = (themeId && themeId !== 'obsidian-dark')
+          ? (MAC_THEMES.find((x) => x.id === themeId) || MAC_THEMES[0])
+          : MAC_THEMES[0];
+        const validAccent = accent && accent !== '#7c9cff' ? accent : '#C96442';
+        setSelectedThemeId(validTheme.id);
+        setSelectedAccent(validAccent);
         setTextSize(size || 13.5);
-        applyTheme(t, accent || '#7c9cff', size || 13.5);
+        applyTheme(validTheme, validAccent, size || 13.5);
       } else {
-        applyTheme(MAC_THEMES[0], '#7c9cff', 13.5);
+        applyTheme(MAC_THEMES[0], '#C96442', 13.5);
       }
     } catch {
-      applyTheme(MAC_THEMES[0], '#7c9cff', 13.5);
+      applyTheme(MAC_THEMES[0], '#C96442', 13.5);
     }
   }, [applyTheme]);
 
@@ -218,7 +227,7 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
                   onClick={() => handleSelectAccent(a.hex)}
                   title={a.name}
                 >
-                  {isSelected && <Check size={12} style={{ color: '#0b0d12' }} />}
+                  {isSelected && <Check size={12} style={{ color: '#ffffff' }} />}
                 </button>
               );
             })}

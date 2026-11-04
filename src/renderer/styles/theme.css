@@ -1,66 +1,66 @@
 @font-face {
-  font-family: 'Soria';
-  font-style: normal;
-  font-weight: normal;
-  src: local('Soria'), url('../fonts/Soria-Bold.woff') format('woff'), url('https://fonts.cdnfonts.com/s/78809/Soria-Bold.woff') format('woff');
+  font-family: 'Claude Serif';
+  font-style: italic;
+  font-weight: 300 700;
+  src: local('Claude Serif'), local('Tiempos Headline'), local('Newsreader'), url('../fonts/ClaudeSerif-Italic.ttf') format('truetype');
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Soria';
-  font-style: italic;
-  font-weight: normal;
-  src: local('Soria'), url('../fonts/Soria-Bold.woff') format('woff'), url('https://fonts.cdnfonts.com/s/78809/Soria-Bold.woff') format('woff');
+  font-family: 'Claude Serif';
+  font-style: normal;
+  font-weight: 300 700;
+  src: local('Claude Serif'), local('Tiempos Headline'), local('Newsreader'), url('../fonts/ClaudeSerif-Italic.ttf') format('truetype');
   font-display: swap;
 }
 
 :root {
   /* ==========================================================================
-     ARC BROWSER DESIGN TOKENS (DARK OBSIDIAN / CHARCOAL)
+     WARM WHITE LIGHT THEME (CLAUDE-INSPIRED WARM PALETTE)
      ========================================================================== */
-  --bg-app:           #090b0e;
-  --bg-sidebar:       #0e1117;
-  --bg-sidebar-hover: #151922;
-  --bg-surface:       #131720;
-  --bg-elevated:      #181d28;
-  --bg-card:          #161b24;
-  --bg-input:         #141822;
+  --bg-app:           #FAF8F5;
+  --bg-sidebar:       rgba(244, 240, 233, 0.88);
+  --bg-sidebar-hover: rgba(0, 0, 0, 0.05);
+  --bg-surface:       #FFFFFF;
+  --bg-elevated:      #FFFFFF;
+  --bg-card:          #FFFFFF;
+  --bg-input:         #FFFFFF;
 
-  --border:           rgba(255, 255, 255, 0.07);
-  --border-subtle:    rgba(255, 255, 255, 0.035);
-  --border-strong:    rgba(255, 255, 255, 0.12);
-  --border-focus:     #7c9cff;
+  --border:           rgba(0, 0, 0, 0.08);
+  --border-subtle:    rgba(0, 0, 0, 0.04);
+  --border-strong:    rgba(0, 0, 0, 0.12);
+  --border-focus:     #C96442;
 
-  --text-main:        #f0f2f7;
-  --text-muted:       #8e97a8;
-  --text-faint:       #5d6474;
+  --text-main:        #1F1E1D;
+  --text-muted:       #686460;
+  --text-faint:       #9E9892;
 
-  --accent:           #7c9cff;
-  --accent-hover:     #9cb4ff;
-  --accent-soft:      rgba(124, 156, 255, 0.14);
-  --accent-glow:      rgba(124, 156, 255, 0.28);
+  --accent:           #C96442;
+  --accent-hover:     #B55333;
+  --accent-soft:      rgba(201, 100, 66, 0.12);
+  --accent-glow:      rgba(201, 100, 66, 0.22);
 
-  --success:          #4ade80;
-  --success-bg:       rgba(74, 222, 128, 0.12);
-  --danger:           #f87171;
-  --danger-bg:        rgba(248, 113, 113, 0.12);
+  --success:          #15803d;
+  --success-bg:       rgba(21, 128, 61, 0.1);
+  --danger:           #dc2626;
+  --danger-bg:        rgba(220, 38, 38, 0.1);
 
-  --workspace-accent: #7c9cff;
+  --workspace-accent: #C96442;
 
   --radius-xs:        4px;
   --radius-sm:        7px;
   --radius-md:        10px;
   --radius-lg:        14px;
-  --radius-canvas:    12px;
+  --radius-canvas:    0px;
   --radius-full:      9999px;
 
-  --shadow-sm:        0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md:        0 4px 16px rgba(0, 0, 0, 0.45);
-  --shadow-lg:        0 12px 32px rgba(0, 0, 0, 0.6);
-  --shadow-popup:     0 20px 48px -8px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--border);
+  --shadow-sm:        0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md:        0 4px 16px rgba(0, 0, 0, 0.07);
+  --shadow-lg:        0 12px 32px rgba(0, 0, 0, 0.1);
+  --shadow-popup:     0 16px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
   /* Typography */
-  --font-heading:     'Soria', 'Fraunces', 'Instrument Serif', Georgia, serif;
+  --font-heading:     'Claude Serif', 'Tiempos Headline', 'Copernicus', 'Newsreader', 'Charter', 'Georgia', serif;
   --font-ui:          'DM Sans', 'Switzer', 'General Sans', system-ui, -apple-system, sans-serif;
   --font-mono:        'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
 
@@ -72,7 +72,7 @@
   --transition-fast:  0.16s var(--ease-arc);
   --transition-base:  0.24s var(--ease-arc);
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -114,7 +114,7 @@ html, body {
   min-width: 300px;
   max-width: 300px;
   height: 100vh;
-  background-color: rgba(12, 15, 22, 0.65);
+  background-color: rgba(244, 240, 233, 0.88);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border-right: 1px solid var(--border);
@@ -220,7 +220,7 @@ html, body {
 
 .arc-omnibox-form:hover {
   border-color: var(--border-strong);
-  background-color: #171b26;
+  background-color: var(--bg-input);
 }
 
 .arc-omnibox-form:focus-within {
@@ -438,7 +438,7 @@ html, body {
 
 .arc-tabs-title-trigger-btn:hover {
   color: var(--text-main);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--bg-sidebar-hover);
 }
 
 .arc-tabs-strip-arrow {
@@ -463,7 +463,7 @@ html, body {
 
 .arc-tabs-count-badge {
   font-size: 10.5px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-sidebar-hover);
   padding: 1px 6px;
   border-radius: 9999px;
   color: var(--text-muted);
@@ -510,7 +510,7 @@ html, body {
 }
 
 /* ==========================================================================
-   MACOS NOTIFICATION TAB CARD (Image 3 Reference)
+   MACOS NOTIFICATION TAB CARD (Warm White Light Theme)
    ========================================================================== */
 .arc-macos-tab-card {
   position: relative;
@@ -518,28 +518,28 @@ html, body {
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  background-color: rgba(30, 34, 46, 0.72);
+  background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .arc-macos-tab-card:hover {
-  background-color: rgba(38, 44, 58, 0.85);
-  border-color: rgba(255, 255, 255, 0.16);
+  background-color: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.16);
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .arc-macos-tab-card.active {
-  background-color: rgba(44, 52, 70, 0.92);
-  border-color: rgba(124, 156, 255, 0.55);
-  box-shadow: 0 0 16px rgba(124, 156, 255, 0.25), 0 8px 24px rgba(0, 0, 0, 0.45);
+  background-color: #FFFFFF;
+  border-color: rgba(201, 100, 66, 0.45);
+  box-shadow: 0 0 12px rgba(201, 100, 66, 0.15), 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .arc-macos-tab-active-glow {
@@ -550,7 +550,7 @@ html, body {
   width: 3.5px;
   border-radius: 9999px;
   background-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
+  box-shadow: 0 0 6px var(--accent-glow);
 }
 
 /* Notification Left Squircle Icon */
@@ -562,9 +562,10 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
   overflow: hidden;
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .arc-macos-tab-favicon {
@@ -593,7 +594,7 @@ html, body {
 .arc-macos-tab-app-name {
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-main);
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -632,13 +633,13 @@ html, body {
 }
 
 .arc-macos-tab-close:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
 .arc-macos-tab-title-row {
   font-size: 12px;
-  color: #a4adc1;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -672,8 +673,8 @@ html, body {
   left: 8px;
   right: 8px;
   height: 14px;
-  background-color: rgba(30, 34, 46, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: rgba(242, 238, 230, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
   z-index: 1;
   pointer-events: none;
@@ -685,8 +686,8 @@ html, body {
   left: 16px;
   right: 16px;
   height: 14px;
-  background-color: rgba(30, 34, 46, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background-color: rgba(235, 230, 220, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   border-radius: 12px;
   z-index: 0;
   pointer-events: none;
@@ -700,10 +701,10 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 9999px;
   padding: 4px 12px;
   color: var(--text-muted);
@@ -716,15 +717,15 @@ html, body {
 }
 
 .arc-stack-toggle-pill:hover {
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: rgba(0, 0, 0, 0.09);
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 /* Expanded Group Container */
 .arc-tab-stack-container.expanded {
-  background-color: rgba(20, 24, 34, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: rgba(244, 240, 233, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 18px;
   padding: 8px;
   display: flex;
@@ -737,7 +738,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 2px 4px 6px 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .arc-group-expanded-title {
@@ -751,7 +752,7 @@ html, body {
 
 .arc-group-badge {
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.06);
   padding: 1px 5px;
   border-radius: 9999px;
   color: var(--text-muted);
@@ -773,7 +774,7 @@ html, body {
 
 .arc-group-collapse-btn:hover {
   color: var(--text-main);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .arc-group-cards-list {
@@ -798,7 +799,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 5px;
-  background-color: rgba(20, 24, 34, 0.55);
+  background-color: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--border);
   border-radius: 9999px;
   padding: 3px 5px;
@@ -814,8 +815,8 @@ html, body {
 .arc-spaces-slider-track {
   flex: 1;
   height: 26px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 9999px;
   position: relative;
   display: flex;
@@ -858,9 +859,9 @@ html, body {
   top: 2px;
   bottom: 2px;
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -873,7 +874,7 @@ html, body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  box-shadow: 0 0 8px currentColor;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .arc-spaces-range-input {
@@ -891,8 +892,8 @@ html, body {
   height: 26px;
   min-width: 26px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
@@ -902,9 +903,9 @@ html, body {
 }
 
 .arc-add-space-btn:hover {
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: rgba(0, 0, 0, 0.1);
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(0, 0, 0, 0.14);
 }
 
 .arc-add-space-btn {
@@ -1017,28 +1018,27 @@ html, body {
 }
 
 .arc-viewport-container.with-sidebar {
-  padding: 8px 8px 8px 0;
+  padding: 0;
 }
 
 .arc-viewport-container.collapsed-sidebar {
   padding: 0;
 }
 
-/* Arc Signature Rounded Webview Canvas Frame */
+/* Arc Signature Webview Canvas Frame - Border removed seamlessly */
 .arc-web-canvas-frame {
   flex: 1 1 100%;
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-canvas);
+  border-radius: 0;
   overflow: hidden;
-  background-color: #ffffff;
-  border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+  background-color: var(--bg-app);
+  border: none;
+  box-shadow: none;
   display: flex;
   position: relative;
   min-width: 0;
   min-height: 0;
-  transition: border-radius var(--transition-base), border var(--transition-base);
 }
 
 .arc-viewport-container.collapsed-sidebar .arc-web-canvas-frame {
@@ -1272,7 +1272,7 @@ webview,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #0c0e14;
+  background-color: var(--bg-app);
   overflow: hidden;
   z-index: 10;
 }
@@ -1284,7 +1284,7 @@ webview,
   transform: translate(-50%, -50%);
   width: 700px;
   height: 440px;
-  background: radial-gradient(circle, rgba(124, 156, 255, 0.06) 0%, transparent 68%);
+  background: radial-gradient(circle, rgba(201, 100, 66, 0.05) 0%, transparent 68%);
   pointer-events: none;
 }
 
@@ -1293,8 +1293,8 @@ webview,
   inset: 0;
   background-size: 36px 36px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.012) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.012) 1px, transparent 1px);
   pointer-events: none;
 }
 
@@ -1304,7 +1304,7 @@ webview,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   width: 100%;
   max-width: 640px;
   padding: 0 24px;
@@ -1315,7 +1315,7 @@ webview,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .homepage-brand-badge {
@@ -1324,12 +1324,12 @@ webview,
   gap: 6px;
   padding: 4px 12px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--border);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .homepage-badge-dot {
@@ -1340,38 +1340,38 @@ webview,
 }
 
 .homepage-wordmark {
-  font-family: 'Soria', var(--font-heading);
+  font-family: var(--font-heading);
   font-style: italic;
-  font-size: 58px;
-  font-weight: normal;
-  letter-spacing: -0.01em;
+  font-size: 64px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   color: var(--text-main);
-  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.7);
+  text-shadow: none;
 }
 
 .homepage-search-form {
   width: 100%;
   max-width: 560px;
   height: 54px;
-  background: #141720;
+  background: #FFFFFF;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   padding: 0 16px;
   gap: 12px;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   transition: all var(--transition-fast);
 }
 
 .homepage-search-form:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(0, 0, 0, 0.22);
 }
 
 .homepage-search-form:focus-within {
   border-color: var(--accent);
-  box-shadow: var(--shadow-lg), 0 0 0 3px var(--accent-soft);
-  background: #171b26;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 0 0 3px var(--accent-soft);
+  background: #FFFFFF;
 }
 
 .homepage-search-icon {
@@ -1403,9 +1403,9 @@ webview,
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0b0d12;
+  color: #FFFFFF;
   cursor: pointer;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
 }
 
 .homepage-search-submit-btn:hover {

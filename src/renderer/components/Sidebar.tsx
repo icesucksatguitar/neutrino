@@ -706,7 +706,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenThemeStudio}
               title="Themes & Appearance"
             >
-              <Palette size={14} />
+              <Moon size={14} />
             </button>
           )}
         </div>

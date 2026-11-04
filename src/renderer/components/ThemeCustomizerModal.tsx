@@ -16,6 +16,18 @@ export interface SimpleTheme {
 
 export const MAC_THEMES: SimpleTheme[] = [
   {
+    id: 'lunar',
+    name: 'Lunar',
+    mode: 'dark',
+    bgApp: '#0a0b0e',
+    bgSidebar: 'rgba(26, 28, 33, 0.72)',
+    bgCard: '#1a1c21',
+    bgInput: '#121419',
+    textMain: '#e9e7e1',
+    textMuted: '#a7a9b0',
+    borderSubtle: 'rgba(214, 218, 226, 0.09)',
+  },
+  {
     id: 'warm-white',
     name: 'Warm White',
     mode: 'light',
@@ -26,30 +38,6 @@ export const MAC_THEMES: SimpleTheme[] = [
     textMain: '#1F1E1D',
     textMuted: '#686460',
     borderSubtle: 'rgba(0, 0, 0, 0.08)',
-  },
-  {
-    id: 'cream-linen',
-    name: 'Linen',
-    mode: 'light',
-    bgApp: '#F7F5F0',
-    bgSidebar: '#EFECE4',
-    bgCard: '#FFFFFF',
-    bgInput: '#FFFFFF',
-    textMain: '#242220',
-    textMuted: '#736E67',
-    borderSubtle: 'rgba(0, 0, 0, 0.08)',
-  },
-  {
-    id: 'soft-paper',
-    name: 'Paper',
-    mode: 'light',
-    bgApp: '#FBFBFA',
-    bgSidebar: '#F3F3F1',
-    bgCard: '#FFFFFF',
-    bgInput: '#FFFFFF',
-    textMain: '#181817',
-    textMuted: '#6A6966',
-    borderSubtle: 'rgba(0, 0, 0, 0.07)',
   },
   {
     id: 'obsidian-dark',
@@ -66,12 +54,12 @@ export const MAC_THEMES: SimpleTheme[] = [
 ];
 
 export const ACCENT_COLORS = [
-  { name: 'Terracotta', hex: '#C96442' },
+  { name: 'Moon Glow', hex: '#d8d2bd' },
+  { name: 'Earthshine', hex: '#7f9bbd' },
+  { name: 'Sage', hex: '#8fcf9f' },
+  { name: 'Rose', hex: '#e08a84' },
   { name: 'Amber', hex: '#d97706' },
-  { name: 'Indigo', hex: '#6366f1' },
-  { name: 'Sage', hex: '#059669' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Slate', hex: '#475569' },
+  { name: 'Slate', hex: '#a7a9b0' },
 ];
 
 export interface ThemeModalProps {
@@ -80,8 +68,8 @@ export interface ThemeModalProps {
 }
 
 export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('warm-white');
-  const [selectedAccent, setSelectedAccent] = useState('#C96442');
+  const [selectedThemeId, setSelectedThemeId] = useState('lunar');
+  const [selectedAccent, setSelectedAccent] = useState('#d8d2bd');
   const [textSize, setTextSize] = useState<number>(13.5);
 
   const applyTheme = useCallback((theme: SimpleTheme, accent: string, size: number) => {
@@ -89,21 +77,27 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
     root.style.setProperty('--bg', theme.bgApp);
     root.style.setProperty('--bg-app', theme.bgApp);
     root.style.setProperty('--bg-sidebar', theme.bgSidebar);
-    root.style.setProperty('--bg-elevated', theme.bgSidebar);
+    root.style.setProperty('--bg-elevated', theme.id === 'lunar' ? '#111317' : theme.bgSidebar);
+    root.style.setProperty('--surface', theme.id === 'lunar' ? 'rgba(26, 28, 33, 0.72)' : theme.bgCard);
     root.style.setProperty('--surface-solid', theme.bgCard);
+    root.style.setProperty('--surface-hover', theme.id === 'lunar' ? '#23262c' : 'rgba(255, 255, 255, 0.08)');
     root.style.setProperty('--bg-card', theme.bgCard);
     root.style.setProperty('--bg-input', theme.bgInput);
     root.style.setProperty('--text', theme.textMain);
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--text-muted', theme.textMuted);
-    root.style.setProperty('--text-faint', theme.mode === 'light' ? '#9E9892' : '#71717a');
+    root.style.setProperty('--text-faint', theme.id === 'lunar' ? '#74777f' : (theme.mode === 'light' ? '#9E9892' : '#71717a'));
     root.style.setProperty('--border', theme.borderSubtle);
-    root.style.setProperty('--border-subtle', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)');
-    root.style.setProperty('--border-strong', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)');
-    root.style.setProperty('--bg-sidebar-hover', theme.mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)');
+    root.style.setProperty('--border-subtle', theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.05)' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)'));
+    root.style.setProperty('--border-strong', theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.20)' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)'));
+    root.style.setProperty('--bg-sidebar-hover', theme.id === 'lunar' ? '#23262c' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'));
     root.style.setProperty('--accent', accent);
-    root.style.setProperty('--accent-soft', `${accent}25`);
-    root.style.setProperty('--accent-glow', `${accent}40`);
+    root.style.setProperty('--accent-soft', theme.id === 'lunar' ? 'rgba(216, 210, 189, 0.14)' : `${accent}25`);
+    root.style.setProperty('--accent-glow', theme.id === 'lunar' ? '0 0 24px rgba(216, 210, 189, 0.14)' : `${accent}40`);
+    root.style.setProperty('--earthshine', '#7f9bbd');
+    root.style.setProperty('--art', '#6a6e78');
+    root.style.setProperty('--success', '#8fcf9f');
+    root.style.setProperty('--danger', '#e08a84');
     root.style.setProperty('--font-size-base', `${size}px`);
     root.style.colorScheme = theme.mode;
 
@@ -118,19 +112,19 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
       const saved = localStorage.getItem('neutrino_simple_theme');
       if (saved) {
         const { themeId, accent, size } = JSON.parse(saved);
-        const validTheme = (themeId && themeId !== 'obsidian-dark')
-          ? (MAC_THEMES.find((x) => x.id === themeId) || MAC_THEMES[0])
+        const validTheme = (themeId && themeId === 'lunar')
+          ? MAC_THEMES[0]
           : MAC_THEMES[0];
-        const validAccent = accent && accent !== '#7c9cff' ? accent : '#C96442';
+        const validAccent = accent === '#d8d2bd' ? accent : '#d8d2bd';
         setSelectedThemeId(validTheme.id);
         setSelectedAccent(validAccent);
         setTextSize(size || 13.5);
         applyTheme(validTheme, validAccent, size || 13.5);
       } else {
-        applyTheme(MAC_THEMES[0], '#C96442', 13.5);
+        applyTheme(MAC_THEMES[0], '#d8d2bd', 13.5);
       }
     } catch {
-      applyTheme(MAC_THEMES[0], '#C96442', 13.5);
+      applyTheme(MAC_THEMES[0], '#d8d2bd', 13.5);
     }
   }, [applyTheme]);
 

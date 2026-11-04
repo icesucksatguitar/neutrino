@@ -76,7 +76,7 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'Neutrino Browser',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#0a0b0e',
     frame: true, // Native Windows OS frame
     autoHideMenuBar: true,
     webPreferences: {

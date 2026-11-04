@@ -71,6 +71,38 @@
 }
 
 @font-face {
+  font-family: 'Instrument Serif';
+  font-style: normal;
+  font-weight: 400 700;
+  src: local('Instrument Serif'), local('InstrumentSerif'), url('../fonts/InstrumentSerif-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  font-style: italic;
+  font-weight: 400 700;
+  src: local('Instrument Serif Italic'), local('InstrumentSerif-Italic'), url('../fonts/InstrumentSerif-Italic.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400 700;
+  src: local('Fraunces'), url('../fonts/Fraunces-Regular.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: italic;
+  font-weight: 400 700;
+  src: local('Fraunces Italic'), url('../fonts/Fraunces-Italic.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Claude Serif';
   font-style: italic;
   font-weight: 300 700;
@@ -138,8 +170,8 @@
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.60);
   --shadow-popup: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border);
 
-  /* Typography */
-  --font-heading: 'Anthropic Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  /* Typography (Visual Design Brief: Instrument Serif / Fraunces, DM Sans, IBM Plex Mono) */
+  --font-heading: 'Instrument Serif', 'Fraunces', Georgia, serif;
   --font-ui: 'DM Sans', 'Switzer', 'General Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
 
@@ -1427,118 +1459,111 @@ webview,
   height: 440px;
   background: radial-gradient(circle, rgba(216, 210, 189, 0.04) 0%, transparent 68%);
   pointer-events: none;
+  z-index: 1;
 }
 
-.homepage-micro-grid {
-  display: none !important;
+/* Section 4: Full-window ASCII background (clouds + jet) */
+.homescreen-ascii-fixed-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
 }
 
-.homepage-main-container {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  width: 100%;
-  max-width: 640px;
-  padding: 0 24px;
-  transform: translateY(-16px);
-}
-
-.homepage-brand-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.homepage-brand-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  border: 1px solid var(--border);
+.ascii-clouds-jet-pre {
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-.homepage-badge-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background-color: var(--accent);
-  box-shadow: 0 0 6px var(--accent-soft);
-}
-
-.homepage-wordmark {
-  font-family: 'FF Meta', 'Meta', 'Fira Sans', 'Outfit', 'Verdana', var(--font-heading);
-  font-style: italic;
-  font-synthesis: style;
-  font-size: 64px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-transform: lowercase;
-  color: var(--text-main);
-  text-shadow: none;
-}
-
-.homepage-search-form {
+  line-height: 14px;
+  letter-spacing: 0.5px;
+  color: var(--art);
+  opacity: 0.42;
+  white-space: pre;
+  user-select: none;
   width: 100%;
-  max-width: 560px;
-  height: 54px;
-  background: var(--surface-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Section 5: Glassmorphic URL Bar & Wordmark (Center of screen, slightly above true center) */
+.homescreen-center-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  transform: translateY(-20px);
+}
+
+.homescreen-wordmark {
+  font-family: var(--font-heading);
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 2px;
+  user-select: none;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+.homescreen-glass-search-box {
+  width: clamp(420px, 42vw, 620px);
+  height: 52px;
+  background: var(--surface);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
-  padding: 0 16px;
+  padding: 0 18px;
   gap: 12px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all var(--transition-fast);
 }
 
-.homepage-search-form:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-lg);
+.homescreen-glass-search-box:hover {
+  border-color: rgba(214, 218, 226, 0.28);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
-.homepage-search-form:focus-within {
+.homescreen-glass-search-box:focus-within {
+  background: rgba(26, 28, 33, 0.88);
   border-color: var(--accent);
-  box-shadow: var(--shadow-lg), 0 0 24px var(--accent-soft);
-  background: var(--surface-solid);
+  box-shadow: 0 0 24px var(--accent-soft), var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.homepage-search-icon {
+.homescreen-glass-icon {
   color: var(--text-faint);
   flex-shrink: 0;
 }
 
-.homepage-search-input {
+.homescreen-glass-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--font-ui);
-  font-size: 15px;
-  color: var(--text-main);
+  font-size: 14.5px;
+  color: var(--text);
   letter-spacing: -0.01em;
 }
 
-.homepage-search-input::placeholder {
+.homescreen-glass-input::placeholder {
   color: var(--text-faint);
 }
 
-.homepage-search-submit-btn {
+.homescreen-glass-submit-btn {
   background: var(--accent);
   border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-xs);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1547,10 +1572,99 @@ webview,
   transition: transform var(--transition-fast), background-color var(--transition-fast);
 }
 
-.homepage-search-submit-btn:hover {
+.homescreen-glass-submit-btn:hover {
   background: var(--accent-hover);
-  transform: scale(1.05);
+  transform: scale(1.08);
   box-shadow: 0 0 12px var(--accent-soft);
+}
+
+/* ==========================================================================
+   SECTION 6: MODE SLIDER (BOTTOM-LEFT CORNER, NO LABELS, HOVER TOOLTIP)
+   ========================================================================== */
+.homescreen-bottom-left-slider {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 20;
+}
+
+.workspace-slider-minimal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 160px;
+}
+
+.workspace-slider-track-minimal {
+  position: relative;
+  width: 100%;
+  height: 22px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-strong);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  overflow: visible;
+}
+
+.workspace-slider-tick-minimal {
+  position: absolute;
+  top: 5px;
+  width: 2px;
+  height: 10px;
+  background: var(--text-faint);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.workspace-slider-fill-minimal {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.workspace-slider-thumb-minimal {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 10px var(--accent-soft);
+  pointer-events: none;
+  transition: left 0.1s linear;
+}
+
+.workspace-slider-tooltip {
+  position: absolute;
+  bottom: 30px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  animation: tooltipIn 0.15s ease-out;
+}
+
+.workspace-slider-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--surface-solid) transparent transparent transparent;
 }
 
 .homepage-shortcuts-row {

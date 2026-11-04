@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
 import { Space } from '../types';
 
 interface WorkspaceSliderProps {
@@ -14,7 +13,6 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
   activeSpaceId,
   onSelectSpace,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -22,7 +20,7 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
   const activeIndex = Math.max(0, spaces.findIndex((s) => s.id === activeSpaceId));
   const total = Math.max(1, spaces.length);
   const activeSpace = spaces[activeIndex] || spaces[0];
-  const activeColor = activeSpace?.color || '#7c9cff';
+  const activeColor = activeSpace?.color || 'var(--accent)';
 
   // Compute percentage (0% to 100%)
   const percentage = total > 1 ? (activeIndex / (total - 1)) * 100 : 50;
@@ -63,28 +61,12 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
     };
   }, [isDragging, spaces, activeSpaceId]);
 
-  // Priority 4: Default state shows only minimal '+' icon
-  if (!isOpen) {
-    return (
-      <div className="spaces-launcher-container">
-        <button
-          className="spaces-minimal-plus-btn"
-          onClick={() => setIsOpen(true)}
-          title="Spaces: Click to switch workspaces"
-          aria-label="Reveal Spaces"
-        >
-          <Plus size={15} />
-        </button>
-      </div>
-    );
-  }
-
   // Dynamic track gradient based on active space
   const trackGradient = `linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.12) 50%, ${activeColor}40 100%)`;
 
   return (
     <div
-      className="spaces-slider-expanded-panel"
+      className="workspace-slider-minimal"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -97,11 +79,11 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
             transform: 'translateX(-50%)',
           }}
         >
-          {activeSpace?.name || 'Space'} ({activeIndex + 1}/{total})
+          {activeSpace?.name || 'Space'}
         </div>
       )}
 
-      {/* Slider Track with Snap Ticks & Thumb (Priority 4: 1 slide per Space) */}
+      {/* Slider Track with Snap Ticks & Thumb */}
       <div
         ref={trackRef}
         className="workspace-slider-track-minimal"
@@ -143,16 +125,6 @@ export const WorkspaceSlider: React.FC<WorkspaceSliderProps> = ({
           }}
         />
       </div>
-
-      {/* Dismiss / Collapse button */}
-      <button
-        className="spaces-collapse-btn"
-        onClick={() => setIsOpen(false)}
-        title="Hide Spaces Slider"
-        aria-label="Hide Spaces"
-      >
-        <X size={12} />
-      </button>
     </div>
   );
 };

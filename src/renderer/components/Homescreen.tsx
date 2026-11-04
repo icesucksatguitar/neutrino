@@ -46,7 +46,6 @@ export const Homescreen: React.FC<HomescreenProps> = ({
     <div className="homepage-hero-canvas">
       {/* Subtle Warm Ambient Background Composition */}
       <div className="homepage-ambient-radial" aria-hidden="true" />
-      <div className="homepage-micro-grid" aria-hidden="true" />
 
       {/* Centerpiece Branding & Search Hierarchy */}
       <div className="homepage-main-container">
@@ -56,7 +55,7 @@ export const Homescreen: React.FC<HomescreenProps> = ({
             <span className="homepage-badge-dot" />
             <span className="homepage-badge-text">LOCAL-FIRST DESKTOP BROWSER</span>
           </div>
-          <h1 className="homepage-wordmark">NEUTRINO</h1>
+          <h1 className="homepage-wordmark">neutrino</h1>
         </div>
 
         {/* Central Search / Address Bar */}

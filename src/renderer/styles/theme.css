@@ -1,4 +1,20 @@
 @font-face {
+  font-family: 'Anthropic Sans';
+  font-style: normal;
+  font-weight: 300 500;
+  src: local('Anthropic Sans'), local('AnthropicSans'), url('../fonts/AnthropicSans-400.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Anthropic Sans';
+  font-style: normal;
+  font-weight: 600 900;
+  src: local('Anthropic Sans Bold'), local('AnthropicSans-Bold'), local('Anthropic Sans'), url('../fonts/AnthropicSans-700.woff2') format('woff2');
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Claude Serif';
   font-style: italic;
   font-weight: 300 700;
@@ -18,59 +34,59 @@
   /* ==========================================================================
      WARM WHITE LIGHT THEME (CLAUDE-INSPIRED WARM PALETTE)
      ========================================================================== */
-  --bg-app:           #FAF8F5;
-  --bg-sidebar:       rgba(244, 240, 233, 0.88);
+  --bg-app: #FAF8F5;
+  --bg-sidebar: rgba(244, 240, 233, 0.88);
   --bg-sidebar-hover: rgba(0, 0, 0, 0.05);
-  --bg-surface:       #FFFFFF;
-  --bg-elevated:      #FFFFFF;
-  --bg-card:          #FFFFFF;
-  --bg-input:         #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-input: #FFFFFF;
 
-  --border:           rgba(0, 0, 0, 0.08);
-  --border-subtle:    rgba(0, 0, 0, 0.04);
-  --border-strong:    rgba(0, 0, 0, 0.12);
-  --border-focus:     #C96442;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --border-focus: #C96442;
 
-  --text-main:        #1F1E1D;
-  --text-muted:       #686460;
-  --text-faint:       #9E9892;
+  --text-main: #1F1E1D;
+  --text-muted: #686460;
+  --text-faint: #9E9892;
 
-  --accent:           #C96442;
-  --accent-hover:     #B55333;
-  --accent-soft:      rgba(201, 100, 66, 0.12);
-  --accent-glow:      rgba(201, 100, 66, 0.22);
+  --accent: #C96442;
+  --accent-hover: #B55333;
+  --accent-soft: rgba(201, 100, 66, 0.12);
+  --accent-glow: rgba(201, 100, 66, 0.22);
 
-  --success:          #15803d;
-  --success-bg:       rgba(21, 128, 61, 0.1);
-  --danger:           #dc2626;
-  --danger-bg:        rgba(220, 38, 38, 0.1);
+  --success: #15803d;
+  --success-bg: rgba(21, 128, 61, 0.1);
+  --danger: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.1);
 
   --workspace-accent: #C96442;
 
-  --radius-xs:        4px;
-  --radius-sm:        7px;
-  --radius-md:        10px;
-  --radius-lg:        14px;
-  --radius-canvas:    0px;
-  --radius-full:      9999px;
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-canvas: 0px;
+  --radius-full: 9999px;
 
-  --shadow-sm:        0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md:        0 4px 16px rgba(0, 0, 0, 0.07);
-  --shadow-lg:        0 12px 32px rgba(0, 0, 0, 0.1);
-  --shadow-popup:     0 16px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1);
+  --shadow-popup: 0 16px 36px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
 
   /* Typography */
-  --font-heading:     'Claude Serif', 'Tiempos Headline', 'Copernicus', 'Newsreader', 'Charter', 'Georgia', serif;
-  --font-ui:          'DM Sans', 'Switzer', 'General Sans', system-ui, -apple-system, sans-serif;
-  --font-mono:        'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
+  --font-heading: 'Anthropic Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-ui: 'DM Sans', 'Switzer', 'General Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
 
   --font-family-base: var(--font-ui);
-  --font-size-base:   14px;
-  --letter-spacing:   -0.01em;
+  --font-size-base: 14px;
+  --letter-spacing: -0.01em;
 
-  --ease-arc:         cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast:  0.16s var(--ease-arc);
-  --transition-base:  0.24s var(--ease-arc);
+  --ease-arc: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.16s var(--ease-arc);
+  --transition-base: 0.24s var(--ease-arc);
 
   color-scheme: light;
 }
@@ -82,7 +98,8 @@
   user-select: none;
 }
 
-html, body {
+html,
+body {
   background-color: var(--bg-app);
   color: var(--text-main);
   font-family: var(--font-family-base);
@@ -290,8 +307,15 @@ html, body {
 }
 
 @keyframes pulseLoader {
-  from { opacity: 0.2; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1.2); }
+  from {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 /* Arc Pinned / Favorites App Tiles */
@@ -1210,8 +1234,15 @@ webview,
 }
 
 @keyframes zoomPillPop {
-  0% { transform: translateY(-8px) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  0% {
+    transform: translateY(-8px) scale(0.95);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 /* Space Name Overlay (macOS-inspired desktop slide) */
@@ -1236,10 +1267,29 @@ webview,
 }
 
 @keyframes spaceOverlayFade {
-  0% { opacity: 0; transform: scale(0.95); filter: blur(4px); }
-  25% { opacity: 1; transform: scale(1); filter: blur(0); }
-  75% { opacity: 1; transform: scale(1); filter: blur(0); }
-  100% { opacity: 0; transform: scale(1.02); filter: blur(3px); }
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    filter: blur(4px);
+  }
+
+  25% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+
+  75% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+    filter: blur(3px);
+  }
 }
 
 .space-transition-left {
@@ -1251,13 +1301,27 @@ webview,
 }
 
 @keyframes spaceSlideLeft {
-  0% { transform: translateX(25px); opacity: 0.75; }
-  100% { transform: translateX(0); opacity: 1; }
+  0% {
+    transform: translateX(25px);
+    opacity: 0.75;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes spaceSlideRight {
-  0% { transform: translateX(-25px); opacity: 0.75; }
-  100% { transform: translateX(0); opacity: 1; }
+  0% {
+    transform: translateX(-25px);
+    opacity: 0.75;
+  }
+
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* ==========================================================================
@@ -1292,7 +1356,7 @@ webview,
   position: absolute;
   inset: 0;
   background-size: 36px 36px;
-  background-image: 
+  background-image:
     linear-gradient(to right, rgba(0, 0, 0, 0.012) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 0, 0, 0.012) 1px, transparent 1px);
   pointer-events: none;
@@ -1340,11 +1404,12 @@ webview,
 }
 
 .homepage-wordmark {
-  font-family: var(--font-heading);
+  font-family: 'Anthropic Sans', var(--font-heading);
   font-style: italic;
-  font-size: 64px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-synthesis: style;
+  font-size: 62px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--text-main);
   text-shadow: none;
 }
@@ -1477,7 +1542,8 @@ webview,
 }
 
 .homepage-spaces-corner {
-  display: none; /* Spaces are integrated directly into the Arc Sidebar */
+  display: none;
+  /* Spaces are integrated directly into the Arc Sidebar */
 }
 
 /* ==========================================================================
@@ -1494,8 +1560,13 @@ webview,
 }
 
 @keyframes backdropFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .mcp-drawer {
@@ -1517,8 +1588,13 @@ webview,
 }
 
 @keyframes drawerSlideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .mcp-drawer-header {
@@ -2004,10 +2080,25 @@ webview,
   cursor: pointer;
 }
 
-.floating-media-player.top-left { top: 16px; left: 16px; }
-.floating-media-player.top-right { top: 16px; right: 16px; }
-.floating-media-player.bottom-left { bottom: 16px; left: 16px; }
-.floating-media-player.bottom-right { bottom: 16px; right: 16px; }
+.floating-media-player.top-left {
+  top: 16px;
+  left: 16px;
+}
+
+.floating-media-player.top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.floating-media-player.bottom-left {
+  bottom: 16px;
+  left: 16px;
+}
+
+.floating-media-player.bottom-right {
+  bottom: 16px;
+  right: 16px;
+}
 
 .media-resize-handle {
   position: absolute;
@@ -2174,7 +2265,8 @@ webview,
   color: var(--text-faint);
 }
 
-button:focus-visible, input:focus-visible {
+button:focus-visible,
+input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

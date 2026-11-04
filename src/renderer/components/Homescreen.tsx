@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { Search, ArrowRight } from 'lucide-react';
 import { Space } from '../types';
 
 interface HomescreenProps {
@@ -83,23 +83,6 @@ export const Homescreen: React.FC<HomescreenProps> = ({
             </button>
           )}
         </form>
-
-        {/* Subtle, restrained status hints (Pins below search bar removed) */}
-        <div className="homepage-footer-hints">
-          <span className="homepage-hint-item">
-            <ShieldCheck size={13} className="homepage-hint-icon" />
-            <span>Adblock Active</span>
-          </span>
-          <span className="homepage-hint-sep">•</span>
-          <span className="homepage-hint-item">
-            <Zap size={13} className="homepage-hint-icon" />
-            <span>Zen Memory Shield</span>
-          </span>
-          <span className="homepage-hint-sep">•</span>
-          <span className="homepage-hint-item">
-            <span>Ctrl + T to jump</span>
-          </span>
-        </div>
       </div>
     </div>
   );

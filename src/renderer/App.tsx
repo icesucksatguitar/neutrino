@@ -8,6 +8,7 @@ import { ShieldModal } from './components/ShieldModal';
 import { McpModal } from './components/McpModal';
 import { ThemeCustomizerModal } from './components/ThemeCustomizerModal';
 import { MediaPlayer } from './components/MediaPlayer';
+import { PixelMcp, PixelPalette, PixelShield, PixelZen, PixelMoon, PixelSun } from './components/PixelIcons';
 import { ActiveMediaState } from './types';
 import './styles/theme.css';
 
@@ -41,6 +42,42 @@ export function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
+
+  // Persistent Dark Theme state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('neutrino_dark_theme') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('neutrino_dark_theme', next ? 'true' : 'false');
+      } catch {}
+      if (next) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark-mode');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.body.classList.remove('dark-mode');
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.classList.add('dark-mode');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.body.classList.remove('dark-mode');
+    }
+  }, [isDarkMode]);
 
   // Browser UI Scale state (persisted across sessions)
   const [browserZoom, setBrowserZoom] = useState<number>(() => {
@@ -145,10 +182,13 @@ export function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+T or Ctrl+K -> Command Palette / New Tab
+      // Ctrl+T or Ctrl+K -> Show Search / Command Palette
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 't' || e.key.toLowerCase() === 'k')) {
         e.preventDefault();
-        setIsCommandBarOpen(true);
+        window.dispatchEvent(new CustomEvent('neutrino:show-search'));
+        if (activeTab && activeTab.url && activeTab.url !== 'neutrino://newtab' && activeTab.url !== 'about:blank') {
+          setIsCommandBarOpen(true);
+        }
       }
       // Ctrl+W -> Close active tab
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w') {
@@ -284,6 +324,61 @@ export function App() {
         </div>
       )}
 
+      {/* Top Right Controls: Shields, Zen, Dark Mode Toggle, AI Assistant & Theme Switcher */}
+      <div className="arc-top-right-bar">
+        {/* Shield Blocker Pill */}
+        <button
+          className="arc-top-right-pill-btn"
+          onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
+          title={`Shields active: ${state.shieldStats.trackersBlocked} blocked`}
+          aria-label="Shields"
+        >
+          <PixelShield size={14} />
+          <span className="arc-top-pill-badge">{state.shieldStats.trackersBlocked}</span>
+        </button>
+
+        {/* Zen Mode RAM Pill */}
+        <button
+          className="arc-top-right-pill-btn"
+          onClick={zenOptimize}
+          title={`Zen: ${state.resourceStats.memorySavedMb}MB RAM saved (click to optimize)`}
+          aria-label="Zen Mode"
+        >
+          <PixelZen size={14} />
+          <span className="arc-top-pill-badge">{state.resourceStats.memorySavedMb}M</span>
+        </button>
+
+        {/* Dark / Light Mode Toggle */}
+        <button
+          className="arc-top-right-btn"
+          onClick={toggleDarkMode}
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle Dark Mode"
+        >
+          {isDarkMode ? <PixelSun size={16} /> : <PixelMoon size={16} />}
+        </button>
+
+        {/* AI Assistant & Tools */}
+        <button
+          className="arc-top-right-btn"
+          onClick={() => setIsMcpModalOpen(!isMcpModalOpen)}
+          title="AI Assistants & Tools"
+          aria-label="AI Assistants & Tools"
+        >
+          <PixelMcp size={16} />
+        </button>
+
+        {/* Themes & Appearance */}
+        <button
+          className="arc-top-right-btn"
+          onClick={() => setIsThemeModalOpen(true)}
+          title="Themes & Appearance"
+          aria-label="Themes & Appearance"
+        >
+          <PixelPalette size={16} />
+        </button>
+      </div>
+
       {/* Arc Browser Vertical Sidebar */}
       {isSidebarOpen && (
         <Sidebar
@@ -338,6 +433,8 @@ export function App() {
             tabs={state.tabs}
             spaces={state.spaces}
             activeSpaceId={state.activeSpaceId}
+            isDarkMode={isDarkMode}
+            isSidebarOpen={isSidebarOpen}
             onSelectSpace={handleSelectSpace}
             onUpdateTab={handleUpdateTab}
             onNavigate={navigate}

@@ -16,50 +16,50 @@ export interface SimpleTheme {
 
 export const MAC_THEMES: SimpleTheme[] = [
   {
+    id: 'sumi-white',
+    name: 'Sumi Ink White',
+    mode: 'light',
+    bgApp: '#ffffff',
+    bgSidebar: 'transparent',
+    bgCard: '#ffffff',
+    bgInput: 'rgba(245, 245, 247, 0.95)',
+    textMain: '#111111',
+    textMuted: '#555555',
+    borderSubtle: 'rgba(0, 0, 0, 0.08)',
+  },
+  {
+    id: 'sakura',
+    name: 'Sakura Pixel',
+    mode: 'light',
+    bgApp: '#fdeef2',
+    bgSidebar: 'transparent',
+    bgCard: '#fff7f9',
+    bgInput: 'rgba(255, 250, 252, 0.9)',
+    textMain: '#5a3345',
+    textMuted: '#8a5d72',
+    borderSubtle: 'rgba(217, 102, 138, 0.18)',
+  },
+  {
     id: 'lunar',
     name: 'Lunar',
     mode: 'dark',
     bgApp: '#0a0b0e',
-    bgSidebar: 'rgba(26, 28, 33, 0.72)',
+    bgSidebar: 'transparent',
     bgCard: '#1a1c21',
     bgInput: '#121419',
     textMain: '#e9e7e1',
     textMuted: '#a7a9b0',
     borderSubtle: 'rgba(214, 218, 226, 0.09)',
   },
-  {
-    id: 'warm-white',
-    name: 'Warm White',
-    mode: 'light',
-    bgApp: '#FAF8F5',
-    bgSidebar: 'rgba(244, 240, 233, 0.88)',
-    bgCard: '#FFFFFF',
-    bgInput: '#FFFFFF',
-    textMain: '#1F1E1D',
-    textMuted: '#686460',
-    borderSubtle: 'rgba(0, 0, 0, 0.08)',
-  },
-  {
-    id: 'obsidian-dark',
-    name: 'Obsidian',
-    mode: 'dark',
-    bgApp: '#0b0d12',
-    bgSidebar: '#12151d',
-    bgCard: '#151821',
-    bgInput: '#151821',
-    textMain: '#eceef4',
-    textMuted: '#939aa8',
-    borderSubtle: 'rgba(255, 255, 255, 0.08)',
-  },
 ];
 
 export const ACCENT_COLORS = [
+  { name: 'Ink Black', hex: '#111111' },
+  { name: 'Charcoal', hex: '#333333' },
+  { name: 'Rose', hex: '#d9668a' },
+  { name: 'Matcha', hex: '#589b6b' },
+  { name: 'Amber Gold', hex: '#f5ba58' },
   { name: 'Moon Glow', hex: '#d8d2bd' },
-  { name: 'Earthshine', hex: '#7f9bbd' },
-  { name: 'Sage', hex: '#8fcf9f' },
-  { name: 'Rose', hex: '#e08a84' },
-  { name: 'Amber', hex: '#d97706' },
-  { name: 'Slate', hex: '#a7a9b0' },
 ];
 
 export interface ThemeModalProps {
@@ -68,63 +68,61 @@ export interface ThemeModalProps {
 }
 
 export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('lunar');
-  const [selectedAccent, setSelectedAccent] = useState('#d8d2bd');
+  const [selectedThemeId, setSelectedThemeId] = useState('sumi-white');
+  const [selectedAccent, setSelectedAccent] = useState('#e91e63');
   const [textSize, setTextSize] = useState<number>(13.5);
 
   const applyTheme = useCallback((theme: SimpleTheme, accent: string, size: number) => {
     const root = document.documentElement;
     root.style.setProperty('--bg', theme.bgApp);
     root.style.setProperty('--bg-app', theme.bgApp);
-    root.style.setProperty('--bg-sidebar', theme.bgSidebar);
-    root.style.setProperty('--bg-elevated', theme.id === 'lunar' ? '#111317' : theme.bgSidebar);
-    root.style.setProperty('--surface', theme.id === 'lunar' ? 'rgba(26, 28, 33, 0.72)' : theme.bgCard);
+    root.style.setProperty('--bg-sidebar', 'transparent');
+    root.style.setProperty('--bg-elevated', theme.id === 'sumi-white' ? '#f8f8f9' : (theme.id === 'sakura' ? '#fff5f8' : (theme.id === 'lunar' ? '#111317' : '#f5f0eb')));
+    root.style.setProperty('--surface', theme.id === 'sumi-white' ? 'rgba(255, 255, 255, 0.90)' : (theme.id === 'sakura' ? 'rgba(255, 248, 250, 0.82)' : (theme.id === 'lunar' ? 'rgba(26, 28, 33, 0.72)' : theme.bgCard)));
     root.style.setProperty('--surface-solid', theme.bgCard);
-    root.style.setProperty('--surface-hover', theme.id === 'lunar' ? '#23262c' : 'rgba(255, 255, 255, 0.08)');
+    root.style.setProperty('--surface-hover', theme.id === 'sumi-white' ? '#f3f3f5' : (theme.id === 'sakura' ? '#ffeef3' : (theme.id === 'lunar' ? '#23262c' : 'rgba(0, 0, 0, 0.05)')));
     root.style.setProperty('--bg-card', theme.bgCard);
     root.style.setProperty('--bg-input', theme.bgInput);
     root.style.setProperty('--text', theme.textMain);
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--text-muted', theme.textMuted);
-    root.style.setProperty('--text-faint', theme.id === 'lunar' ? '#74777f' : (theme.mode === 'light' ? '#9E9892' : '#71717a'));
+    root.style.setProperty('--text-faint', theme.id === 'sumi-white' ? '#888888' : (theme.id === 'sakura' ? '#a87d91' : (theme.id === 'lunar' ? '#74777f' : '#9E9892')));
     root.style.setProperty('--border', theme.borderSubtle);
-    root.style.setProperty('--border-subtle', theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.05)' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.04)'));
-    root.style.setProperty('--border-strong', theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.20)' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)'));
-    root.style.setProperty('--bg-sidebar-hover', theme.id === 'lunar' ? '#23262c' : (theme.mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'));
+    root.style.setProperty('--border-subtle', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.04)' : (theme.id === 'sakura' ? 'rgba(217, 102, 138, 0.10)' : (theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.05)' : 'rgba(0, 0, 0, 0.04)')));
+    root.style.setProperty('--border-strong', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.18)' : (theme.id === 'sakura' ? 'rgba(217, 102, 138, 0.36)' : (theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.20)' : 'rgba(0, 0, 0, 0.12)')));
+    root.style.setProperty('--bg-sidebar-hover', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.04)' : (theme.id === 'sakura' ? 'rgba(255, 238, 243, 0.65)' : (theme.id === 'lunar' ? '#23262c' : 'rgba(0, 0, 0, 0.05)')));
     root.style.setProperty('--accent', accent);
-    root.style.setProperty('--accent-soft', theme.id === 'lunar' ? 'rgba(216, 210, 189, 0.14)' : `${accent}25`);
-    root.style.setProperty('--accent-glow', theme.id === 'lunar' ? '0 0 24px rgba(216, 210, 189, 0.14)' : `${accent}40`);
+    root.style.setProperty('--accent-soft', `${accent}25`);
+    root.style.setProperty('--accent-glow', `0 0 20px ${accent}40`);
     root.style.setProperty('--earthshine', '#7f9bbd');
-    root.style.setProperty('--art', '#6a6e78');
-    root.style.setProperty('--success', '#8fcf9f');
-    root.style.setProperty('--danger', '#e08a84');
+    root.style.setProperty('--art', theme.id === 'sumi-white' ? '#ff2a85' : (theme.id === 'sakura' ? '#d9668a' : '#6a6e78'));
+    root.style.setProperty('--success', '#2e7d32');
+    root.style.setProperty('--danger', '#d32f2f');
     root.style.setProperty('--font-size-base', `${size}px`);
     root.style.colorScheme = theme.mode;
 
     localStorage.setItem(
-      'neutrino_simple_theme',
+      'neutrino_simple_theme_v5',
       JSON.stringify({ themeId: theme.id, accent, size })
     );
   }, []);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('neutrino_simple_theme');
+      const saved = localStorage.getItem('neutrino_simple_theme_v5');
       if (saved) {
         const { themeId, accent, size } = JSON.parse(saved);
-        const validTheme = (themeId && themeId === 'lunar')
-          ? MAC_THEMES[0]
-          : MAC_THEMES[0];
-        const validAccent = accent === '#d8d2bd' ? accent : '#d8d2bd';
+        const validTheme = MAC_THEMES.find((t) => t.id === themeId) || MAC_THEMES[0];
+        const validAccent = accent || '#e91e63';
         setSelectedThemeId(validTheme.id);
         setSelectedAccent(validAccent);
         setTextSize(size || 13.5);
         applyTheme(validTheme, validAccent, size || 13.5);
       } else {
-        applyTheme(MAC_THEMES[0], '#d8d2bd', 13.5);
+        applyTheme(MAC_THEMES[0], '#e91e63', 13.5);
       }
     } catch {
-      applyTheme(MAC_THEMES[0], '#d8d2bd', 13.5);
+      applyTheme(MAC_THEMES[0], '#e91e63', 13.5);
     }
   }, [applyTheme]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Bot,
   X,
@@ -12,6 +12,9 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertCircle,
+  Move,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { TabState } from '../types';
 
@@ -89,7 +92,105 @@ export const McpModal: React.FC<McpModalProps> = ({
   const [logs, setLogs] = useState<any[]>([]);
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  // Scan local runtimes (Ollama & LM Studio, Section 7)
+  // Draggable & Resizable Window State
+  const defaultWidth = 460;
+  const defaultHeight = Math.min(760, window.innerHeight - 60);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number }>({
+    width: defaultWidth,
+    height: defaultHeight,
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; initialX: number; initialY: number }>({
+    mouseX: 0,
+    mouseY: 0,
+    initialX: 0,
+    initialY: 0,
+  });
+  const resizeStartRef = useRef<{ mouseX: number; mouseY: number; initialW: number; initialH: number }>({
+    mouseX: 0,
+    mouseY: 0,
+    initialW: 0,
+    initialH: 0,
+  });
+
+  // Reset to default right-anchored position on first open
+  useEffect(() => {
+    if (isOpen && position === null) {
+      const initialX = Math.max(20, window.innerWidth - size.width - 24);
+      const initialY = 24;
+      setPosition({ x: initialX, y: initialY });
+    }
+  }, [isOpen, size.width, position]);
+
+  // Handle Dragging via Header
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    // Prevent drag if clicking on interactive controls
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('select')) {
+      return;
+    }
+    e.preventDefault();
+    setIsDragging(true);
+    const curX = position ? position.x : Math.max(20, window.innerWidth - size.width - 24);
+    const curY = position ? position.y : 24;
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      initialX: curX,
+      initialY: curY,
+    };
+  };
+
+  // Handle Corner Resizing
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    resizeStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      initialW: size.width,
+      initialH: size.height,
+    };
+  };
+
+  // Drag and Resize event listeners
+  useEffect(() => {
+    if (!isDragging && !isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const dx = e.clientX - dragStartRef.current.mouseX;
+        const dy = e.clientY - dragStartRef.current.mouseY;
+        const newX = Math.max(10, Math.min(window.innerWidth - size.width - 10, dragStartRef.current.initialX + dx));
+        const newY = Math.max(10, Math.min(window.innerHeight - 80, dragStartRef.current.initialY + dy));
+        setPosition({ x: newX, y: newY });
+      } else if (isResizing) {
+        const dx = e.clientX - resizeStartRef.current.mouseX;
+        const dy = e.clientY - resizeStartRef.current.mouseY;
+        const newW = Math.max(360, Math.min(window.innerWidth - (position?.x || 0) - 10, resizeStartRef.current.initialW + dx));
+        const newH = Math.max(400, Math.min(window.innerHeight - (position?.y || 0) - 10, resizeStartRef.current.initialH + dy));
+        setSize({ width: newW, height: newH });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, size.width, size.height, position?.x, position?.y]);
+
+  // Scan local runtimes (Ollama & LM Studio)
   const scanLocalRuntimes = async () => {
     setIsScanning(true);
     const modelsFound: { name: string; runtime: 'ollama' | 'lmstudio' }[] = [];
@@ -157,7 +258,7 @@ export const McpModal: React.FC<McpModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, activeTabType]);
 
-  // Send message to local model with streaming response (Section 7)
+  // Send message to local model with streaming response
   const handleSendLocalChat = async () => {
     const text = userInput.trim();
     if (!text || isGenerating || !selectedModel) return;
@@ -171,7 +272,6 @@ export const McpModal: React.FC<McpModalProps> = ({
     const modelObj = availableModels.find((m) => m.name === selectedModel);
     const runtime = modelObj?.runtime || 'ollama';
 
-    // Assistant response container
     const assistantMsg: ChatMessage = { role: 'assistant', content: '' };
     setChatMessages([...nextMessages, assistantMsg]);
 
@@ -287,26 +387,67 @@ export const McpModal: React.FC<McpModalProps> = ({
   if (!isOpen) return null;
 
   const currentAssistant = ASSISTANTS.find((a) => a.id === selectedAssistant) || ASSISTANTS[0];
+  const posX = position ? position.x : Math.max(20, window.innerWidth - size.width - 24);
+  const posY = position ? position.y : 24;
 
   return (
     <>
-      {/* Light Backdrop */}
-      <div className="mcp-drawer-overlay" onClick={onClose} />
+      {/* Non-blocking semi-transparent ambient backdrop */}
+      <div className="mcp-drawer-overlay floating-backdrop" onClick={onClose} />
 
-      {/* 7. Right-Side Drawer (Assistants, Local models, Tools) */}
-      <aside className="mcp-drawer">
-        {/* Header */}
-        <div className="mcp-drawer-header">
+      {/* Right-Anchored, Moveable & Resizable AI Panel */}
+      <aside
+        className={`mcp-drawer floating-panel ${isDragging ? 'is-dragging' : ''}`}
+        style={{
+          position: 'fixed',
+          left: `${posX}px`,
+          top: `${posY}px`,
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          right: 'auto',
+          bottom: 'auto',
+          zIndex: 1000,
+        }}
+      >
+        {/* Header - Interactive Drag Grip */}
+        <div
+          className="mcp-drawer-header draggable-header"
+          onMouseDown={handleHeaderMouseDown}
+          title="Click and drag to move panel"
+        >
           <div className="mcp-drawer-title-group">
-            <Bot size={22} style={{ color: 'var(--accent)' }} />
+            <Move size={15} className="mcp-drag-grip-icon" />
+            <Bot size={20} style={{ color: 'var(--accent)' }} />
             <h2 className="mcp-drawer-title">AI & MCP Platform</h2>
+            {availableModels.length > 0 && (
+              <span className="mcp-runtime-badge-pill">
+                ● {availableModels.length} local
+              </span>
+            )}
           </div>
-          <button className="mcp-drawer-close-btn" onClick={onClose} title="Close Panel">
-            <X size={18} />
-          </button>
+
+          <div className="mcp-header-actions">
+            <button
+              className="mcp-drawer-header-btn"
+              onClick={() => {
+                setPosition({ x: Math.max(20, window.innerWidth - defaultWidth - 24), y: 24 });
+                setSize({ width: defaultWidth, height: defaultHeight });
+              }}
+              title="Reset Position"
+            >
+              <Minimize2 size={14} />
+            </button>
+            <button
+              className="mcp-drawer-close-btn"
+              onClick={onClose}
+              title="Close Panel"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* 3 Tabs Bar */}
+        {/* 3 Modern Segmented Tabs */}
         <div className="mcp-tab-bar">
           <button
             className={`mcp-tab-btn ${activeTabType === 'assistants' ? 'active' : ''}`}
@@ -333,7 +474,7 @@ export const McpModal: React.FC<McpModalProps> = ({
 
         {/* Drawer Body */}
         <div className="mcp-drawer-body">
-          {/* TAB 1: ASSISTANTS (Claude, ChatGPT, Gemini with Electron <webview> & Persistent Partitions) */}
+          {/* TAB 1: ASSISTANTS (Claude, ChatGPT, Gemini) */}
           {activeTabType === 'assistants' && (
             <div className="assistant-container">
               {/* Provider Switcher */}
@@ -348,151 +489,119 @@ export const McpModal: React.FC<McpModalProps> = ({
                     <span>{asst.name}</span>
                   </button>
                 ))}
+
+                <div className="assistant-spacer" />
+
+                {activeTab?.url && (
+                  <button
+                    className="assistant-action-chip"
+                    onClick={handleSendCurrentPage}
+                    title="Send active tab URL and title to assistant"
+                  >
+                    <Share2 size={12} />
+                    <span>Send Tab</span>
+                  </button>
+                )}
+
+                <button
+                  className="assistant-action-chip"
+                  onClick={() => onNavigate?.(currentAssistant.url)}
+                  title="Open in active browser tab"
+                >
+                  <ExternalLink size={12} />
+                </button>
               </div>
 
-              {/* Actions Bar */}
-              <div className="assistant-actions-bar">
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Session: <strong style={{ color: 'var(--text-main)' }}>{currentAssistant.name}</strong>
-                </span>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {activeTab && activeTab.url && activeTab.url !== 'neutrino://newtab' && (
-                    <button
-                      className="assistant-send-btn"
-                      onClick={handleSendCurrentPage}
-                      title="Send current web page URL & title to assistant"
-                    >
-                      <Share2 size={12} />
-                      <span>Send Page</span>
-                    </button>
-                  )}
-                  {onNavigate && (
-                    <button
-                      className="assistant-send-btn"
-                      onClick={() => onNavigate(currentAssistant.url)}
-                      title="Open full page in browser tab"
-                    >
-                      <ExternalLink size={12} />
-                      <span>Open Tab</span>
-                    </button>
-                  )}
-                </div>
+              {/* Embedded Assistant Webview */}
+              <div className="assistant-webview-frame">
+                {React.createElement('webview', {
+                  ref: assistantWebviewRef,
+                  src: currentAssistant.url,
+                  partition: currentAssistant.partition,
+                  className: 'assistant-webview',
+                  useragent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                  allowpopups: 'true',
+                  webpreferences: 'contextIsolation=yes',
+                })}
               </div>
-
-              {/* Embedded Assistant Webview with persistent session partition (Section 7) */}
-              {React.createElement('webview', {
-                key: currentAssistant.id,
-                ref: assistantWebviewRef,
-                src: currentAssistant.url,
-                partition: currentAssistant.partition,
-                className: 'assistant-webview-frame',
-                allowpopups: 'true',
-                webpreferences: 'contextIsolation=yes',
-              })}
             </div>
           )}
 
-          {/* TAB 2: LOCAL MODELS (Ollama & LM Studio Detection + Streaming Chat) */}
+          {/* TAB 2: LOCAL MODELS (Ollama & LM Studio with streaming responses) */}
           {activeTabType === 'local' && (
             <div className="local-models-container">
-              {/* Runtime Status Card */}
-              <div className="runtime-status-card">
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
-                    Local AI Runtimes
+              {/* Runtime Status & Model Selector */}
+              <div className="local-runtime-status-bar">
+                <div className="runtime-pills-row">
+                  <div className={`runtime-indicator ${ollamaOnline ? 'online' : 'offline'}`}>
+                    <span className="dot">●</span>
+                    <span>Ollama</span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Ollama (11434) &amp; LM Studio (1234)
+                  <div className={`runtime-indicator ${lmStudioOnline ? 'online' : 'offline'}`}>
+                    <span className="dot">●</span>
+                    <span>LM Studio</span>
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className={`runtime-badge ${ollamaOnline ? 'online' : 'offline'}`}>
-                    Ollama: {ollamaOnline ? 'Active' : 'Offline'}
-                  </span>
-                  <span className={`runtime-badge ${lmStudioOnline ? 'online' : 'offline'}`}>
-                    LM Studio: {lmStudioOnline ? 'Active' : 'Offline'}
-                  </span>
                   <button
-                    className="nav-icon-btn"
+                    className="refresh-runtimes-btn"
                     onClick={scanLocalRuntimes}
-                    title="Rescan Local Runtimes"
+                    disabled={isScanning}
+                    title="Rescan local runtimes"
                   >
-                    <RefreshCw size={13} className={isScanning ? 'spinning' : ''} />
+                    <RefreshCw size={12} className={isScanning ? 'spinning' : ''} />
+                    <span>{isScanning ? 'Scanning...' : 'Scan'}</span>
                   </button>
                 </div>
+
+                {availableModels.length > 0 && (
+                  <div className="model-selector-row">
+                    <label htmlFor="model-select">Model:</label>
+                    <select
+                      id="model-select"
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="model-select-dropdown"
+                    >
+                      {availableModels.map((m) => (
+                        <option key={m.name} value={m.name}>
+                          {m.name} ({m.runtime})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
-              {/* Model Picker or Empty State */}
+              {/* Chat View */}
               {availableModels.length === 0 ? (
-                <div style={{
-                  padding: '24px 16px',
-                  border: '1px dashed var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  textAlign: 'center',
-                  background: 'var(--bg-subtle)',
-                }}>
-                  <AlertCircle size={28} style={{ color: 'var(--text-dim)', margin: '0 auto 8px' }} />
-                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
-                    No Local Model Runtime Detected
-                  </div>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '340px', margin: '0 auto 14px' }}>
-                    Start <strong>Ollama</strong> (<code>ollama serve</code>) or <strong>LM Studio</strong> (enable Local Server), then click Rescan to load local models offline.
+                <div className="no-runtime-card">
+                  <AlertCircle size={28} style={{ color: 'var(--text-faint)', marginBottom: '8px' }} />
+                  <h4>No local models detected</h4>
+                  <p>
+                    Start Ollama (port 11434) or LM Studio (port 1234) with local server enabled, then click Scan.
                   </p>
-                  <button
-                    className="floating-new-tab-btn"
-                    onClick={scanLocalRuntimes}
-                    style={{ margin: '0 auto' }}
-                  >
-                    <RefreshCw size={13} />
-                    <span>Rescan Runtimes</span>
-                  </button>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Active Model:
-                  </label>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border)',
-                      fontFamily: 'var(--font-ui)',
-                      fontSize: '13px',
-                      background: 'var(--bg-surface)',
-                      color: 'var(--text-main)',
-                      outline: 'none',
-                    }}
-                  >
-                    {availableModels.map((m) => (
-                      <option key={`${m.runtime}-${m.name}`} value={m.name}>
-                        [{m.runtime.toUpperCase()}] {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Local Chat Window */}
-              {availableModels.length > 0 && (
-                <div className="local-chat-box">
+                <div className="local-chat-thread">
                   <div className="local-chat-messages">
                     {chatMessages.length === 0 ? (
-                      <div style={{ color: 'var(--text-dim)', textAlign: 'center', margin: 'auto', fontSize: '12px' }}>
-                        Start a conversation with <strong>{selectedModel}</strong>. Responses run entirely offline.
+                      <div className="chat-empty-hint">
+                        Start chatting with {selectedModel}. Responses are generated entirely locally on your device.
                       </div>
                     ) : (
                       chatMessages.map((msg, i) => (
-                        <div key={i} className={`local-msg ${msg.role}`}>
-                          {msg.content}
+                        <div key={i} className={`chat-bubble ${msg.role}`}>
+                          <div className="bubble-author">
+                            {msg.role === 'user' ? 'You' : selectedModel}
+                          </div>
+                          <div className="bubble-content">{msg.content}</div>
                         </div>
                       ))
                     )}
                     <div ref={chatBottomRef} />
                   </div>
 
+                  {/* Input row */}
                   <form
                     className="local-chat-input-bar"
                     onSubmit={(e) => {
@@ -525,16 +634,18 @@ export const McpModal: React.FC<McpModalProps> = ({
           {activeTabType === 'tools' && (
             <div className="tools-tab-container">
               {/* Server Status Header */}
-              <div style={{
-                background: 'var(--bg-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 14px',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}>
-                <CheckCircle2 size={18} style={{ color: 'var(--shield-green)' }} />
+              <div
+                style={{
+                  background: 'var(--bg-subtle, rgba(0,0,0,0.03))',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <CheckCircle2 size={18} style={{ color: 'var(--shield-green, #10b981)' }} />
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
                     Native MCP Server Active
@@ -597,12 +708,15 @@ export const McpModal: React.FC<McpModalProps> = ({
                 </div>
                 <div className="logs-pre">
                   {logs.length === 0 ? (
-                    <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '8px' }}>
+                    <div style={{ color: 'var(--text-dim, #888)', textAlign: 'center', padding: '8px' }}>
                       No protocol calls logged yet. Listening on JSON-RPC.
                     </div>
                   ) : (
                     logs.map((log, i) => (
-                      <div key={i} style={{ color: log.direction === 'in' ? '#2563eb' : '#15803d', marginBottom: '2px' }}>
+                      <div
+                        key={i}
+                        style={{ color: log.direction === 'in' ? '#2563eb' : '#15803d', marginBottom: '2px' }}
+                      >
                         [{log.direction.toUpperCase()}] {log.method || 'result'}: {JSON.stringify(log.data)}
                       </div>
                     ))
@@ -611,6 +725,17 @@ export const McpModal: React.FC<McpModalProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Interactive Bottom-Right Resize Grip Handle */}
+        <div
+          className="mcp-resize-handle"
+          onMouseDown={handleResizeMouseDown}
+          title="Drag to resize panel"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
         </div>
       </aside>
     </>

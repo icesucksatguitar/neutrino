@@ -7,6 +7,8 @@ interface BrowserViewportProps {
   tabs?: TabState[];
   spaces?: Space[];
   activeSpaceId?: string;
+  isDarkMode?: boolean;
+  isSidebarOpen?: boolean;
   onSelectSpace?: (spaceId: string) => void;
   onUpdateTab: (tabId: string, partial: Partial<TabState>) => void;
   onNavigate: (url: string) => void;
@@ -22,6 +24,8 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   tabs = [],
   spaces = [],
   activeSpaceId = '',
+  isDarkMode = false,
+  isSidebarOpen = true,
   onSelectSpace,
   onUpdateTab,
   onNavigate,
@@ -201,9 +205,84 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     }
   }, [mediaCommand, activeMediaTabId, activeTab?.id]);
 
+  // Sync active webview URL navigation
+  useEffect(() => {
+    if (!activeTab?.url) return;
+    if (activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank') return;
+    const wv = webviewRefs.current[activeTab.id];
+    if (wv && wv.loadURL) {
+      try {
+        const current = wv.getURL?.();
+        if (current && current !== activeTab.url && !current.startsWith(activeTab.url)) {
+          wv.loadURL(activeTab.url);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+  }, [activeTab?.id, activeTab?.url]);
+
   // Attach event listeners for each tab webview
   const attachWebviewEvents = (tabId: string, webview: any) => {
     if (!webview) return;
+
+    // Force dark theme on sites with text and on PDFs
+    const injectForcedDarkTheme = async () => {
+      try {
+        const u = webview.getURL?.() || '';
+        const isPdf =
+          u.toLowerCase().endsWith('.pdf') ||
+          u.toLowerCase().includes('.pdf?') ||
+          u.toLowerCase().includes('application/pdf');
+
+        if (isPdf) {
+          // Force dark theme on PDF viewer
+          await webview.insertCSS(`
+            html, body, #viewer, #viewerContainer, embed, object, pdf-viewer, viewer-pdf-toolbar {
+              filter: invert(90%) hue-rotate(180deg) contrast(95%) !important;
+              background-color: #18191c !important;
+            }
+          `);
+        } else {
+          // Force dark theme on text websites
+          await webview.insertCSS(`
+            :root {
+              color-scheme: dark !important;
+            }
+            html {
+              color-scheme: dark !important;
+            }
+            @media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) {
+              body {
+                background-color: #121316 !important;
+                color: #e4e4e7 !important;
+              }
+              p, li, article, section, h1, h2, h3, h4, h5, h6, dt, dd, blockquote {
+                color: #e4e4e7 !important;
+              }
+              a {
+                color: #70a5ff !important;
+              }
+            }
+          `);
+
+          await webview.executeJavaScript(`
+            (() => {
+              try {
+                document.documentElement.style.colorScheme = 'dark';
+                const bg = window.getComputedStyle(document.body).backgroundColor;
+                if (bg === 'rgb(255, 255, 255)' || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
+                  document.body.style.backgroundColor = '#121316';
+                  document.body.style.color = '#e4e4e7';
+                }
+              } catch(e) {}
+            })()
+          `);
+        }
+      } catch {
+        // ignore injection errors
+      }
+    };
 
     // Restore zoom and enforce full visual zoom flexibility on dom-ready
     const handleDomReady = () => {
@@ -211,6 +290,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         const factor = tabZoomMap.current[tabId] ?? activeTab?.zoomFactor ?? 1.0;
         if (webview.setZoomFactor) webview.setZoomFactor(factor);
         if (webview.setVisualZoomLevelLimits) webview.setVisualZoomLevelLimits(0.25, 5.0);
+        injectForcedDarkTheme();
       } catch {
         // ignore
       }
@@ -224,6 +304,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         canGoForward: webview.canGoForward?.() ?? false,
       });
       checkTabMedia(tabId);
+      injectForcedDarkTheme();
     };
 
     const handleTitle = (e: any) => {
@@ -249,6 +330,19 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     const handleMediaPlay = () => checkTabMedia(tabId);
     const handleMediaPause = () => checkTabMedia(tabId);
 
+    const handleNewWindow = (e: any) => {
+      e.preventDefault();
+      if (e.url) {
+        window.neutrino?.createTab(e.url, activeSpaceId);
+      }
+    };
+
+    const handleFailLoad = (e: any) => {
+      if (e.errorCode !== -3) {
+        console.warn('Webview failed to load:', e.validatedURL, e.errorDescription);
+      }
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
@@ -258,6 +352,8 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('did-navigate-in-page', handleNav);
     webview.addEventListener('media-started-playing', handleMediaPlay);
     webview.addEventListener('media-paused', handleMediaPause);
+    webview.addEventListener('new-window', handleNewWindow);
+    webview.addEventListener('did-fail-load', handleFailLoad);
   };
 
   if (!activeTab) {
@@ -278,6 +374,8 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         <Homescreen
           spaces={spaces}
           activeSpaceId={activeSpaceId}
+          isDarkMode={isDarkMode}
+          isSidebarOpen={isSidebarOpen}
           onSelectSpace={onSelectSpace}
           onNavigate={onNavigate}
         />

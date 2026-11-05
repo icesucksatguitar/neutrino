@@ -1,15 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Play,
-  Pause,
   Volume2,
   VolumeX,
   ExternalLink,
-  X,
   GripHorizontal,
   Video,
   Music,
 } from 'lucide-react';
+import { PixelPlay, PixelPause, PixelClose } from './PixelIcons';
 import { ActiveMediaState } from '../types';
 
 interface MediaPlayerProps {
@@ -150,7 +148,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
           </button>
           {/* Close mini player */}
           <button className="media-header-btn" onClick={onClose} title="Dismiss Mini Player">
-            <X size={13} />
+            <PixelClose size={13} />
           </button>
         </div>
       </div>
@@ -187,7 +185,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
             onClick={onPlayPause}
             title={mediaState.isPlaying ? 'Pause' : 'Play'}
           >
-            {mediaState.isPlaying ? <Pause size={15} /> : <Play size={15} />}
+            {mediaState.isPlaying ? <PixelPause size={15} /> : <PixelPlay size={15} />}
           </button>
 
           <div className="media-volume-group">

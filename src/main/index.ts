@@ -35,38 +35,47 @@ function setupNetworkInterception() {
   currentSession.setUserAgent(DESKTOP_USER_AGENT);
   neutrinoSession.setUserAgent(DESKTOP_USER_AGENT);
 
-  // Intercept all web requests with Brave-grade ad & tracker blocker
-  currentSession.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details, callback) => {
-    const url = details.url;
+  const applyInterception = (sess: any) => {
+    // Intercept web requests with Brave-grade ad & tracker blocker
+    sess.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details: any, callback: any) => {
+      const url = details.url;
 
-    // Allow internal UI and dev tools
-    if (url.startsWith('file://') || url.startsWith('devtools://') || url.startsWith('chrome-extension://')) {
-      callback({ cancel: false });
-      return;
-    }
-
-    const decision = adblockEngine.checkUrl(url);
-    if (decision.blocked) {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('neutrino:tracker-blocked', {
-          url,
-          domain: decision.domain,
-          category: decision.category,
-          rule: decision.rule,
-        });
+      // Allow internal UI and dev tools
+      if (url.startsWith('file://') || url.startsWith('devtools://') || url.startsWith('chrome-extension://')) {
+        callback({ cancel: false });
+        return;
       }
-      callback({ cancel: true });
-      return;
-    }
 
-    callback({ cancel: false });
-  });
+      const decision = adblockEngine.checkUrl(url);
+      if (decision.blocked) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('neutrino:tracker-blocked', {
+            url,
+            domain: decision.domain,
+            category: decision.category,
+            rule: decision.rule,
+          });
+        }
+        callback({ cancel: true });
+        return;
+      }
 
-  // Strip tracking cookies / headers if needed
-  currentSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    // Send standard clean privacy user agent
-    callback({ requestHeaders: details.requestHeaders });
-  });
+      callback({ cancel: false });
+    });
+
+    // Strip tracking headers / set privacy user agent
+    sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
+      callback({ requestHeaders: details.requestHeaders });
+    });
+
+    // Automatically allow webview permissions (media, fullscreen, clipboard, etc.)
+    sess.setPermissionRequestHandler((webContents: any, permission: any, callback: any) => {
+      callback(true);
+    });
+  };
+
+  applyInterception(currentSession);
+  applyInterception(neutrinoSession);
 }
 
 function createWindow() {
@@ -76,7 +85,7 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'Neutrino Browser',
-    backgroundColor: '#0a0b0e',
+    backgroundColor: '#ffffff',
     frame: true, // Native Windows OS frame
     autoHideMenuBar: true,
     webPreferences: {
@@ -233,8 +242,18 @@ app.whenReady().then(() => {
   setupIpcHandlers();
   createWindow();
 
-  // Universal zoom handlers for all WebContents (browser UI & webview tabs)
+  // Universal handlers for all WebContents (browser UI & webview tabs)
   app.on('web-contents-created', (_, contents) => {
+    // Intercept target="_blank" and window.open to open as tabs in Neutrino
+    contents.setWindowOpenHandler((details) => {
+      if (details.url && details.url !== 'about:blank') {
+        const active = browserManager.getActiveTab();
+        const spaceId = active ? active.spaceId : 'space-default';
+        browserManager.createTab(details.url, spaceId);
+      }
+      return { action: 'deny' };
+    });
+
     contents.on('before-input-event', (event, input) => {
       if (input.type === 'keyDown' && (input.control || input.meta)) {
         if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {

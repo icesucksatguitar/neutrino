@@ -123,12 +123,24 @@ export const McpModal: React.FC<McpModalProps> = ({
   // Personalized time-based greeting for Yash (Claude serif italic)
   const getGreeting = useCallback((): string => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) {
-      return 'Good morning, Yash';
+    let name = 'Yash';
+    try {
+      const stored = localStorage.getItem('neutrino_user_name');
+      if (stored) name = stored;
+      else {
+        const profile = localStorage.getItem('neutrino_user_profile');
+        if (profile) {
+          const parsed = JSON.parse(profile);
+          if (parsed.name) name = parsed.name;
+        }
+      }
+    } catch {}
+    if (hour >= 0 && hour < 12) {
+      return `Good morning, ${name}`;
     } else if (hour >= 12 && hour < 17) {
-      return 'Good afternoon, Yash';
+      return `Good afternoon, ${name}`;
     } else {
-      return 'Good evening, Yash';
+      return `Good evening, ${name}`;
     }
   }, []);
 
@@ -502,29 +514,43 @@ export const McpModal: React.FC<McpModalProps> = ({
           <span className="mcp-greeting-text">{greeting}</span>
         </div>
 
-        {/* 3 Modern Segmented Tabs */}
-        <div className="mcp-tab-bar">
-          <button
-            className={`mcp-tab-btn ${activeTabType === 'assistants' ? 'active' : ''}`}
-            onClick={() => setActiveTabType('assistants')}
-          >
-            <Sparkles size={14} />
-            <span>Assistants</span>
-          </button>
-          <button
-            className={`mcp-tab-btn ${activeTabType === 'local' ? 'active' : ''}`}
-            onClick={() => setActiveTabType('local')}
-          >
-            <Cpu size={14} />
-            <span>Local models</span>
-          </button>
-          <button
-            className={`mcp-tab-btn ${activeTabType === 'tools' ? 'active' : ''}`}
-            onClick={() => setActiveTabType('tools')}
-          >
-            <Wrench size={14} />
-            <span>Tools</span>
-          </button>
+        {/* Modern Segmented Tab Slider */}
+        <div className="mcp-tab-slider-wrap">
+          <div className="mcp-tab-slider-track">
+            {/* Sliding Pill Indicator */}
+            <div
+              className="mcp-tab-slider-pill"
+              style={{
+                transform: `translateX(${
+                  activeTabType === 'assistants' ? '0%' : activeTabType === 'local' ? '100%' : '200%'
+                })`,
+              }}
+            />
+            <button
+              type="button"
+              className={`mcp-slider-tab-btn ${activeTabType === 'assistants' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('assistants')}
+            >
+              <Sparkles size={13} />
+              <span>Assistants</span>
+            </button>
+            <button
+              type="button"
+              className={`mcp-slider-tab-btn ${activeTabType === 'local' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('local')}
+            >
+              <Cpu size={13} />
+              <span>Local models</span>
+            </button>
+            <button
+              type="button"
+              className={`mcp-slider-tab-btn ${activeTabType === 'tools' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('tools')}
+            >
+              <Wrench size={13} />
+              <span>Tools</span>
+            </button>
+          </div>
         </div>
 
         {/* Drawer Body */}
@@ -600,19 +626,22 @@ export const McpModal: React.FC<McpModalProps> = ({
               {/* Runtime Status & Model Selector */}
               <div className="local-runtime-status-bar">
                 <div className="runtime-pills-row">
-                  <div className={`runtime-indicator ${ollamaOnline ? 'online' : 'offline'}`}>
-                    <span className="dot">●</span>
-                    <span>Ollama</span>
+                  <div className={`runtime-indicator ${ollamaOnline ? 'online' : 'offline'}`} title="Ollama API (port 11434)">
+                    <span className="runtime-dot" />
+                    <span className="runtime-name">Ollama</span>
+                    <span className="runtime-state-tag">{ollamaOnline ? '11434' : 'offline'}</span>
                   </div>
-                  <div className={`runtime-indicator ${lmStudioOnline ? 'online' : 'offline'}`}>
-                    <span className="dot">●</span>
-                    <span>LM Studio</span>
+                  <div className={`runtime-indicator ${lmStudioOnline ? 'online' : 'offline'}`} title="LM Studio API (port 1234)">
+                    <span className="runtime-dot" />
+                    <span className="runtime-name">LM Studio</span>
+                    <span className="runtime-state-tag">{lmStudioOnline ? '1234' : 'offline'}</span>
                   </div>
                   <button
+                    type="button"
                     className="refresh-runtimes-btn"
                     onClick={scanLocalRuntimes}
                     disabled={isScanning}
-                    title="Rescan local runtimes"
+                    title="Rescan local runtimes (ports 11434 & 1234)"
                   >
                     <RefreshCw size={12} className={isScanning ? 'spinning' : ''} />
                     <span>{isScanning ? 'Scanning...' : 'Scan'}</span>
@@ -641,10 +670,12 @@ export const McpModal: React.FC<McpModalProps> = ({
               {/* Chat View */}
               {availableModels.length === 0 ? (
                 <div className="no-runtime-card">
-                  <AlertCircle size={28} style={{ color: 'var(--text-faint)', marginBottom: '8px' }} />
-                  <h4>No local models detected</h4>
-                  <p>
-                    Start Ollama (port 11434) or LM Studio (port 1234) with local server enabled, then click Scan.
+                  <div className="no-runtime-icon-wrap">
+                    <AlertCircle size={24} />
+                  </div>
+                  <h4 className="no-runtime-title">No local models detected</h4>
+                  <p className="no-runtime-desc">
+                    Start <strong>Ollama</strong> (port 11434) or <strong>LM Studio</strong> (port 1234) with local server enabled, then click <strong>Scan</strong>.
                   </p>
                 </div>
               ) : (

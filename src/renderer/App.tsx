@@ -154,8 +154,15 @@ export function App() {
       localStorage.removeItem('neutrino_browser_zoom');
       localStorage.removeItem('neutrino_homescreen_scale');
       const savedTheme = localStorage.getItem('neutrino_simple_theme_v5');
-      if (savedTheme && savedTheme.includes('sumi-white')) {
-        localStorage.removeItem('neutrino_simple_theme_v5');
+      if (savedTheme) {
+        try {
+          const parsed = JSON.parse(savedTheme);
+          if (parsed.accent && parsed.accent !== '#FFFFFF' && parsed.accent !== '#1C1917' && parsed.accent !== '#E4E4E7' && parsed.accent !== '#71717A') {
+            localStorage.removeItem('neutrino_simple_theme_v5');
+          }
+        } catch {
+          localStorage.removeItem('neutrino_simple_theme_v5');
+        }
       }
       document.documentElement.style.zoom = '';
     } catch {}

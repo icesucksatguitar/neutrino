@@ -191,19 +191,11 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             hasVideo: res.hasVideo,
           });
         }
-      } else if (res && !res.isPlaying && activeMediaTabId === tabId) {
+      } else if (activeMediaTabId === tabId) {
+        setActiveMediaTabId(null);
         window.neutrino?.mediaControl?.('report-status', { tabId, isPlaying: false });
         if (onMediaStateChange) {
-          onMediaStateChange({
-            tabId,
-            tabTitle: res.tabTitle,
-            url: webview.getURL?.() || '',
-            isPlaying: false,
-            currentTime: res.currentTime,
-            duration: res.duration,
-            volume: res.volume,
-            hasVideo: res.hasVideo,
-          });
+          onMediaStateChange(null);
         }
       }
     } catch {

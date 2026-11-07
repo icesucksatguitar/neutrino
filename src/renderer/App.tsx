@@ -221,25 +221,8 @@ export function App() {
     window.addEventListener('neutrino:toggle-tabs', handleToggleTabs);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+T, Ctrl+K, or Ctrl+L -> Open Command Bar
-      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 't' || e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'l')) {
-        e.preventDefault();
-        setIsCommandBarOpen(true);
-      }
-      // Ctrl+W -> Close active tab
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w') {
-        e.preventDefault();
-        if (state.activeTabId) {
-          closeTab(state.activeTabId);
-        }
-      }
-      // Ctrl+E -> Toggle Notification Tabs deck
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
-        e.preventDefault();
-        setIsNotificationTabsOpen((prev) => !prev);
-      }
       // Ctrl+1..4 -> Switch Spaces
-      else if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
+      if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
         e.preventDefault();
         const idx = parseInt(e.key, 10) - 1;
         if (state.spaces[idx]) {
@@ -314,21 +297,31 @@ export function App() {
         const key = e.key.toLowerCase();
         if (key === 'w') {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           if (state.activeTabId) {
             closeTab(state.activeTabId);
           }
         } else if (key === 't') {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           createTab('neutrino://newtab', state.activeSpaceId);
           setIsCommandBarOpen(true);
         } else if (key === 'k' || key === 'l') {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           setIsCommandBarOpen((prev) => !prev);
         } else if (key === 'e') {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           setIsNotificationTabsOpen((prev) => !prev);
         } else if (key === 'r') {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           window.neutrino?.reload();
         }
       }

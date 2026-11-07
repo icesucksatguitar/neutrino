@@ -148,6 +148,10 @@ export function useBrowser() {
 
   const selectTab = useCallback((tabId: string) => {
     window.neutrino?.selectTab(tabId);
+    setState((prev) => ({
+      ...prev,
+      activeTabId: tabId,
+    }));
   }, []);
 
   const togglePinTab = useCallback((tabId: string) => {
@@ -160,6 +164,10 @@ export function useBrowser() {
 
   const selectSpace = useCallback((spaceId: string) => {
     window.neutrino?.selectSpace(spaceId);
+    setState((prev) => ({
+      ...prev,
+      activeSpaceId: spaceId,
+    }));
   }, []);
 
   const createSpace = useCallback((name: string, color?: string) => {

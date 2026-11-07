@@ -87,13 +87,10 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isOpen, onToggle]);
 
-  // Keyboard shortcut: Cmd+E / Ctrl+E to toggle tabs, Escape to close
+  // Keyboard shortcut: Escape to close tabs (Ctrl+E is handled in App.tsx)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
-        e.preventDefault();
-        onToggle(!isOpen);
-      } else if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         onToggle(false);
       }
     };
@@ -124,12 +121,13 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
   };
 
   const handleMouseLeaveDeck = () => {
+    if (!isHovered) return;
     setIsHovered(false);
     if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
-    // Auto-dismiss smoothly when mouse leaves the deck after 420ms
+    // Auto-dismiss smoothly when mouse leaves the deck after 600ms
     autoCloseTimerRef.current = setTimeout(() => {
       onToggle(false);
-    }, 420);
+    }, 600);
   };
 
   const handleSelectTabAndClose = (tabId: string) => {
@@ -277,8 +275,9 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
     const track = sliderTrackRef.current;
     if (!track) return;
     const rect = track.getBoundingClientRect();
-    const clampedX = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const ratio = rect.width > 0 ? clampedX / rect.width : 0;
+    const availableWidth = rect.width - 24;
+    const clampedX = Math.max(0, Math.min(clientX - rect.left - 12, availableWidth));
+    const ratio = availableWidth > 0 ? clampedX / availableWidth : 0;
     setSliderDragRatio(ratio);
   };
 
@@ -294,8 +293,9 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
     }
 
     const rect = track.getBoundingClientRect();
-    const clampedX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
-    const ratio = rect.width > 0 ? clampedX / rect.width : 0;
+    const availableWidth = rect.width - 24;
+    const clampedX = Math.max(0, Math.min(e.clientX - rect.left - 12, availableWidth));
+    const ratio = availableWidth > 0 ? clampedX / availableWidth : 0;
 
     // Snap to closest space segment
     const segmentCount = displaySpaces.length;
@@ -487,21 +487,21 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
               >
                 {/* Track Tick Marks */}
                 {displaySpaces.map((sp, idx) => {
-                  const pct = (idx / (displaySpaces.length - 1)) * 100;
+                  const tickRatio = displaySpaces.length > 1 ? idx / (displaySpaces.length - 1) : 0;
                   return (
                     <div
                       key={sp.id}
                       className="proper-slider-tick"
-                      style={{ left: `${pct}%` }}
+                      style={{ left: `calc(12px + ${tickRatio} * (100% - 24px))` }}
                     />
                   );
                 })}
 
                 {/* Tactile Frosted Slider Handle Thumb */}
                 <div
-                  className="proper-slider-thumb"
+                  className={`proper-slider-thumb ${sliderDragRatio !== null ? 'dragging' : ''}`}
                   style={{
-                    left: `${activeRatio * 100}%`,
+                    left: `calc(12px + ${activeRatio} * (100% - 24px))`,
                   }}
                 >
                   <div className="proper-thumb-glow" />

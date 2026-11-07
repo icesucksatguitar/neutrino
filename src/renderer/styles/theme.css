@@ -4476,13 +4476,19 @@ input:focus-visible {
   font-style: italic;
   font-size: clamp(2rem, 3.8vw, 3.2rem);
   font-weight: 400;
-  color: #F4F4F6;
+  color: var(--text-main, #F4F4F6);
   letter-spacing: -0.025em;
   line-height: 1.15;
   text-align: center;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   opacity: 0.95;
   animation: fadeInGreeting 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="light"] .yc-italic-greeting,
+body:not(.dark-mode) .yc-italic-greeting {
+  color: #111113;
+  text-shadow: none;
 }
 
 @keyframes fadeInGreeting {
@@ -4508,6 +4514,11 @@ input:focus-visible {
   color: #8E8E96;
 }
 
+[data-theme="light"] .compact-clock .digital-clock-date,
+body:not(.dark-mode) .compact-clock .digital-clock-date {
+  color: #6B7280;
+}
+
 .compact-clock .digital-clock-time {
   display: flex;
   align-items: baseline;
@@ -4518,26 +4529,37 @@ input:focus-visible {
   font-family: 'Space Grotesk', 'Outfit', 'Inter', -apple-system, sans-serif;
   font-size: clamp(3rem, 5.2vw, 4.4rem);
   font-weight: 350;
-  color: #FFFFFF;
+  color: var(--text-main, #FFFFFF);
   letter-spacing: -0.04em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .compact-clock .digital-clock-digits,
+body:not(.dark-mode) .compact-clock .digital-clock-digits {
+  color: #111113;
+  text-shadow: none;
 }
 
 .compact-clock .digital-clock-seconds {
   font-family: 'Space Grotesk', 'Outfit', 'Inter', -apple-system, sans-serif;
   font-size: clamp(1rem, 1.8vw, 1.35rem);
   font-weight: 400;
-  color: #A1A1AA;
+  color: var(--text-muted, #A1A1AA);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
+[data-theme="light"] .compact-clock .digital-clock-seconds,
+body:not(.dark-mode) .compact-clock .digital-clock-seconds {
+  color: #6B7280;
+}
+
 /* Search URL Bar Reveal Container (Hidden at first) */
 .newtab-search-reveal-wrapper {
-  overflow: hidden;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .newtab-search-reveal-wrapper.hidden {
@@ -4545,13 +4567,15 @@ input:focus-visible {
   max-height: 0;
   transform: translateY(12px) scale(0.97);
   pointer-events: none;
+  visibility: hidden;
 }
 
 .newtab-search-reveal-wrapper.revealed {
   opacity: 1;
-  max-height: 80px;
+  max-height: 90px;
   transform: translateY(0) scale(1);
   pointer-events: auto;
+  visibility: visible;
   margin-top: 10px;
 }
 
@@ -4559,7 +4583,7 @@ input:focus-visible {
   width: 440px;
   height: 48px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -4570,16 +4594,32 @@ input:focus-visible {
   padding: 0 20px;
   cursor: pointer;
   color: #8E8E96;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.10);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .newtab-prompt-trigger.monochromatic-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
   border-color: rgba(255, 255, 255, 0.24);
   color: #FFFFFF;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transform: translateY(-1px);
+}
+
+[data-theme="light"] .newtab-prompt-trigger.monochromatic-pill,
+body:not(.dark-mode) .newtab-prompt-trigger.monochromatic-pill {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #4B5563;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .newtab-prompt-trigger.monochromatic-pill:hover,
+body:not(.dark-mode) .newtab-prompt-trigger.monochromatic-pill:hover {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.22);
+  color: #111113;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .newtab-prompt-trigger.monochromatic-pill .prompt-text {
@@ -4604,6 +4644,32 @@ input:focus-visible {
   cursor: pointer;
   margin-top: 14px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.homescreen-reveal-affordance:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #E4E4E7;
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .homescreen-reveal-affordance,
+body:not(.dark-mode) .homescreen-reveal-affordance {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #4B5563;
+}
+
+[data-theme="light"] .homescreen-reveal-affordance:hover,
+body:not(.dark-mode) .homescreen-reveal-affordance:hover {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.14);
+  color: #111113;
+}
+
+[data-theme="light"] .homescreen-reveal-affordance .reveal-dot,
+body:not(.dark-mode) .homescreen-reveal-affordance .reveal-dot {
+  background: #6B7280;
 }
 
 .homescreen-reveal-affordance:hover {
@@ -4757,6 +4823,58 @@ input:focus-visible {
   color: #FFFFFF;
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Light Theme Styling for Vertical Pins Dock */
+[data-theme="light"] .vertical-pins-dock-track,
+body:not(.dark-mode) .vertical-pins-dock-track {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .pin-dock-icon-capsule,
+body:not(.dark-mode) .pin-dock-icon-capsule {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .pin-dock-icon-capsule:hover,
+body:not(.dark-mode) .pin-dock-icon-capsule:hover {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .pin-dock-fallback-icon,
+body:not(.dark-mode) .pin-dock-fallback-icon {
+  color: #374151;
+}
+
+[data-theme="light"] .pin-dock-tooltip,
+body:not(.dark-mode) .pin-dock-tooltip {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #111113;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .pin-dock-divider,
+body:not(.dark-mode) .pin-dock-divider {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .pin-dock-add-item .add-capsule,
+body:not(.dark-mode) .pin-dock-add-item .add-capsule {
+  color: #4B5563;
+}
+
+[data-theme="light"] .pin-dock-add-item:hover .add-capsule,
+body:not(.dark-mode) .pin-dock-add-item:hover .add-capsule {
+  color: #111113;
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.18);
 }
 
 /* Modal for Adding Website Pin */
@@ -4982,6 +5100,40 @@ input:focus-visible {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
   pointer-events: none;
+}
+
+/* Light Theme Styling for Proper Space Slider */
+[data-theme="light"] .proper-space-slider-wrap,
+body:not(.dark-mode) .proper-space-slider-wrap {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .proper-slider-track,
+body:not(.dark-mode) .proper-slider-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .proper-slider-tick,
+body:not(.dark-mode) .proper-slider-tick {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .proper-slider-thumb,
+body:not(.dark-mode) .proper-slider-thumb {
+  background: #111113;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .proper-slider-label,
+body:not(.dark-mode) .proper-slider-label {
+  color: #6B7280;
+}
+
+[data-theme="light"] .proper-slider-label.active,
+body:not(.dark-mode) .proper-slider-label.active {
+  color: #111113;
 }
 
 /* ==========================================================================

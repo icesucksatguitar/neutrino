@@ -6,7 +6,6 @@ export interface SimpleTheme {
   name: string;
   mode: 'dark' | 'light';
   bgApp: string;
-  bgSidebar: string;
   bgCard: string;
   bgInput: string;
   textMain: string;
@@ -16,50 +15,35 @@ export interface SimpleTheme {
 
 export const MAC_THEMES: SimpleTheme[] = [
   {
-    id: 'sumi-white',
-    name: 'Sumi Ink White',
-    mode: 'light',
-    bgApp: '#ffffff',
-    bgSidebar: 'transparent',
-    bgCard: '#ffffff',
-    bgInput: 'rgba(245, 245, 247, 0.95)',
-    textMain: '#111111',
-    textMuted: '#555555',
-    borderSubtle: 'rgba(0, 0, 0, 0.08)',
-  },
-  {
-    id: 'sakura',
-    name: 'Sakura Pixel',
-    mode: 'light',
-    bgApp: '#fdeef2',
-    bgSidebar: 'transparent',
-    bgCard: '#fff7f9',
-    bgInput: 'rgba(255, 250, 252, 0.9)',
-    textMain: '#5a3345',
-    textMuted: '#8a5d72',
-    borderSubtle: 'rgba(217, 102, 138, 0.18)',
-  },
-  {
-    id: 'lunar',
-    name: 'Lunar',
+    id: 'radical-dark',
+    name: 'Neutrino Dark',
     mode: 'dark',
-    bgApp: '#0a0b0e',
-    bgSidebar: 'transparent',
-    bgCard: '#1a1c21',
-    bgInput: '#121419',
-    textMain: '#e9e7e1',
-    textMuted: '#a7a9b0',
-    borderSubtle: 'rgba(214, 218, 226, 0.09)',
+    bgApp: '#0A0A0B',
+    bgCard: '#151518',
+    bgInput: 'rgba(255, 255, 255, 0.06)',
+    textMain: '#F2F2F3',
+    textMuted: '#8A8A90',
+    borderSubtle: 'rgba(255, 255, 255, 0.12)',
+  },
+  {
+    id: 'clean-light',
+    name: 'Neutrino Light',
+    mode: 'light',
+    bgApp: '#FAFAFA',
+    bgCard: '#FFFFFF',
+    bgInput: 'rgba(0, 0, 0, 0.04)',
+    textMain: '#111113',
+    textMuted: '#555558',
+    borderSubtle: 'rgba(0, 0, 0, 0.08)',
   },
 ];
 
 export const ACCENT_COLORS = [
-  { name: 'Ink Black', hex: '#111111' },
-  { name: 'Charcoal', hex: '#333333' },
-  { name: 'Rose', hex: '#d9668a' },
-  { name: 'Matcha', hex: '#589b6b' },
-  { name: 'Amber Gold', hex: '#f5ba58' },
-  { name: 'Moon Glow', hex: '#d8d2bd' },
+  { name: 'Pure White', hex: '#FFFFFF' },
+  { name: 'Silver Slate', hex: '#E4E4E7' },
+  { name: 'Zinc Graphite', hex: '#71717A' },
+  { name: 'Cool Cyan', hex: '#38bdf8' },
+  { name: 'Emerald', hex: '#10b981' },
 ];
 
 export interface ThemeModalProps {
@@ -68,62 +52,55 @@ export interface ThemeModalProps {
 }
 
 export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('sumi-white');
-  const [selectedAccent, setSelectedAccent] = useState('#e91e63');
-  const [textSize, setTextSize] = useState<number>(13.5);
+  const [selectedThemeId, setSelectedThemeId] = useState('radical-dark');
+  const [selectedAccent, setSelectedAccent] = useState('#FFFFFF');
 
-  const applyTheme = useCallback((theme: SimpleTheme, accent: string, size: number) => {
+  const applyTheme = useCallback((theme: SimpleTheme, accent: string) => {
     const root = document.documentElement;
+    root.setAttribute('data-theme', theme.mode);
+    if (theme.mode === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+
     root.style.setProperty('--bg', theme.bgApp);
     root.style.setProperty('--bg-app', theme.bgApp);
-    root.style.setProperty('--bg-sidebar', 'transparent');
-    root.style.setProperty('--bg-elevated', theme.id === 'sumi-white' ? '#f8f8f9' : (theme.id === 'sakura' ? '#fff5f8' : (theme.id === 'lunar' ? '#111317' : '#f5f0eb')));
-    root.style.setProperty('--surface', theme.id === 'sumi-white' ? 'rgba(255, 255, 255, 0.90)' : (theme.id === 'sakura' ? 'rgba(255, 248, 250, 0.82)' : (theme.id === 'lunar' ? 'rgba(26, 28, 33, 0.72)' : theme.bgCard)));
+    root.style.setProperty('--bg-sidebar', theme.mode === 'dark' ? 'rgba(18, 18, 22, 0.88)' : 'rgba(245, 245, 247, 0.92)');
+    root.style.setProperty('--surface', theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.88)');
     root.style.setProperty('--surface-solid', theme.bgCard);
-    root.style.setProperty('--surface-hover', theme.id === 'sumi-white' ? '#f3f3f5' : (theme.id === 'sakura' ? '#ffeef3' : (theme.id === 'lunar' ? '#23262c' : 'rgba(0, 0, 0, 0.05)')));
     root.style.setProperty('--bg-card', theme.bgCard);
     root.style.setProperty('--bg-input', theme.bgInput);
     root.style.setProperty('--text', theme.textMain);
     root.style.setProperty('--text-main', theme.textMain);
     root.style.setProperty('--text-muted', theme.textMuted);
-    root.style.setProperty('--text-faint', theme.id === 'sumi-white' ? '#888888' : (theme.id === 'sakura' ? '#a87d91' : (theme.id === 'lunar' ? '#74777f' : '#9E9892')));
     root.style.setProperty('--border', theme.borderSubtle);
-    root.style.setProperty('--border-subtle', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.04)' : (theme.id === 'sakura' ? 'rgba(217, 102, 138, 0.10)' : (theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.05)' : 'rgba(0, 0, 0, 0.04)')));
-    root.style.setProperty('--border-strong', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.18)' : (theme.id === 'sakura' ? 'rgba(217, 102, 138, 0.36)' : (theme.id === 'lunar' ? 'rgba(214, 218, 226, 0.20)' : 'rgba(0, 0, 0, 0.12)')));
-    root.style.setProperty('--bg-sidebar-hover', theme.id === 'sumi-white' ? 'rgba(0, 0, 0, 0.04)' : (theme.id === 'sakura' ? 'rgba(255, 238, 243, 0.65)' : (theme.id === 'lunar' ? '#23262c' : 'rgba(0, 0, 0, 0.05)')));
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-soft', `${accent}25`);
     root.style.setProperty('--accent-glow', `0 0 20px ${accent}40`);
-    root.style.setProperty('--earthshine', '#7f9bbd');
-    root.style.setProperty('--art', theme.id === 'sumi-white' ? '#ff2a85' : (theme.id === 'sakura' ? '#d9668a' : '#6a6e78'));
-    root.style.setProperty('--success', '#2e7d32');
-    root.style.setProperty('--danger', '#d32f2f');
-    root.style.setProperty('--font-size-base', `${size}px`);
     root.style.colorScheme = theme.mode;
 
-    localStorage.setItem(
-      'neutrino_simple_theme_v5',
-      JSON.stringify({ themeId: theme.id, accent, size })
-    );
+    try {
+      localStorage.setItem(
+        'neutrino_simple_theme_v5',
+        JSON.stringify({ themeId: theme.id, accent })
+      );
+      localStorage.setItem('neutrino_dark_theme', theme.mode === 'dark' ? 'true' : 'false');
+    } catch {}
   }, []);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('neutrino_simple_theme_v5');
       if (saved) {
-        const { themeId, accent, size } = JSON.parse(saved);
+        const { themeId, accent } = JSON.parse(saved);
         const validTheme = MAC_THEMES.find((t) => t.id === themeId) || MAC_THEMES[0];
-        const validAccent = accent || '#e91e63';
+        const validAccent = accent || '#FFFFFF';
         setSelectedThemeId(validTheme.id);
         setSelectedAccent(validAccent);
-        setTextSize(size || 13.5);
-        applyTheme(validTheme, validAccent, size || 13.5);
-      } else {
-        applyTheme(MAC_THEMES[0], '#e91e63', 13.5);
+        applyTheme(validTheme, validAccent);
       }
-    } catch {
-      applyTheme(MAC_THEMES[0], '#e91e63', 13.5);
-    }
+    } catch {}
   }, [applyTheme]);
 
   if (!isOpen) return null;
@@ -132,17 +109,12 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
 
   const handleSelectTheme = (t: SimpleTheme) => {
     setSelectedThemeId(t.id);
-    applyTheme(t, selectedAccent, textSize);
+    applyTheme(t, selectedAccent);
   };
 
   const handleSelectAccent = (hex: string) => {
     setSelectedAccent(hex);
-    applyTheme(currentTheme, hex, textSize);
-  };
-
-  const handleSelectSize = (size: number) => {
-    setTextSize(size);
-    applyTheme(currentTheme, selectedAccent, size);
+    applyTheme(currentTheme, hex);
   };
 
   return (
@@ -188,7 +160,7 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
                       border: '1px solid rgba(255, 255, 255, 0.2)',
                     }}
                   />
-                  <span style={{ fontSize: '12.5px', fontWeight: 500 }}>{t.name}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 500 }}>{t.name}</span>
                 </button>
               );
             })}
@@ -220,39 +192,6 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClos
                   title={a.name}
                 >
                   {isSelected && <Check size={12} style={{ color: '#ffffff' }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Text Size */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Interface Scale</span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {[
-              { label: 'Compact', size: 12.5 },
-              { label: 'Default', size: 13.5 },
-              { label: 'Relaxed', size: 15 },
-            ].map((s) => {
-              const isSelected = textSize === s.size;
-              return (
-                <button
-                  key={s.label}
-                  style={{
-                    flex: 1,
-                    padding: '6px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                    backgroundColor: isSelected ? 'var(--accent-soft)' : 'var(--bg-elevated)',
-                    color: isSelected ? 'var(--accent)' : 'var(--text)',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => handleSelectSize(s.size)}
-                >
-                  {s.label}
                 </button>
               );
             })}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Globe, Plus, Moon, Shield, Folder, Palette } from 'lucide-react';
 import { TabState, Space } from '../types';
 
 interface CommandBarProps {
@@ -13,7 +12,10 @@ interface CommandBarProps {
   onZenOptimize: () => void;
   onToggleShields: () => void;
   onSelectSpace: (spaceId: string) => void;
-  onOpenThemeStudio?: () => void;
+  onToggleTheme?: () => void;
+  onOpenMcp?: () => void;
+  onOpenTheme?: () => void;
+  onOpenShields?: () => void;
 }
 
 export const CommandBar: React.FC<CommandBarProps> = ({
@@ -27,7 +29,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onZenOptimize,
   onToggleShields,
   onSelectSpace,
-  onOpenThemeStudio,
+  onToggleTheme,
+  onOpenMcp,
+  onOpenTheme,
+  onOpenShields,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -37,112 +42,176 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus(), 30);
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  // Filter open tabs by query
+  // Filter open tabs
   const matchingTabs = tabs.filter(
     (t) =>
-      t.title.toLowerCase().includes(query.toLowerCase()) ||
-      t.url.toLowerCase().includes(query.toLowerCase())
+      (t.title && t.title.toLowerCase().includes(query.toLowerCase())) ||
+      (t.url && t.url.toLowerCase().includes(query.toLowerCase()))
   );
 
-  // Quick action items
-  const actions = [
+  // Command items prefixed with ">"
+  const commands = [
     {
-      id: 'action-new-tab',
-      title: query ? `Open: ${query}` : 'New Tab',
-      hint: 'Enter to open',
-      icon: <Plus size={16} />,
-      execute: () => {
-        if (!query.trim()) {
-          onCreateTab();
-        } else {
-          let target = query.trim();
-          if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
-            target = 'https://' + target;
-          } else if (!target.includes('://')) {
-            target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
-          }
-          onNavigate(target);
-        }
+      id: 'cmd-theme',
+      title: '> Toggle Dark / Light Theme',
+      hint: 'Ctrl+Shift+D',
+      action: () => onToggleTheme?.(),
+    },
+    {
+      id: 'cmd-new-tab',
+      title: '> Open New Tab',
+      hint: 'Ctrl+T',
+      action: () => onCreateTab(),
+    },
+    {
+      id: 'cmd-sleep-tabs',
+      title: '> Put Inactive Tabs to Sleep (Zen Memory Mode)',
+      hint: 'Ctrl+Shift+Z',
+      action: () => onZenOptimize(),
+    },
+    {
+      id: 'cmd-toggle-shields',
+      title: '> Toggle Tracker & Ad Protection',
+      hint: 'Shields',
+      action: () => onToggleShields(),
+    },
+    {
+      id: 'cmd-mcp',
+      title: '> Open AI Assistants & MCP Tools',
+      hint: 'MCP',
+      action: () => {
+        onOpenMcp?.();
+        onClose();
       },
     },
     {
-      id: 'action-zen-sleep',
-      title: 'Hibernate Background Tabs (Zen Low Resource)',
-      hint: 'Frees unused RAM',
-      icon: <Moon size={16} />,
-      execute: () => onZenOptimize(),
+      id: 'cmd-theme-studio',
+      title: '> Open Themes & Appearance Studio',
+      hint: 'Studio',
+      action: () => {
+        onOpenTheme?.();
+        onClose();
+      },
     },
     {
-      id: 'action-toggle-shields',
-      title: 'Toggle Brave Shields & Privacy Filter',
-      hint: 'Block ads and tracking',
-      icon: <Shield size={16} />,
-      execute: () => onToggleShields(),
+      id: 'cmd-shields-stats',
+      title: '> View Shield Protection & Blocked Trackers',
+      hint: 'Privacy',
+      action: () => {
+        onOpenShields?.();
+        onClose();
+      },
     },
-    ...(onOpenThemeStudio
-      ? [
-          {
-            id: 'action-theme-studio',
-            title: 'Themes & Appearance',
-            hint: 'Appearance',
-            icon: <Palette size={16} />,
-            execute: () => {
-              onClose();
-              onOpenThemeStudio();
-            },
-          },
-        ]
-      : []),
-    ...spaces.map((s) => ({
-      id: `action-space-${s.id}`,
-      title: `Switch Space: ${s.name}`,
-      hint: 'Space',
-      icon: <Folder size={16} style={{ color: s.color }} />,
-      execute: () => onSelectSpace(s.id),
-    })),
-  ];
+  ].filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
+
+  const items: Array<{
+    type: 'tab' | 'command' | 'url';
+    id: string;
+    title: string;
+    subline?: string;
+    hint?: string;
+    favicon?: string;
+    action: () => void;
+  }> = [];
+
+  // If user typed something that looks like search/url
+  if (query.trim()) {
+    items.push({
+      type: 'url',
+      id: 'item-navigate',
+      title: `Navigate to "${query.trim()}"`,
+      subline: query.includes('.') ? 'Go to URL' : 'Search with Google',
+      hint: '↵ to go',
+      action: () => {
+        let target = query.trim();
+        if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
+          target = 'https://' + target;
+        } else if (!target.includes('://')) {
+          target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
+        }
+        onNavigate(target);
+        onClose();
+      },
+    });
+  }
+
+  // Add tabs
+  matchingTabs.forEach((tab) => {
+    items.push({
+      type: 'tab',
+      id: tab.id,
+      title: tab.title || 'Untitled Tab',
+      subline: tab.url,
+      hint: 'Switch to tab',
+      favicon: tab.favicon,
+      action: () => {
+        onSelectTab(tab.id);
+        onClose();
+      },
+    });
+  });
+
+  // Add commands
+  commands.forEach((c) => {
+    items.push({
+      type: 'command',
+      id: c.id,
+      title: c.title,
+      hint: c.hint,
+      action: () => {
+        c.action();
+        onClose();
+      },
+    });
+  });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (selectedIndex < matchingTabs.length) {
-        onSelectTab(matchingTabs[selectedIndex].id);
-      } else {
-        const actionIdx = selectedIndex - matchingTabs.length;
-        if (actions[actionIdx]) {
-          actions[actionIdx].execute();
-        }
-      }
-      onClose();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const total = matchingTabs.length + actions.length;
-      setSelectedIndex((prev) => (prev + 1) % total);
+      setSelectedIndex((prev) => (items.length ? (prev + 1) % items.length : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const total = matchingTabs.length + actions.length;
-      setSelectedIndex((prev) => (prev - 1 + total) % total);
+      setSelectedIndex((prev) => (items.length ? (prev - 1 + items.length) % items.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items[selectedIndex]) {
+        items[selectedIndex].action();
+      }
     }
   };
 
   return (
-    <div className="command-palette-backdrop" onClick={onClose}>
-      <div className="command-palette-card" onClick={(e) => e.stopPropagation()}>
-        <div className="palette-input-wrapper">
-          <Search size={18} style={{ color: 'var(--text-muted)' }} />
+    <div className="command-bar-modal-backdrop" onClick={onClose}>
+      <div className="command-bar-card-wrapper" onClick={(e) => e.stopPropagation()}>
+        <div className="command-bar-input-strip">
+          <svg className="cmd-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
           <input
             ref={inputRef}
             type="text"
-            className="palette-input"
-            placeholder="Type a URL, search, or command..."
+            className="command-bar-raw-input"
+            placeholder="Search, jump to tab, or type > for commands..."
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -150,47 +219,45 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             }}
             onKeyDown={handleKeyDown}
           />
-          <span className="shortcut-kbd">ESC to close</span>
+          <div className="command-bar-inline-hints">
+            <span><kbd>Tab</kbd> search tabs</span>
+            <span><kbd>↵</kbd> go</span>
+          </div>
         </div>
 
-        <div className="palette-results-list">
-          {/* Matching Open Tabs */}
-          {matchingTabs.map((tab, idx) => (
-            <div
-              key={tab.id}
-              className={`palette-item ${selectedIndex === idx ? 'selected' : ''}`}
-              onClick={() => {
-                onSelectTab(tab.id);
-                onClose();
-              }}
-            >
-              <Globe size={16} style={{ color: 'var(--accent)' }} />
-              <span className="item-title">{tab.title}</span>
-              <span className="item-hint">Switch Tab</span>
-            </div>
-          ))}
+        {items.length > 0 && (
+          <div className="command-bar-results-list">
+            {items.slice(0, 8).map((item, idx) => {
+              const isSelected = idx === selectedIndex;
+              return (
+                <div
+                  key={item.id}
+                  className={`cmd-result-item ${isSelected ? 'selected' : ''}`}
+                  onClick={item.action}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                >
+                  {item.favicon ? (
+                    <img src={item.favicon} alt="" className="cmd-favicon" />
+                  ) : item.type === 'command' ? (
+                    <span className="cmd-symbol">&gt;</span>
+                  ) : (
+                    <svg className="cmd-default-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                    </svg>
+                  )}
 
-          {/* Actions */}
-          {actions.map((act, idx) => {
-            const actualIndex = matchingTabs.length + idx;
-            return (
-              <div
-                key={act.id}
-                className={`palette-item ${selectedIndex === actualIndex ? 'selected' : ''}`}
-                onClick={() => {
-                  act.execute();
-                  onClose();
-                }}
-              >
-                {act.icon}
-                <span className="item-title">{act.title}</span>
-                <span className="item-hint">{act.hint}</span>
-              </div>
-            );
-          })}
-        </div>
+                  <div className="cmd-text-block">
+                    <span className="cmd-primary-text">{item.title}</span>
+                    {item.subline && <span className="cmd-secondary-text">{item.subline}</span>}
+                  </div>
+
+                  {item.hint && <span className="cmd-item-badge">{item.hint}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 };
-

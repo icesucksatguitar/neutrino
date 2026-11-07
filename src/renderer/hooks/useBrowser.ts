@@ -3,15 +3,15 @@ import { BrowserAppState, BlockedTrackerItem, TabState } from '../types';
 
 const INITIAL_STATE: BrowserAppState = {
   spaces: [
-    { id: 'space-default', name: 'DEFAULT', icon: 'Home', color: '#6366f1' },
-    { id: 'space-plan', name: 'PLAN', icon: 'Briefcase', color: '#10b981' },
-    { id: 'space-max', name: 'MAX', icon: 'Terminal', color: '#f59e0b' },
+    { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' },
+    { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' },
+    { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' },
   ],
-  activeSpaceId: 'space-default',
+  activeSpaceId: 'space-study',
   tabs: [
     {
       id: 'tab-init',
-      spaceId: 'space-default',
+      spaceId: 'space-study',
       title: 'New Tab',
       url: 'neutrino://newtab',
       isLoading: false,
@@ -49,7 +49,44 @@ export function useBrowser() {
     if (!window.neutrino) return;
 
     const unregState = window.neutrino.onStateUpdate((newState) => {
-      setState(newState);
+      // Normalize spaces to Study, Work, Leisure
+      const normalizedSpaces = (newState.spaces || []).map((sp) => {
+        if (sp.id === 'space-default' || sp.name === 'DEFAULT' || sp.id === 'space-study') {
+          return { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' };
+        }
+        if (sp.id === 'space-plan' || sp.name === 'PLAN' || sp.id === 'space-work') {
+          return { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' };
+        }
+        if (sp.id === 'space-max' || sp.name === 'MAX' || sp.id === 'space-leisure') {
+          return { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' };
+        }
+        return sp;
+      });
+
+      let activeSp = newState.activeSpaceId;
+      if (activeSp === 'space-default') activeSp = 'space-study';
+      if (activeSp === 'space-plan') activeSp = 'space-work';
+      if (activeSp === 'space-max') activeSp = 'space-leisure';
+
+      setState({
+        ...newState,
+        spaces: normalizedSpaces.length > 0 ? normalizedSpaces : INITIAL_STATE.spaces,
+        activeSpaceId: activeSp || 'space-study',
+      });
+    });
+
+    const unregCloseActiveTab = window.neutrino.onCloseActiveTab?.(() => {
+      setState((prev) => {
+        if (!prev.activeTabId) return prev;
+        const curTabId = prev.activeTabId;
+        const remaining = prev.tabs.filter((t) => t.id !== curTabId);
+        const nextActive = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
+        return {
+          ...prev,
+          tabs: remaining,
+          activeTabId: nextActive,
+        };
+      });
     });
 
     const unregTracker = window.neutrino.onTrackerBlocked((item) => {
@@ -57,11 +94,43 @@ export function useBrowser() {
         { ...item, timestamp: Date.now() },
         ...prev.slice(0, 49),
       ]);
+      setState((prev) => ({
+        ...prev,
+        shieldStats: {
+          ...prev.shieldStats,
+          totalBlocked: prev.shieldStats.totalBlocked + 1,
+          trackersBlocked: prev.shieldStats.trackersBlocked + 1,
+          adsBlocked: prev.shieldStats.adsBlocked + (item.category === 'Advertising' ? 1 : 0),
+        },
+      }));
     });
+
+    // Initial shield stats fetch
+    window.neutrino.getShieldStats?.().then((stats: any) => {
+      if (stats) {
+        setState((prev) => ({
+          ...prev,
+          shieldStats: { ...prev.shieldStats, ...stats },
+        }));
+      }
+    }).catch(() => {});
+
+    const handleMockTabs = (e: any) => {
+      if (e.detail?.tabs) {
+        setState((prev) => ({
+          ...prev,
+          tabs: e.detail.tabs,
+          activeTabId: e.detail.activeTabId || e.detail.tabs[0]?.id || prev.activeTabId,
+        }));
+      }
+    };
+    window.addEventListener('neutrino:mock-tabs', handleMockTabs);
 
     return () => {
       unregState?.();
+      unregCloseActiveTab?.();
       unregTracker?.();
+      window.removeEventListener('neutrino:mock-tabs', handleMockTabs);
     };
   }, []);
 

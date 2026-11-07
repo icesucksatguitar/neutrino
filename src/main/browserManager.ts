@@ -23,7 +23,7 @@ export interface TabState {
 export class BrowserManager {
   private tabs: Map<string, TabState> = new Map();
   private activeTabId: string | null = null;
-  private activeSpaceId: string = 'space-default';
+  private activeSpaceId: string = 'space-study';
   private spaces: Space[] = [];
   private adblockEngine: BraveShieldEngine;
   private resourceManager: ZenResourceManager;

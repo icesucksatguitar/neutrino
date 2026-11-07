@@ -423,6 +423,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
+      {/* 2. Arc Integrated Address / Omnibox Bar */}
+      <div className="arc-omnibox-container">
+        <form className="arc-omnibox-form" onSubmit={handleUrlSubmit}>
+          <div className="arc-omnibox-icon-wrapper">
+            {isNewTab ? (
+              <PixelSearch size={14} className="arc-omnibox-icon" />
+            ) : (
+              <PixelLock size={13} className="arc-omnibox-icon-secure" />
+            )}
+          </div>
+
+          <input
+            ref={urlInputRef}
+            type="text"
+            className="arc-omnibox-input"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onFocus={handleUrlFocus}
+            onBlur={handleUrlBlur}
+            placeholder="Search or enter URL..."
+            spellCheck={false}
+            autoComplete="off"
+          />
+
+          {!isEditingUrl && !isNewTab && (
+            <div className="arc-omnibox-display-pill" onClick={handleUrlFocus}>
+              <span className="arc-display-domain">{getDisplayDomain()}</span>
+              {activeTab?.isLoading && <div className="arc-display-loader" />}
+            </div>
+          )}
+        </form>
+      </div>
+
       {/* 3. Arc Pinned Favorites (if any) */}
       {pinnedTabs.length > 0 && (
         <div className="arc-pinned-section">

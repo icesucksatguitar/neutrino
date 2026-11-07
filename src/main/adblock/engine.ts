@@ -47,6 +47,15 @@ const KNOWN_TRACKERS = new Set<string>([
   'media.net',
   'tribalfusion.com',
   'revcontent.com',
+  'exponential.com',
+  'mgid.com',
+  'zedo.com',
+  'infolinks.com',
+  'chitika.com',
+  'adzerk.net',
+  'bidvertiser.com',
+  'buysellads.com',
+  'carbonads.net',
 
   // Trackers & Pixels
   'googletagmanager.com',
@@ -179,6 +188,38 @@ export class BraveShieldEngine {
       }
     }
 
+    // Check URL path and query patterns for in-page ad networks, YouTube video ads, and telemetry
+    const lowerUrl = urlStr.toLowerCase();
+    if (
+      lowerUrl.includes('/pagead/') ||
+      lowerUrl.includes('/api/stats/ads') ||
+      lowerUrl.includes('/ptracking') ||
+      lowerUrl.includes('googleads.g.doubleclick.net') ||
+      lowerUrl.includes('securepubads.g.doubleclick.net') ||
+      lowerUrl.includes('pagead2.googlesyndication.com') ||
+      lowerUrl.includes('/ads/vpaid') ||
+      lowerUrl.includes('/get_midroll_info') ||
+      lowerUrl.includes('/ads?client=') ||
+      lowerUrl.includes('youtubei/v1/player/ad_break') ||
+      lowerUrl.includes('youtube.com/api/stats/qoe?adformat=') ||
+      lowerUrl.includes('adnxs.com') ||
+      lowerUrl.includes('rubiconproject.com') ||
+      lowerUrl.includes('doubleclick.net') ||
+      lowerUrl.includes('adservice.google') ||
+      lowerUrl.includes('taboola.com') ||
+      lowerUrl.includes('outbrain.com') ||
+      lowerUrl.includes('criteo.com') ||
+      lowerUrl.includes('scorecardresearch.com')
+    ) {
+      this.recordBlock('Advertising');
+      return {
+        blocked: true,
+        domain: host,
+        category: 'Advertising',
+        rule: 'Pattern: ad-endpoint',
+      };
+    }
+
     return { blocked: false, domain: host };
   }
 
@@ -227,7 +268,7 @@ export class BraveShieldEngine {
 
   private recordBlock(category: AdblockDecision['category']) {
     this.stats.totalBlocked += 1;
-    this.stats.dataSavedKb += 48; // avg request payload saved ~48KB
+    this.stats.dataSavedKb += 54; // avg request payload saved ~54KB
     switch (category) {
       case 'Advertising':
         this.stats.adsBlocked += 1;
@@ -246,7 +287,7 @@ export class BraveShieldEngine {
     }
   }
 
-  // Cosmetic Adblock CSS to hide intrusive ad frames and containers
+  // Cosmetic Adblock CSS to hide intrusive ad frames and containers (YouTube, Google Ads, Banner networks)
   public getCosmeticFilterCSS(): string {
     return `
       div[class*="ad-box"],
@@ -259,13 +300,56 @@ export class BraveShieldEngine {
       iframe[src*="adservice"],
       .ad-container,
       .ads-banner,
-      .sponsor-post {
+      .sponsor-post,
+      ytd-ad-slot-renderer,
+      ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+      ytd-in-feed-ad-layout-renderer,
+      ytd-banner-promo-renderer-background,
+      .video-ads,
+      .ytp-ad-module,
+      .ytp-ad-overlay-container,
+      tp-yt-paper-dialog:has(#feedback),
+      #player-ads {
         display: none !important;
         visibility: hidden !important;
         height: 0 !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
+    `;
+  }
+
+  // Safe client-side scriptlet to instantly skip YouTube video ads
+  public getYouTubeAdSkipperScript(): string {
+    return `
+      (() => {
+        if (window.__neutrino_ad_skipper_injected) return;
+        window.__neutrino_ad_skipper_injected = true;
+
+        const skipAds = () => {
+          try {
+            // 1. Fast-forward video ad if currently playing
+            const video = document.querySelector('video');
+            const adShowing = document.querySelector('.ad-showing, .ad-interrupting');
+            if (adShowing && video && !isNaN(video.duration) && isFinite(video.duration)) {
+              video.currentTime = video.duration;
+              video.playbackRate = 16.0;
+            }
+
+            // 2. Click any skip button that appears
+            const skipButtons = document.querySelectorAll(
+              '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button.ytp-ad-skip-button, .ytp-ad-overlay-close-button'
+            );
+            skipButtons.forEach((btn) => (btn as HTMLElement).click());
+
+            // 3. Dismiss ad overlay banners
+            const overlays = document.querySelectorAll('.ytp-ad-overlay-container, ytd-ad-slot-renderer, #player-ads');
+            overlays.forEach((el) => { (el as HTMLElement).style.display = 'none'; });
+          } catch (e) {}
+        };
+
+        setInterval(skipAds, 250);
+      })();
     `;
   }
 }

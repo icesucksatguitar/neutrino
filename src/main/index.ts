@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, session, screen, webContents } from 'electron';
 import path from 'path';
 import { BraveShieldEngine } from './adblock/engine';
 import { ZenResourceManager } from './resourceManager';
@@ -6,7 +6,7 @@ import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 
-// Chrome-level performance flags
+// Performance and rendering flags (Clean native Windows Per-Monitor V2 DPI scaling)
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
@@ -85,7 +85,7 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'Neutrino Browser',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0A0A0B',
     frame: true, // Native Windows OS frame
     autoHideMenuBar: true,
     webPreferences: {
@@ -108,9 +108,10 @@ function createWindow() {
     mainWindow.loadFile(rendererPath);
   }
 
-  // Create initial tabs
+  // Create initial tabs (renderer stays at native 100% standard desktop scale)
   mainWindow.webContents.once('did-finish-load', () => {
-    browserManager.createTab('neutrino://newtab', 'space-default');
+    mainWindow!.webContents.setZoomFactor(1.0);
+    browserManager.createTab('neutrino://newtab', 'space-study');
   });
 
   mainWindow.on('closed', () => {
@@ -235,6 +236,24 @@ function setupIpcHandlers() {
     }
     if (action === 'close') mainWindow.close();
   });
+
+  ipcMain.handle('neutrino:capture-tab-preview', async (_, tabUrl: string) => {
+    try {
+      const allWcs = webContents.getAllWebContents();
+      for (const wc of allWcs) {
+        if (wc.getType() === 'webview') {
+          const u = wc.getURL();
+          if (u && (u === tabUrl || tabUrl.startsWith(u) || u.startsWith(tabUrl))) {
+            const image = await wc.capturePage();
+            if (!image.isEmpty()) {
+              return image.toDataURL();
+            }
+          }
+        }
+      }
+    } catch {}
+    return null;
+  });
 }
 
 app.whenReady().then(() => {
@@ -254,41 +273,119 @@ app.whenReady().then(() => {
       return { action: 'deny' };
     });
 
+    // Auto-inject cosmetic adblock and YouTube ad skipper into guest webviews
+    if (contents.getType() === 'webview') {
+      contents.on('dom-ready', async () => {
+        try {
+          if (adblockEngine.isEnabled()) {
+            await contents.insertCSS(adblockEngine.getCosmeticFilterCSS());
+            const url = contents.getURL();
+            if (url.includes('youtube.com')) {
+              await contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript());
+            }
+          }
+        } catch {}
+      });
+    }
+
     contents.on('before-input-event', (event, input) => {
       if (input.type === 'keyDown' && (input.control || input.meta)) {
-        if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
+        const key = input.key.toLowerCase();
+
+        // Ctrl+W -> Close active tab
+        if (key === 'w') {
           event.preventDefault();
-          const current = contents.getZoomFactor();
-          const next = Math.max(0.25, Math.round((current - 0.1) * 100) / 100);
-          contents.setZoomFactor(next);
           const active = browserManager.getActiveTab();
           if (active) {
-            browserManager.updateTab(active.id, { zoomFactor: next });
+            browserManager.closeTab(active.id);
           }
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+            mainWindow.webContents.send('neutrino:close-active-tab');
           }
-        } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
+          return;
+        }
+
+        // Ctrl+T -> New Tab & Open Command Bar
+        if (key === 't') {
           event.preventDefault();
-          const current = contents.getZoomFactor();
-          const next = Math.min(5.0, Math.round((current + 0.1) * 100) / 100);
-          contents.setZoomFactor(next);
-          const active = browserManager.getActiveTab();
-          if (active) {
-            browserManager.updateTab(active.id, { zoomFactor: next });
-          }
+          const space = browserManager.getActiveSpaceId();
+          browserManager.createTab('neutrino://newtab', space);
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+            mainWindow.webContents.send('neutrino:open-command-bar');
           }
-        } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
+          return;
+        }
+
+        // Ctrl+K or Ctrl+L -> Open Command Bar
+        if (key === 'k' || key === 'l') {
           event.preventDefault();
-          contents.setZoomFactor(1.0);
-          const active = browserManager.getActiveTab();
-          if (active) {
-            browserManager.updateTab(active.id, { zoomFactor: 1.0 });
-          }
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+            mainWindow.webContents.send('neutrino:open-command-bar');
+          }
+          return;
+        }
+
+        // Ctrl+E -> Toggle Notification Tabs
+        if (key === 'e') {
+          event.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:toggle-tabs');
+          }
+          return;
+        }
+
+        // Ctrl+R -> Reload
+        if (key === 'r') {
+          event.preventDefault();
+          if (contents.getType() === 'webview') {
+            contents.reload();
+          } else {
+            const allWcs = webContents.getAllWebContents();
+            for (const wc of allWcs) {
+              if (wc.getType() === 'webview') {
+                wc.reload();
+              }
+            }
+          }
+          return;
+        }
+
+        // Zoom Controls: Only for guest webviews, NEVER for host UI
+        if (contents.getType() === 'webview') {
+          if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
+            event.preventDefault();
+            const current = contents.getZoomFactor();
+            const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
+            contents.setZoomFactor(next);
+            const active = browserManager.getActiveTab();
+            if (active) {
+              browserManager.updateTab(active.id, { zoomFactor: next });
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+            }
+          } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
+            event.preventDefault();
+            const current = contents.getZoomFactor();
+            const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
+            contents.setZoomFactor(next);
+            const active = browserManager.getActiveTab();
+            if (active) {
+              browserManager.updateTab(active.id, { zoomFactor: next });
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+            }
+          } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
+            event.preventDefault();
+            contents.setZoomFactor(1.0);
+            const active = browserManager.getActiveTab();
+            if (active) {
+              browserManager.updateTab(active.id, { zoomFactor: 1.0 });
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+            }
           }
         }
       }

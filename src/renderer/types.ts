@@ -19,6 +19,7 @@ export interface TabState {
   hasActiveMedia?: boolean;
   blockedCount: number;
   zoomFactor?: number;
+  previewImage?: string;
 }
 
 export interface ActiveMediaState {
@@ -97,8 +98,6 @@ declare global {
       deleteSpace?: (spaceId: string) => Promise<void>;
       reorderTabs?: (draggedTabId: string, targetTabId: string) => Promise<void>;
       setZoomFactor?: (factor: number) => Promise<void>;
-      setBrowserZoom?: (factor: number) => void;
-      getBrowserZoom?: () => number;
       onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;
       toggleShields: () => Promise<boolean>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;
@@ -106,9 +105,13 @@ declare global {
       callMcp: (method: string, params?: unknown) => Promise<any>;
       getMcpLogs: () => Promise<any[]>;
       mediaControl?: (action: string, params?: any) => Promise<any>;
+      captureTabPreview?: (tabUrl: string) => Promise<string | null>;
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
       onStateUpdate: (cb: (state: BrowserAppState) => void) => () => void;
       onTrackerBlocked: (cb: (item: BlockedTrackerItem) => void) => () => void;
+      onCloseActiveTab?: (cb: () => void) => () => void;
+      onOpenCommandBar?: (cb: () => void) => () => void;
+      onToggleTabs?: (cb: () => void) => () => void;
     };
   }
 }

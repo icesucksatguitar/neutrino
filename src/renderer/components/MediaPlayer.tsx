@@ -6,8 +6,10 @@ import {
   GripHorizontal,
   Video,
   Music,
+  Play,
+  Pause,
+  X,
 } from 'lucide-react';
-import { PixelPlay, PixelPause, PixelClose } from './PixelIcons';
 import { ActiveMediaState } from '../types';
 
 interface MediaPlayerProps {
@@ -31,7 +33,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
 }) => {
   const [corner, setCorner] = useState<Corner>('bottom-right');
   const [customPos, setCustomPos] = useState<{ x: number; y: number } | null>(null);
-  const [size, setSize] = useState({ width: 320, height: 230 });
+  const [size, setSize] = useState({ width: 330, height: 215 });
   const [isMuted, setIsMuted] = useState(false);
   const prevVolumeRef = useRef(1);
 
@@ -51,6 +53,10 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
 
   // Dragging to move & snap to corners
   const handlePointerDown = (e: React.PointerEvent) => {
+    // Only drag from header, ignore buttons
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input')) return;
+
     isDraggingRef.current = true;
     dragStartPosRef.current = { x: e.clientX, y: e.clientY };
     const rect = playerRef.current?.getBoundingClientRect();
@@ -74,7 +80,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
 
-      // Snap to nearest corner (Section 8)
+      // Snap to nearest corner
       const midX = window.innerWidth / 2;
       const midY = window.innerHeight / 2;
       const isLeft = e.clientX < midX;
@@ -107,6 +113,14 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
     }
   };
 
+  const handleSafeClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      onClose();
+    } catch {}
+  };
+
   const stylePosition: React.CSSProperties = customPos
     ? {
         left: `${customPos.x}px`,
@@ -128,9 +142,9 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
         <div className="media-title-group">
           <GripHorizontal size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
           {mediaState.hasVideo ? (
-            <Video size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <Video size={13} style={{ color: '#FFFFFF', flexShrink: 0 }} />
           ) : (
-            <Music size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            <Music size={13} style={{ color: '#FFFFFF', flexShrink: 0 }} />
           )}
           <span className="media-title" title={mediaState.tabTitle}>
             {mediaState.tabTitle || 'Playing Media'}
@@ -138,7 +152,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
         </div>
 
         <div className="media-header-actions" onPointerDown={(e) => e.stopPropagation()}>
-          {/* Go back to tab button (Section 8) */}
+          {/* Go back to tab button */}
           <button
             className="media-header-btn"
             onClick={() => onGoToTab(mediaState.tabId)}
@@ -146,17 +160,21 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
           >
             <ExternalLink size={13} />
           </button>
-          {/* Close mini player */}
-          <button className="media-header-btn" onClick={onClose} title="Dismiss Mini Player">
-            <PixelClose size={13} />
+          {/* Close mini player (safe modern X icon) */}
+          <button
+            className="media-header-btn media-close-btn"
+            onClick={handleSafeClose}
+            title="Dismiss Mini Player"
+          >
+            <X size={14} />
           </button>
         </div>
       </div>
 
-      {/* Video / Graphic Screen (Section 8) */}
+      {/* Video / Graphic Screen */}
       <div className="media-video-container">
         <div className="media-placeholder-graphic">
-          {mediaState.hasVideo ? <Video size={30} /> : <Music size={30} />}
+          {mediaState.hasVideo ? <Video size={28} /> : <Music size={28} />}
           <span>{mediaState.isPlaying ? 'Media Playing in Background' : 'Media Paused'}</span>
         </div>
       </div>
@@ -185,7 +203,7 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
             onClick={onPlayPause}
             title={mediaState.isPlaying ? 'Pause' : 'Play'}
           >
-            {mediaState.isPlaying ? <PixelPause size={15} /> : <PixelPlay size={15} />}
+            {mediaState.isPlaying ? <Pause size={15} /> : <Play size={15} />}
           </button>
 
           <div className="media-volume-group">
@@ -210,34 +228,6 @@ export const MediaPlayer: React.FC<MediaPlayerProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Resizing Grip (Section 8) */}
-      <div
-        className="media-resize-handle"
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          const startX = e.clientX;
-          const startY = e.clientY;
-          const startW = size.width;
-          const startH = size.height;
-
-          const onMove = (ev: PointerEvent) => {
-            setSize({
-              width: Math.max(260, Math.min(500, startW + (ev.clientX - startX))),
-              height: Math.max(180, Math.min(400, startH + (ev.clientY - startY))),
-            });
-          };
-
-          const onUp = () => {
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-          };
-
-          window.addEventListener('pointermove', onMove);
-          window.addEventListener('pointerup', onUp);
-        }}
-      />
     </div>
   );
 };
-

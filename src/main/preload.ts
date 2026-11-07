@@ -22,23 +22,7 @@ contextBridge.exposeInMainWorld('neutrino', {
   reorderTabs: (draggedTabId: string, targetTabId: string) => ipcRenderer.invoke('neutrino:reorder-tabs', { draggedTabId, targetTabId }),
   setZoomFactor: (factor: number) => ipcRenderer.invoke('neutrino:set-zoom-factor', factor),
 
-  // Browser UI Scaling
-  setBrowserZoom: (factor: number) => {
-    try {
-      webFrame.setZoomFactor(factor);
-    } catch {
-      // ignore
-    }
-  },
-  getBrowserZoom: () => {
-    try {
-      return webFrame.getZoomFactor();
-    } catch {
-      return 1.0;
-    }
-  },
-
-  // Zoom events
+  // Zoom events (for webpage/webview zoom)
   onZoomUpdated: (callback: (data: { zoomFactor: number }) => void) => {
     const handler = (_: unknown, data: any) => callback(data);
     ipcRenderer.on('neutrino:zoom-updated', handler);
@@ -56,6 +40,7 @@ contextBridge.exposeInMainWorld('neutrino', {
 
   // Media Control & Picture-in-Picture
   mediaControl: (action: string, params?: unknown) => ipcRenderer.invoke('neutrino:media-control', { action, params }),
+  captureTabPreview: (tabUrl: string) => ipcRenderer.invoke('neutrino:capture-tab-preview', tabUrl),
 
   // Window Controls
   windowControl: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.invoke('neutrino:window-control', action),
@@ -71,5 +56,23 @@ contextBridge.exposeInMainWorld('neutrino', {
     const handler = (_: unknown, item: any) => callback(item);
     ipcRenderer.on('neutrino:tracker-blocked', handler);
     return () => ipcRenderer.removeListener('neutrino:tracker-blocked', handler);
+  },
+
+  onCloseActiveTab: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:close-active-tab', handler);
+    return () => ipcRenderer.removeListener('neutrino:close-active-tab', handler);
+  },
+
+  onOpenCommandBar: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:open-command-bar', handler);
+    return () => ipcRenderer.removeListener('neutrino:open-command-bar', handler);
+  },
+
+  onToggleTabs: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:toggle-tabs', handler);
+    return () => ipcRenderer.removeListener('neutrino:toggle-tabs', handler);
   },
 });

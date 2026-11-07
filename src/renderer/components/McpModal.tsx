@@ -23,10 +23,11 @@ interface McpModalProps {
   onClose: () => void;
   activeTab?: TabState;
   onNavigate?: (url: string) => void;
+  initialTab?: McpTab;
 }
 
 type McpTab = 'assistants' | 'local' | 'tools';
-type AssistantProvider = 'claude' | 'chatgpt' | 'gemini';
+type AssistantProvider = 'claude' | 'chatgpt' | 'gemini' | 'deepseek' | 'perplexity';
 
 interface AssistantConfig {
   id: AssistantProvider;
@@ -34,6 +35,7 @@ interface AssistantConfig {
   url: string;
   partition: string;
   color: string;
+  badge?: string;
 }
 
 const ASSISTANTS: AssistantConfig[] = [
@@ -43,6 +45,7 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://claude.ai',
     partition: 'persist:claude',
     color: '#d97706',
+    badge: '3.5',
   },
   {
     id: 'chatgpt',
@@ -50,6 +53,7 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://chatgpt.com',
     partition: 'persist:chatgpt',
     color: '#10b981',
+    badge: '4o',
   },
   {
     id: 'gemini',
@@ -57,6 +61,23 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://gemini.google.com',
     partition: 'persist:gemini',
     color: '#2563eb',
+    badge: 'Flash',
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    url: 'https://chat.deepseek.com',
+    partition: 'persist:deepseek',
+    color: '#06b6d4',
+    badge: 'R1',
+  },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    url: 'https://www.perplexity.ai',
+    partition: 'persist:perplexity',
+    color: '#A1A1AA',
+    badge: 'Search',
   },
 ];
 
@@ -70,8 +91,15 @@ export const McpModal: React.FC<McpModalProps> = ({
   onClose,
   activeTab,
   onNavigate,
+  initialTab,
 }) => {
-  const [activeTabType, setActiveTabType] = useState<McpTab>('assistants');
+  const [activeTabType, setActiveTabType] = useState<McpTab>(initialTab || 'assistants');
+
+  useEffect(() => {
+    if (initialTab && isOpen) {
+      setActiveTabType(initialTab);
+    }
+  }, [initialTab, isOpen]);
 
   // Assistants state
   const [selectedAssistant, setSelectedAssistant] = useState<AssistantProvider>('claude');
@@ -92,9 +120,31 @@ export const McpModal: React.FC<McpModalProps> = ({
   const [logs, setLogs] = useState<any[]>([]);
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  // Draggable & Resizable Window State
-  const defaultWidth = 460;
-  const defaultHeight = Math.min(760, window.innerHeight - 60);
+  // Personalized time-based greeting for Yash (Claude serif italic)
+  const getGreeting = useCallback((): string => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return 'Good morning, Yash';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good afternoon, Yash';
+    } else {
+      return 'Good evening, Yash';
+    }
+  }, []);
+
+  const [greeting, setGreeting] = useState<string>(getGreeting);
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+    const interval = setInterval(() => {
+      setGreeting(getGreeting());
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [getGreeting]);
+
+  // Draggable & Resizable Window State (Comfortable compact width & height)
+  const defaultWidth = 480;
+  const defaultHeight = Math.min(680, window.innerHeight - 70);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>({
     width: defaultWidth,
@@ -447,6 +497,11 @@ export const McpModal: React.FC<McpModalProps> = ({
           </div>
         </div>
 
+        {/* Personalized Time-Based Greeting for Yash */}
+        <div className="mcp-greeting-banner">
+          <span className="mcp-greeting-text">{greeting}</span>
+        </div>
+
         {/* 3 Modern Segmented Tabs */}
         <div className="mcp-tab-bar">
           <button
@@ -484,11 +539,22 @@ export const McpModal: React.FC<McpModalProps> = ({
                     key={asst.id}
                     className={`assistant-chip ${selectedAssistant === asst.id ? 'selected' : ''}`}
                     onClick={() => setSelectedAssistant(asst.id)}
+                    title={`Switch to ${asst.name}`}
                   >
-                    <span style={{ color: asst.color }}>●</span>
-                    <span>{asst.name}</span>
+                    <span className="assistant-chip-dot" style={{ backgroundColor: asst.color }}>●</span>
+                    <span className="assistant-chip-name">{asst.name}</span>
+                    {asst.badge && <span className="assistant-chip-badge">{asst.badge}</span>}
                   </button>
                 ))}
+
+                <button
+                  className="assistant-chip local-switch-btn"
+                  onClick={() => setActiveTabType('local')}
+                  title="Switch to Local Models (Ollama / LM Studio)"
+                >
+                  <Cpu size={12} style={{ color: '#10B981' }} />
+                  <span>Local</span>
+                </button>
 
                 <div className="assistant-spacer" />
 
@@ -725,6 +791,36 @@ export const McpModal: React.FC<McpModalProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Fixed Bottom Circular Icon Dock */}
+        <div className="mcp-bottom-dock">
+          <div className="mcp-bottom-dock-inner">
+            <button
+              className={`mcp-dock-circle-btn ${activeTabType === 'assistants' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('assistants')}
+              title="Assistants"
+              aria-label="Assistants"
+            >
+              <Sparkles size={17} />
+            </button>
+            <button
+              className={`mcp-dock-circle-btn ${activeTabType === 'local' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('local')}
+              title="Local models"
+              aria-label="Local models"
+            >
+              <Cpu size={17} />
+            </button>
+            <button
+              className={`mcp-dock-circle-btn ${activeTabType === 'tools' ? 'active' : ''}`}
+              onClick={() => setActiveTabType('tools')}
+              title="Tools"
+              aria-label="Tools"
+            >
+              <Wrench size={17} />
+            </button>
+          </div>
         </div>
 
         {/* Interactive Bottom-Right Resize Grip Handle */}

@@ -61,9 +61,9 @@ export class LocalStorageManager {
     settings: Record<string, unknown>;
   } {
     const defaultSpaces: Space[] = [
-      { id: 'space-default', name: 'DEFAULT', icon: 'Home', color: '#6366f1' },
-      { id: 'space-plan', name: 'PLAN', icon: 'Briefcase', color: '#10b981' },
-      { id: 'space-max', name: 'MAX', icon: 'Terminal', color: '#f59e0b' },
+      { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' },
+      { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' },
+      { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' },
     ];
 
     if (!fs.existsSync(this.stateFilePath)) {
@@ -74,7 +74,7 @@ export class LocalStorageManager {
           searchEngine: 'https://www.google.com/search?q=',
           adblockEnabled: true,
           zenSleepEnabled: true,
-          theme: 'light',
+          theme: 'dark',
         },
       };
     }
@@ -82,8 +82,22 @@ export class LocalStorageManager {
     try {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
       const parsed = JSON.parse(content);
+      let rawSpaces: Space[] = parsed.spaces || defaultSpaces;
+      // Seamlessly migrate legacy spaces (DEFAULT/PLAN/MAX -> Study/Work/Leisure)
+      rawSpaces = rawSpaces.map((sp) => {
+        if (sp.id === 'space-default' || sp.name === 'DEFAULT' || sp.id === 'space-study') {
+          return { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' };
+        }
+        if (sp.id === 'space-plan' || sp.name === 'PLAN' || sp.id === 'space-work') {
+          return { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' };
+        }
+        if (sp.id === 'space-max' || sp.name === 'MAX' || sp.id === 'space-leisure') {
+          return { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' };
+        }
+        return sp;
+      });
       return {
-        spaces: parsed.spaces || defaultSpaces,
+        spaces: rawSpaces,
         bookmarks: parsed.bookmarks || [],
         settings: parsed.settings || {},
       };

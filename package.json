@@ -1,6 +1,6 @@
 {
   "name": "neutrino-browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first, high-speed Chromium desktop browser with Brave-level ad-blocking, Zen-level low resource usage, Arc-level customizability, and native MCP capability.",
   "main": "dist-main/index.js",
   "scripts": {

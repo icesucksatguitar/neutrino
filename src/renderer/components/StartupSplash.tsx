@@ -87,3 +87,4 @@ export const StartupSplash: React.FC<StartupSplashProps> = ({ onFinished }) => {
     </div>
   );
 };
+

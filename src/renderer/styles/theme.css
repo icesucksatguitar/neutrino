@@ -3085,25 +3085,23 @@ input:focus-visible {
    RADICAL MINIMALISM & NOTIFICATION TAB SYSTEM
    ========================================================================== */
 
-/* 1. Floating Top URL Pill */
+/* 1. Floating Top URL Pill (Solid Opaque) */
 .top-floating-url-pill {
   position: absolute;
-  top: 16px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
-  height: 36px;
-  padding: 0 20px;
+  height: 34px;
+  padding: 0 18px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  font-size: 14.5px;
+  border-radius: 17px;
+  background: #18181b; /* Solid opaque */
+  border: 1px solid #27272a;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  font-size: 13.5px;
   font-weight: 500;
   color: #F2F2F3;
   letter-spacing: -0.01em;
@@ -3112,10 +3110,10 @@ input:focus-visible {
   user-select: none;
 }
 .top-floating-url-pill:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  transform: translateX(-50%) translateY(-1px);
+  background: #27272a;
+  border-color: #3f3f46;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%) translateY(-0.5px);
 }
 .url-lock-icon {
   width: 12px;
@@ -3123,16 +3121,21 @@ input:focus-visible {
   opacity: 0.55;
 }
 .url-domain-text {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 500;
 }
 
-/* Light mode override for URL pill */
+/* Light mode override for URL pill (Solid Opaque) */
 [data-theme="light"] .top-floating-url-pill {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(0, 0, 0, 0.10);
+  background: #ffffff; /* Solid opaque */
+  border: 1px solid #e4e4e7;
   color: #111113;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .top-floating-url-pill:hover {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #000000;
 }
 
 /* 2. Left Hairline Markers (Collapsed Tabs) */
@@ -4632,51 +4635,49 @@ input:focus-visible {
 }
 
 .minimal-pill-btn {
-  height: 34px;
+  height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #18181b; /* Solid opaque */
+  border: 1px solid #27272a;
   display: flex;
   align-items: center;
   gap: 7px;
   color: #F2F2F3;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transition: all var(--transition-fast);
 }
 
 .minimal-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.24);
-  transform: translateY(-1px);
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #ffffff;
+  transform: translateY(-0.5px);
 }
 
 .minimal-icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #18181b; /* Solid opaque */
+  border: 1px solid #27272a;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #F2F2F3;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transition: all var(--transition-fast);
 }
 
 .minimal-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.24);
-  transform: translateY(-1px);
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #ffffff;
+  transform: translateY(-0.5px);
 }
 
 .modern-btn-icon {
@@ -4686,15 +4687,16 @@ input:focus-visible {
 
 [data-theme="light"] .minimal-pill-btn,
 [data-theme="light"] .minimal-icon-btn {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(0, 0, 0, 0.10);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  background: #ffffff; /* Solid opaque */
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   color: #111113;
 }
 [data-theme="light"] .minimal-pill-btn:hover,
 [data-theme="light"] .minimal-icon-btn:hover {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.18);
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #000000;
 }
 
 /* Dedicated Local AI Header Button */
@@ -5889,13 +5891,13 @@ input:focus-visible {
 }
 
 .macos-window-controls-cluster {
-  position: fixed;
-  top: 10px;
-  left: 14px;
+  position: absolute;
+  top: 14px;
+  left: 18px;
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 175;
+  z-index: 100;
   -webkit-app-region: no-drag;
   pointer-events: auto;
 }
@@ -5963,30 +5965,30 @@ input:focus-visible {
   filter: brightness(0.85);
 }
 
-/* Dedicated Spaces & Tabs Toggle Pill */
+/* Dedicated Spaces & Tabs Toggle Pill (Solid Opaque - No Liquid Glass) */
 .macos-tabs-toggle-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #18181b; /* Solid opaque */
+  border: 1px solid #27272a;
   color: #f4f4f5;
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   -webkit-app-region: no-drag;
 }
 
 .macos-tabs-toggle-pill:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #ffffff;
   transform: translateY(-0.5px);
 }
 
@@ -5998,7 +6000,7 @@ input:focus-visible {
 }
 
 .macos-tabs-label {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -6007,29 +6009,32 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 15px;
-  height: 15px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
+  background: #27272a;
+  color: #a1a1aa;
   font-size: 9.5px;
   font-weight: 600;
 }
 
 .macos-tabs-toggle-pill.active .macos-tabs-count {
-  background: rgba(0, 0, 0, 0.15);
+  background: #e4e4e7;
   color: #000000;
 }
 
 [data-theme="light"] .macos-tabs-toggle-pill {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: rgba(0, 0, 0, 0.1);
+  background: #ffffff; /* Solid opaque */
+  border: 1px solid #e4e4e7;
   color: #18181b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] .macos-tabs-toggle-pill:hover {
-  background: rgba(0, 0, 0, 0.09);
-  border-color: rgba(0, 0, 0, 0.18);
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #000000;
 }
 
 [data-theme="light"] .macos-tabs-toggle-pill.active {
@@ -6040,13 +6045,13 @@ input:focus-visible {
 }
 
 [data-theme="light"] .macos-tabs-toggle-pill.active .macos-tabs-count {
-  background: rgba(255, 255, 255, 0.2);
+  background: #27272a;
   color: #ffffff;
 }
 
 [data-theme="light"] .macos-tabs-count {
-  background: rgba(0, 0, 0, 0.08);
-  color: #18181b;
+  background: #f4f4f5;
+  color: #71717a;
 }
 
 /* ==========================================================================

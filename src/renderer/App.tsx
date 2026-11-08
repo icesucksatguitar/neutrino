@@ -91,6 +91,9 @@ export function App() {
       return;
     }
 
+    // Default to hidden on web pages until user hovers the top edge
+    setIsTopHovered(false);
+
     const handleMouseMove = (e: MouseEvent) => {
       // Hovering top 36px reveals top controls smoothly
       if (e.clientY <= 36) {
@@ -377,53 +380,6 @@ export function App() {
       {/* Frameless Top Drag Bar for native-feeling window movement */}
       <div className="macos-window-drag-bar" />
 
-      {/* macOS Frameless Window Controls & Tabs Switcher (Top Left) */}
-      <aside className="macos-window-controls-cluster" aria-label="Window Controls">
-        <div className="macos-traffic-lights">
-          <button
-            className="traffic-light close"
-            onClick={() => window.neutrino?.windowControl('close')}
-            title="Close"
-            aria-label="Close"
-          >
-            <span className="traffic-glyph">✕</span>
-          </button>
-          <button
-            className="traffic-light minimize"
-            onClick={() => window.neutrino?.windowControl('minimize')}
-            title="Minimize"
-            aria-label="Minimize"
-          >
-            <span className="traffic-glyph">−</span>
-          </button>
-          <button
-            className="traffic-light maximize"
-            onClick={() => window.neutrino?.windowControl('maximize')}
-            title="Maximize"
-            aria-label="Maximize"
-          >
-            <span className="traffic-glyph">+</span>
-          </button>
-        </div>
-
-        {/* Dedicated Spaces & Tabs Toggle Pill */}
-        <button
-          className={`macos-tabs-toggle-pill ${isNotificationTabsOpen ? 'active' : ''}`}
-          onClick={() => setIsNotificationTabsOpen((prev) => !prev)}
-          title="Spaces & Tabs (Ctrl+E)"
-          aria-label="Spaces & Tabs"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
-          <span className="macos-tabs-label">Tabs</span>
-          <span className="macos-tabs-count">{state.tabs.length}</span>
-        </button>
-      </aside>
-
       {/* Left Edge Hover Trigger (Opens tab panel from any site or blank page) */}
       <div
         className="left-edge-hover-zone"
@@ -448,9 +404,9 @@ export function App() {
         />
       )}
 
-      {/* Floating Top Chrome Capsule (Auto-hides on web pages to not interfere with site controls) */}
+      {/* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with site controls) */}
       <div
-        className={`floating-top-chrome-capsule ${isWebpage && !isTopHovered && !isCommandBarOpen ? 'autohidden' : 'visible'}`}
+        className={`floating-top-chrome-capsule ${isWebpage && !isTopHovered && !isCommandBarOpen && !isNotificationTabsOpen ? 'autohidden' : 'visible'}`}
         onMouseEnter={() => {
           if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
           setIsTopHovered(true);
@@ -461,6 +417,53 @@ export function App() {
           }
         }}
       >
+        {/* Top Left: macOS Frameless Window Controls & Tabs Switcher (Opaque) */}
+        <aside className="macos-window-controls-cluster" aria-label="Window Controls">
+          <div className="macos-traffic-lights">
+            <button
+              className="traffic-light close"
+              onClick={() => window.neutrino?.windowControl('close')}
+              title="Close"
+              aria-label="Close"
+            >
+              <span className="traffic-glyph">✕</span>
+            </button>
+            <button
+              className="traffic-light minimize"
+              onClick={() => window.neutrino?.windowControl('minimize')}
+              title="Minimize"
+              aria-label="Minimize"
+            >
+              <span className="traffic-glyph">−</span>
+            </button>
+            <button
+              className="traffic-light maximize"
+              onClick={() => window.neutrino?.windowControl('maximize')}
+              title="Maximize"
+              aria-label="Maximize"
+            >
+              <span className="traffic-glyph">+</span>
+            </button>
+          </div>
+
+          {/* Dedicated Spaces & Tabs Toggle Pill (Opaque) */}
+          <button
+            className={`macos-tabs-toggle-pill ${isNotificationTabsOpen ? 'active' : ''}`}
+            onClick={() => setIsNotificationTabsOpen((prev) => !prev)}
+            title="Spaces & Tabs (Ctrl+E)"
+            aria-label="Spaces & Tabs"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            <span className="macos-tabs-label">Tabs</span>
+            <span className="macos-tabs-count">{state.tabs.length}</span>
+          </button>
+        </aside>
+
         {/* Top Center Floating URL Pill */}
         <FloatingUrlPill
           url={activeTab?.url}

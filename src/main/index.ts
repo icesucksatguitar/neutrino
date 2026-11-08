@@ -12,6 +12,7 @@ app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -24,16 +25,36 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
-const DESKTOP_USER_AGENT =
+export const CHROME_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// Modern Firefox desktop User Agent for Google Authentication
+// Google BotGuard rejects embedded Chromium/Electron with rrk=46 ("This browser or app may not be secure"),
+// but seamlessly authorizes standard web-spec Firefox without triggering embedded Chromium bot checks.
+export const GOOGLE_AUTH_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0';
+
+export function isGoogleAuthUrl(url: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('accounts.google.com') ||
+    url.includes('myaccount.google.com') ||
+    url.includes('accounts.youtube.com') ||
+    url.includes('oauth2.googleapis.com') ||
+    url.includes('apis.google.com/oauth')
+  );
+}
+
+// Global user-agent fallback
+app.userAgentFallback = CHROME_USER_AGENT;
 
 function setupNetworkInterception() {
   const currentSession = session.defaultSession;
   const neutrinoSession = session.fromPartition('persist:neutrino');
 
   // Enforce standard clean desktop Chrome user agent across all sessions
-  currentSession.setUserAgent(DESKTOP_USER_AGENT);
-  neutrinoSession.setUserAgent(DESKTOP_USER_AGENT);
+  currentSession.setUserAgent(CHROME_USER_AGENT);
+  neutrinoSession.setUserAgent(CHROME_USER_AGENT);
 
   const applyInterception = (sess: any) => {
     // Intercept web requests with Brave-grade ad & tracker blocker
@@ -42,6 +63,18 @@ function setupNetworkInterception() {
 
       // Allow internal UI and dev tools
       if (url.startsWith('file://') || url.startsWith('devtools://') || url.startsWith('chrome-extension://')) {
+        callback({ cancel: false });
+        return;
+      }
+
+      // Never block authentication, reCAPTCHA, security validation, or telemetry required for login
+      if (
+        isGoogleAuthUrl(url) ||
+        url.includes('recaptcha') ||
+        url.includes('gstatic.com') ||
+        url.includes('play.google.com/log') ||
+        url.includes('identitytoolkit.googleapis.com')
+      ) {
         callback({ cancel: false });
         return;
       }
@@ -63,9 +96,31 @@ function setupNetworkInterception() {
       callback({ cancel: false });
     });
 
-    // Strip tracking headers / set privacy user agent
+    // Sanitize headers and dynamically provide Firefox UA for Google accounts to prevent security block
     sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
-      callback({ requestHeaders: details.requestHeaders });
+      const headers = { ...details.requestHeaders };
+
+      if (isGoogleAuthUrl(details.url)) {
+        headers['User-Agent'] = GOOGLE_AUTH_USER_AGENT;
+        delete headers['Sec-CH-UA'];
+        delete headers['sec-ch-ua'];
+        delete headers['Sec-CH-UA-Mobile'];
+        delete headers['sec-ch-ua-mobile'];
+        delete headers['Sec-CH-UA-Platform'];
+        delete headers['sec-ch-ua-platform'];
+        delete headers['Sec-CH-UA-Platform-Version'];
+        delete headers['sec-ch-ua-platform-version'];
+      } else {
+        headers['User-Agent'] = CHROME_USER_AGENT;
+        if (headers['Sec-CH-UA']) {
+          headers['Sec-CH-UA'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+        }
+        if (headers['sec-ch-ua']) {
+          headers['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+        }
+      }
+
+      callback({ requestHeaders: headers });
     });
 
     // Automatically allow webview permissions (media, fullscreen, clipboard, etc.)
@@ -264,13 +319,60 @@ app.whenReady().then(() => {
 
   // Universal handlers for all WebContents (browser UI & webview tabs)
   app.on('web-contents-created', (_, contents) => {
-    // Intercept target="_blank" and window.open to open as tabs in Neutrino
-    contents.setWindowOpenHandler((details) => {
-      if (details.url && details.url !== 'about:blank') {
-        const active = browserManager.getActiveTab();
-        const spaceId = active ? active.spaceId : 'space-default';
-        browserManager.createTab(details.url, spaceId);
+    // Dynamically adjust user agent per destination to ensure seamless Google login
+    contents.on('will-navigate', (_, url) => {
+      if (isGoogleAuthUrl(url)) {
+        contents.setUserAgent(GOOGLE_AUTH_USER_AGENT);
+      } else {
+        contents.setUserAgent(CHROME_USER_AGENT);
       }
+    });
+
+    contents.on('did-start-navigation', (_, url) => {
+      if (isGoogleAuthUrl(url)) {
+        contents.setUserAgent(GOOGLE_AUTH_USER_AGENT);
+      } else {
+        contents.setUserAgent(CHROME_USER_AGENT);
+      }
+    });
+
+    // Intercept target="_blank" and window.open
+    // Allow authentic OAuth popup windows to maintain window.opener, open regular links as Neutrino tabs
+    contents.setWindowOpenHandler((details) => {
+      if (!details.url || details.url === 'about:blank') {
+        return { action: 'deny' };
+      }
+
+      const isAuthPopup =
+        isGoogleAuthUrl(details.url) ||
+        details.url.includes('appleid.apple.com') ||
+        details.url.includes('github.com/login/oauth') ||
+        details.url.includes('/oauth') ||
+        details.url.includes('/auth') ||
+        (details.features && (details.features.includes('width=') || details.features.includes('height=')));
+
+      if (isAuthPopup) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            width: 520,
+            height: 680,
+            title: 'Sign In',
+            autoHideMenuBar: true,
+            backgroundColor: '#000000',
+            webPreferences: {
+              partition: 'persist:neutrino',
+              contextIsolation: true,
+              nodeIntegration: false,
+              sandbox: false,
+            },
+          },
+        };
+      }
+
+      const active = browserManager.getActiveTab();
+      const spaceId = active ? active.spaceId : 'space-study';
+      browserManager.createTab(details.url, spaceId);
       return { action: 'deny' };
     });
 

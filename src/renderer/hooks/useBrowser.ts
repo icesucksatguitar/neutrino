@@ -89,7 +89,7 @@ export function useBrowser() {
       });
     });
 
-    const unregTracker = window.neutrino.onTrackerBlocked((item) => {
+    const unregTracker = window.neutrino.onTrackerBlocked?.((item) => {
       setBlockedTrackers((prev) => [
         { ...item, timestamp: Date.now() },
         ...prev.slice(0, 49),

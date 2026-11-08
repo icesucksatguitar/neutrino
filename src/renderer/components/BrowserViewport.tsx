@@ -21,6 +21,20 @@ interface BrowserViewportProps {
 export const DESKTOP_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+export const GOOGLE_AUTH_USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0';
+
+export function isGoogleAuthUrl(url: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('accounts.google.com') ||
+    url.includes('myaccount.google.com') ||
+    url.includes('accounts.youtube.com') ||
+    url.includes('oauth2.googleapis.com') ||
+    url.includes('apis.google.com/oauth')
+  );
+}
+
 export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   activeTab,
   tabs = [],
@@ -356,6 +370,13 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
           canGoBack: webview.canGoBack?.() ?? false,
           canGoForward: webview.canGoForward?.() ?? false,
         });
+
+        if (isGoogleAuthUrl(e.url)) {
+          if (webview.setUserAgent) webview.setUserAgent(GOOGLE_AUTH_USER_AGENT);
+        } else {
+          if (webview.setUserAgent) webview.setUserAgent(DESKTOP_USER_AGENT);
+        }
+
         injectAdblocking();
       }
     };
@@ -364,10 +385,22 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     const handleMediaPause = () => checkTabMedia(tabId);
 
     const handleNewWindow = (e: any) => {
-      e.preventDefault();
-      if (e.url) {
-        window.neutrino?.createTab(e.url, activeSpaceId);
+      if (!e.url) return;
+
+      const isAuthPopup =
+        isGoogleAuthUrl(e.url) ||
+        e.url.includes('appleid.apple.com') ||
+        e.url.includes('github.com/login/oauth') ||
+        e.url.includes('/oauth') ||
+        e.url.includes('/auth');
+
+      // Allow authentic OAuth popups so window.opener stays connected to parent site
+      if (isAuthPopup) {
+        return;
       }
+
+      e.preventDefault();
+      window.neutrino?.createTab(e.url, activeSpaceId);
     };
 
     const handleFailLoad = (e: any) => {

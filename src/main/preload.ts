@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('neutrino', {
   // Window Controls
   windowControl: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.invoke('neutrino:window-control', action),
 
+  // Theme Controls
+  setThemeMode: (mode: 'dark' | 'light') => ipcRenderer.invoke('neutrino:set-theme-mode', mode),
+
   // Reactive State Events
   onStateUpdate: (callback: (state: any) => void) => {
     const handler = (_: unknown, state: any) => callback(state);

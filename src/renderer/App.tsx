@@ -149,6 +149,7 @@ export function App() {
       document.documentElement.setAttribute('data-theme', 'light');
       document.body.classList.remove('dark-mode');
     }
+    window.neutrino?.setThemeMode?.(isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   // Clean up any legacy zoom locks or bad themes

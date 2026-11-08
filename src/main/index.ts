@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, session, screen, webContents } from 'electron';
+import { app, BrowserWindow, ipcMain, session, screen, webContents, nativeTheme } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { BraveShieldEngine } from './adblock/engine';
 import { ZenResourceManager } from './resourceManager';
 import { McpServer } from './mcp/server';
@@ -13,6 +14,28 @@ app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+
+// Set native theme source to dark by default
+nativeTheme.themeSource = 'dark';
+let isDarkMode = true;
+
+// Preload DarkReader script into memory for universal website dark mode
+let darkReaderCode = '';
+try {
+  const possiblePaths = [
+    path.join(__dirname, '..', 'node_modules', 'darkreader', 'darkreader.js'),
+    path.join(app.getAppPath(), 'node_modules', 'darkreader', 'darkreader.js'),
+    path.join(__dirname, 'darkreader.js'),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      darkReaderCode = fs.readFileSync(p, 'utf8');
+      break;
+    }
+  }
+} catch (e) {
+  console.error('Failed to load darkreader.js:', e);
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -293,6 +316,39 @@ function setupIpcHandlers() {
     if (action === 'close') mainWindow.close();
   });
 
+  ipcMain.handle('neutrino:set-theme-mode', async (_, mode: 'dark' | 'light') => {
+    isDarkMode = mode === 'dark';
+    nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
+
+    const allWcs = webContents.getAllWebContents();
+    for (const wc of allWcs) {
+      if (wc.getType() === 'webview') {
+        try {
+          if (isDarkMode) {
+            await wc.executeJavaScript(`
+              try {
+                if (window.DarkReader) {
+                  DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
+                  window.__neutrino_darkreader_active = true;
+                }
+              } catch(e) {}
+            `);
+          } else {
+            await wc.executeJavaScript(`
+              try {
+                if (window.DarkReader) {
+                  DarkReader.disable();
+                  window.__neutrino_darkreader_active = false;
+                }
+              } catch(e) {}
+            `);
+          }
+        } catch {}
+      }
+    }
+    return { success: true };
+  });
+
   ipcMain.handle('neutrino:capture-tab-preview', async (_, tabUrl: string) => {
     try {
       const allWcs = webContents.getAllWebContents();
@@ -376,7 +432,7 @@ app.whenReady().then(() => {
       return { action: 'deny' };
     });
 
-    // Auto-inject cosmetic adblock and YouTube ad skipper into guest webviews
+    // Auto-inject cosmetic adblock, YouTube ad skipper, and universal DarkReader into guest webviews
     if (contents.getType() === 'webview') {
       contents.on('dom-ready', async () => {
         try {
@@ -385,6 +441,24 @@ app.whenReady().then(() => {
             const url = contents.getURL();
             if (url.includes('youtube.com')) {
               await contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript());
+            }
+          }
+
+          if (isDarkMode && darkReaderCode) {
+            const url = contents.getURL();
+            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:')) {
+              await contents.executeJavaScript(darkReaderCode);
+              await contents.executeJavaScript(`
+                (() => {
+                  try {
+                    if (window.DarkReader) {
+                      DarkReader.setFetchMethod(window.fetch);
+                      DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
+                      window.__neutrino_darkreader_active = true;
+                    }
+                  } catch(e) {}
+                })();
+              `);
             }
           }
         } catch {}

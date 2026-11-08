@@ -84,6 +84,7 @@ contextBridge.exposeInMainWorld('neutrino', {
     if (stateCb) stateCb(currentState);
   },
   windowControl: (act) => console.log('windowControl:', act),
+  setThemeMode: () => Promise.resolve({ success: true }),
   toggleShields: () => {},
   zenOptimize: () => {},
   getShieldStats: () => Promise.resolve({ totalBlocked: 0 }),

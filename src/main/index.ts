@@ -14,7 +14,6 @@ app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
-app.commandLine.appendSwitch('disable-features', 'ThirdPartyStoragePartitioning');
 
 // Set native theme source to dark by default
 nativeTheme.themeSource = 'dark';
@@ -108,6 +107,10 @@ function setupNetworkInterception() {
   neutrinoSession.setUserAgent(CHROME_USER_AGENT);
 
   const applyInterception = (sess: any) => {
+    try {
+      sess.setUserAgent(CHROME_USER_AGENT);
+    } catch {}
+
     // Intercept web requests with Brave-grade ad & tracker blocker
     sess.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details: any, callback: any) => {
       const url = details.url;
@@ -165,6 +168,12 @@ function setupNetworkInterception() {
 
   applyInterception(currentSession);
   applyInterception(neutrinoSession);
+
+  // Also apply to any assistant-specific partitions if created
+  const partitions = ['persist:claude', 'persist:chatgpt', 'persist:gemini', 'persist:deepseek', 'persist:perplexity'];
+  for (const part of partitions) {
+    applyInterception(session.fromPartition(part));
+  }
 }
 
 function createWindow() {
@@ -384,16 +393,18 @@ app.whenReady().then(() => {
   setupIpcHandlers();
   createWindow();
 
+  // Configure newly created browser windows (including OAuth popups)
+  app.on('browser-window-created', (_, win) => {
+    win.webContents.setUserAgent(CHROME_USER_AGENT);
+    if (win !== mainWindow) {
+      win.show();
+      win.focus();
+    }
+  });
+
   // Universal handlers for all WebContents (browser UI & webview tabs)
   app.on('web-contents-created', (_, contents) => {
-    // Enforce authentic clean desktop user agent on all navigations
-    contents.on('will-navigate', () => {
-      contents.setUserAgent(CHROME_USER_AGENT);
-    });
-
-    contents.on('did-start-navigation', () => {
-      contents.setUserAgent(CHROME_USER_AGENT);
-    });
+    contents.setUserAgent(CHROME_USER_AGENT);
 
     // Intercept target="_blank" and window.open
     // Allow authentic OAuth popup windows to maintain window.opener, open regular links as Neutrino tabs
@@ -438,13 +449,6 @@ app.whenReady().then(() => {
       const spaceId = active ? active.spaceId : 'space-study';
       browserManager.createTab(details.url, spaceId);
       return { action: 'deny' };
-    });
-
-    // Configure newly spawned popup windows so they show cleanly and interactively
-    contents.on('did-create-window', (window) => {
-      window.webContents.setUserAgent(CHROME_USER_AGENT);
-      window.show();
-      window.focus();
     });
 
     // Auto-inject cosmetic adblock, YouTube ad skipper, and universal DarkReader into guest webviews

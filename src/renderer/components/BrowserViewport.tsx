@@ -20,10 +20,7 @@ interface BrowserViewportProps {
 }
 
 export const DESKTOP_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-export const GOOGLE_AUTH_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
 export function isGoogleAuthUrl(url: string): boolean {
   if (!url) return false;
@@ -423,11 +420,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
           canGoForward: webview.canGoForward?.() ?? false,
         });
 
-        if (isGoogleAuthUrl(e.url)) {
-          if (webview.setUserAgent) webview.setUserAgent(GOOGLE_AUTH_USER_AGENT);
-        } else {
-          if (webview.setUserAgent) webview.setUserAgent(DESKTOP_USER_AGENT);
-        }
+        if (webview.setUserAgent) webview.setUserAgent(DESKTOP_USER_AGENT);
 
         injectAdblocking();
         syncDarkThemeForTab(tabId);
@@ -440,15 +433,26 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     const handleNewWindow = (e: any) => {
       if (!e.url) return;
 
-      const isAuthPopup =
+      const url = e.url.toLowerCase();
+      const isAuthOrPopup =
+        e.disposition === 'new-window' ||
+        (e.options && (e.options.width || e.options.height)) ||
         isGoogleAuthUrl(e.url) ||
-        e.url.includes('appleid.apple.com') ||
-        e.url.includes('github.com/login/oauth') ||
-        e.url.includes('/oauth') ||
-        e.url.includes('/auth');
+        url.includes('appleid.apple.com') ||
+        url.includes('github.com/login') ||
+        url.includes('login.microsoftonline.com') ||
+        url.includes('login.live.com') ||
+        url.includes('/oauth') ||
+        url.includes('/auth') ||
+        url.includes('/signin') ||
+        url.includes('/signup') ||
+        url.includes('/login') ||
+        url.includes('auth0.com') ||
+        url.includes('clerk.') ||
+        url.includes('supabase.co');
 
-      // Allow authentic OAuth popups so window.opener stays connected to parent site
-      if (isAuthPopup) {
+      // Allow authentic OAuth and modal popups so window.opener stays connected to parent site
+      if (isAuthOrPopup) {
         return;
       }
 

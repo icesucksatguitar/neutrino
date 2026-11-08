@@ -14,6 +14,7 @@ app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-features', 'ThirdPartyStoragePartitioning');
 
 // Set native theme source to dark by default
 nativeTheme.themeSource = 'dark';
@@ -49,13 +50,7 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 mcpServer.start();
 
 export const CHROME_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-
-// Modern Firefox desktop User Agent for Google Authentication
-// Google BotGuard rejects embedded Chromium/Electron with rrk=46 ("This browser or app may not be secure"),
-// but seamlessly authorizes standard web-spec Firefox without triggering embedded Chromium bot checks.
-export const GOOGLE_AUTH_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
 export function isGoogleAuthUrl(url: string): boolean {
   if (!url) return false;
@@ -65,6 +60,39 @@ export function isGoogleAuthUrl(url: string): boolean {
     url.includes('accounts.youtube.com') ||
     url.includes('oauth2.googleapis.com') ||
     url.includes('apis.google.com/oauth')
+  );
+}
+
+export function isAuthOrSecurityUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    isGoogleAuthUrl(url) ||
+    lower.includes('recaptcha') ||
+    lower.includes('gstatic.com') ||
+    lower.includes('turnstile') ||
+    lower.includes('challenges.cloudflare.com') ||
+    lower.includes('hcaptcha') ||
+    lower.includes('appleid.apple.com') ||
+    lower.includes('github.com/login') ||
+    lower.includes('api.github.com') ||
+    lower.includes('login.microsoftonline.com') ||
+    lower.includes('login.live.com') ||
+    lower.includes('msftauth.net') ||
+    lower.includes('identitytoolkit.googleapis.com') ||
+    lower.includes('securetoken.googleapis.com') ||
+    lower.includes('auth0.com') ||
+    lower.includes('clerk.') ||
+    lower.includes('supabase.co') ||
+    lower.includes('penpencil.co') ||
+    lower.includes('pw.live') ||
+    lower.includes('/oauth') ||
+    lower.includes('/auth') ||
+    lower.includes('/signin') ||
+    lower.includes('/signup') ||
+    lower.includes('/login') ||
+    lower.includes('/otp') ||
+    lower.includes('/token')
   );
 }
 
@@ -90,14 +118,8 @@ function setupNetworkInterception() {
         return;
       }
 
-      // Never block authentication, reCAPTCHA, security validation, or telemetry required for login
-      if (
-        isGoogleAuthUrl(url) ||
-        url.includes('recaptcha') ||
-        url.includes('gstatic.com') ||
-        url.includes('play.google.com/log') ||
-        url.includes('identitytoolkit.googleapis.com')
-      ) {
+      // Never block authentication, identity providers, CAPTCHA, or verification endpoints
+      if (isAuthOrSecurityUrl(url)) {
         callback({ cancel: false });
         return;
       }
@@ -119,34 +141,23 @@ function setupNetworkInterception() {
       callback({ cancel: false });
     });
 
-    // Sanitize headers and dynamically provide Firefox UA for Google accounts to prevent security block
+    // Provide authentic Chromium Client Hints & User-Agent across all requests
     sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
       const headers = { ...details.requestHeaders };
 
-      if (isGoogleAuthUrl(details.url)) {
-        headers['User-Agent'] = GOOGLE_AUTH_USER_AGENT;
-        delete headers['Sec-CH-UA'];
-        delete headers['sec-ch-ua'];
-        delete headers['Sec-CH-UA-Mobile'];
-        delete headers['sec-ch-ua-mobile'];
-        delete headers['Sec-CH-UA-Platform'];
-        delete headers['sec-ch-ua-platform'];
-        delete headers['Sec-CH-UA-Platform-Version'];
-        delete headers['sec-ch-ua-platform-version'];
-      } else {
-        headers['User-Agent'] = CHROME_USER_AGENT;
-        if (headers['Sec-CH-UA']) {
-          headers['Sec-CH-UA'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-        }
-        if (headers['sec-ch-ua']) {
-          headers['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-        }
-      }
+      headers['User-Agent'] = CHROME_USER_AGENT;
+      headers['Sec-CH-UA'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
+      headers['sec-ch-ua'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
+      headers['Sec-CH-UA-Mobile'] = '?0';
+      headers['sec-ch-ua-mobile'] = '?0';
+      headers['Sec-CH-UA-Platform'] = '"Windows"';
+      headers['sec-ch-ua-platform'] = '"Windows"';
 
       callback({ requestHeaders: headers });
     });
 
-    // Automatically allow webview permissions (media, fullscreen, clipboard, etc.)
+    // Automatically allow webview permissions and credentials
+    sess.setPermissionCheckHandler(() => true);
     sess.setPermissionRequestHandler((webContents: any, permission: any, callback: any) => {
       callback(true);
     });
@@ -375,47 +386,44 @@ app.whenReady().then(() => {
 
   // Universal handlers for all WebContents (browser UI & webview tabs)
   app.on('web-contents-created', (_, contents) => {
-    // Dynamically adjust user agent per destination to ensure seamless Google login
-    contents.on('will-navigate', (_, url) => {
-      if (isGoogleAuthUrl(url)) {
-        contents.setUserAgent(GOOGLE_AUTH_USER_AGENT);
-      } else {
-        contents.setUserAgent(CHROME_USER_AGENT);
-      }
+    // Enforce authentic clean desktop user agent on all navigations
+    contents.on('will-navigate', () => {
+      contents.setUserAgent(CHROME_USER_AGENT);
     });
 
-    contents.on('did-start-navigation', (_, url) => {
-      if (isGoogleAuthUrl(url)) {
-        contents.setUserAgent(GOOGLE_AUTH_USER_AGENT);
-      } else {
-        contents.setUserAgent(CHROME_USER_AGENT);
-      }
+    contents.on('did-start-navigation', () => {
+      contents.setUserAgent(CHROME_USER_AGENT);
     });
 
     // Intercept target="_blank" and window.open
     // Allow authentic OAuth popup windows to maintain window.opener, open regular links as Neutrino tabs
     contents.setWindowOpenHandler((details) => {
-      if (!details.url || details.url === 'about:blank') {
-        return { action: 'deny' };
-      }
+      const url = details.url || '';
+      const hasWindowFeatures =
+        details.features &&
+        (details.features.includes('width=') ||
+          details.features.includes('height=') ||
+          details.features.includes('popup='));
 
-      const isAuthPopup =
-        isGoogleAuthUrl(details.url) ||
-        details.url.includes('appleid.apple.com') ||
-        details.url.includes('github.com/login/oauth') ||
-        details.url.includes('/oauth') ||
-        details.url.includes('/auth') ||
-        (details.features && (details.features.includes('width=') || details.features.includes('height=')));
+      const isPopup =
+        details.disposition === 'new-window' ||
+        hasWindowFeatures ||
+        isAuthOrSecurityUrl(url) ||
+        url === 'about:blank' ||
+        !url;
 
-      if (isAuthPopup) {
+      if (isPopup) {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {
-            width: 520,
-            height: 680,
+            width: 540,
+            height: 700,
             title: 'Sign In',
             autoHideMenuBar: true,
-            backgroundColor: '#000000',
+            backgroundColor: '#121316',
+            frame: true, // Native window frame with standard close/minimize controls
+            parent: mainWindow || undefined,
+            modal: false,
             webPreferences: {
               partition: 'persist:neutrino',
               contextIsolation: true,
@@ -432,10 +440,25 @@ app.whenReady().then(() => {
       return { action: 'deny' };
     });
 
+    // Configure newly spawned popup windows so they show cleanly and interactively
+    contents.on('did-create-window', (window) => {
+      window.webContents.setUserAgent(CHROME_USER_AGENT);
+      window.show();
+      window.focus();
+    });
+
     // Auto-inject cosmetic adblock, YouTube ad skipper, and universal DarkReader into guest webviews
     if (contents.getType() === 'webview') {
       contents.on('dom-ready', async () => {
         try {
+          // Provide resilient stubs for tracking/analytics SDKs so page form handlers don't crash
+          await contents.executeJavaScript(`
+            try {
+              if (!window.dataLayer) window.dataLayer = [];
+              if (!window.google_tag_manager) window.google_tag_manager = {};
+              if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
+            } catch(e) {}
+          `).catch(() => {});
           if (adblockEngine.isEnabled()) {
             await contents.insertCSS(adblockEngine.getCosmeticFilterCSS());
             const url = contents.getURL();

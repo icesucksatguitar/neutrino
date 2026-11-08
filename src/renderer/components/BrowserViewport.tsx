@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Space, TabState, ActiveMediaState } from '../types';
 import { Homescreen } from './Homescreen';
+import { Moon, Sparkles, Globe } from 'lucide-react';
 import darkReaderCode from 'darkreader/darkreader.js?raw';
 
 interface BrowserViewportProps {
@@ -533,18 +534,70 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
       {/* If active tab is sleeping (Zen mode), show low-memory placeholder */}
       {activeTab.isSleeping && (
-        <div className="tab-sleeping-container">
-          <div className="tab-sleeping-badge">💤</div>
-          <h3 className="tab-sleeping-title">Tab is Sleeping (Zen Mode)</h3>
-          <p className="tab-sleeping-desc">
-            This background tab was put to sleep to save system memory. Click anywhere to wake it instantly.
-          </p>
-          <button
-            onClick={() => window.neutrino?.toggleSleepTab(activeTab.id)}
-            className="floating-new-tab-btn"
-          >
-            Wake Tab
-          </button>
+        <div
+          className="zen-sleeping-screen"
+          onClick={() => window.neutrino?.toggleSleepTab(activeTab.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              window.neutrino?.toggleSleepTab(activeTab.id);
+            }
+          }}
+          title="Click anywhere to wake tab"
+        >
+          <div className="zen-sleeping-ambient-glow" />
+
+          <div className="zen-sleeping-card" onClick={(e) => e.stopPropagation()}>
+            <div className="zen-sleeping-icon-ring">
+              <Moon className="zen-sleeping-moon" size={26} strokeWidth={1.75} />
+              <span className="zen-sleeping-orbit" />
+            </div>
+
+            <div className="zen-sleeping-badge">
+              <span className="zen-sleeping-dot" />
+              <span>Zen Memory Saver</span>
+            </div>
+
+            <h2 className="zen-sleeping-title">
+              {activeTab.title && activeTab.title !== 'neutrino://newtab' ? activeTab.title : 'Tab is Sleeping'}
+            </h2>
+
+            {activeTab.url && activeTab.url !== 'neutrino://newtab' && activeTab.url !== 'about:blank' && (
+              <div className="zen-sleeping-url-pill">
+                <Globe size={12} className="zen-sleeping-globe" />
+                <span className="zen-sleeping-url-text">
+                  {(() => {
+                    try {
+                      return new URL(activeTab.url).hostname;
+                    } catch {
+                      return activeTab.url;
+                    }
+                  })()}
+                </span>
+              </div>
+            )}
+
+            <p className="zen-sleeping-desc">
+              This tab was placed into deep sleep to free up CPU and system memory. Your exact scroll position and page state are preserved.
+            </p>
+
+            <button
+              type="button"
+              className="zen-sleeping-wake-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.neutrino?.toggleSleepTab(activeTab.id);
+              }}
+            >
+              <Sparkles size={15} />
+              <span>Wake Tab</span>
+            </button>
+
+            <div className="zen-sleeping-hint">
+              Click anywhere to resume instantly
+            </div>
+          </div>
         </div>
       )}
 

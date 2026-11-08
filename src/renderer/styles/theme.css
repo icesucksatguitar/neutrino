@@ -6161,9 +6161,491 @@ input:focus-visible {
 .theme-modal-card,
 .welcome-modal-backdrop,
 .welcome-modal-card,
-.media-player-pip {
+.media-player-pip,
+.zen-sleeping-screen,
+.zen-sleeping-card,
+.zen-sleeping-wake-btn,
+.startup-splash-overlay {
   -webkit-app-region: no-drag;
 }
+
+/* ==========================================================================
+   ZEN MODE SLEEPING TAB VIEW
+   High-end monochromatic aesthetic, clears macOS window controls with 0 overlap
+   ========================================================================== */
+.zen-sleeping-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  background: #000000;
+  padding: 72px 24px 32px 24px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+body.light .zen-sleeping-screen {
+  background: #F8F7F4;
+}
+
+.zen-sleeping-ambient-glow {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 70%);
+  animation: zenAmbientPulse 6s ease-in-out infinite alternate;
+}
+
+body.light .zen-sleeping-ambient-glow {
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.zen-sleeping-card {
+  position: relative;
+  max-width: 440px;
+  width: 100%;
+  background: rgba(14, 14, 16, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 24px;
+  padding: 36px 30px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  cursor: default;
+  animation: zenCardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+body.light .zen-sleeping-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.zen-sleeping-icon-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  margin-bottom: 18px;
+}
+
+body.light .zen-sleeping-icon-ring {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+.zen-sleeping-moon {
+  color: #FFFFFF;
+}
+
+body.light .zen-sleeping-moon {
+  color: #18181B;
+}
+
+.zen-sleeping-orbit {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  animation: zenOrbitRotate 22s linear infinite;
+}
+
+body.light .zen-sleeping-orbit {
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.zen-sleeping-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #A1A1AA;
+  margin-bottom: 12px;
+}
+
+body.light .zen-sleeping-badge {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #52525B;
+}
+
+.zen-sleeping-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60A5FA;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+.zen-sleeping-title {
+  font-family: 'Claude Serif', 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 1.25;
+  color: #FFFFFF;
+  margin: 0 0 8px 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.light .zen-sleeping-title {
+  color: #18181B;
+}
+
+.zen-sleeping-url-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: #71717A;
+  max-width: 280px;
+  margin-bottom: 14px;
+}
+
+body.light .zen-sleeping-url-pill {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: #71717A;
+}
+
+.zen-sleeping-globe {
+  color: #71717A;
+  flex-shrink: 0;
+}
+
+.zen-sleeping-url-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zen-sleeping-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #9CA3AF;
+  margin: 0 0 22px 0;
+  max-width: 340px;
+}
+
+body.light .zen-sleeping-desc {
+  color: #4B5563;
+}
+
+.zen-sleeping-wake-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 24px;
+  border-radius: 9999px;
+  background: #FFFFFF;
+  color: #000000;
+  font-weight: 500;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.16);
+}
+
+.zen-sleeping-wake-btn:hover {
+  background: #F4F4F5;
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
+}
+
+.zen-sleeping-wake-btn:active {
+  transform: scale(0.98);
+}
+
+body.light .zen-sleeping-wake-btn {
+  background: #18181B;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+body.light .zen-sleeping-wake-btn:hover {
+  background: #27272A;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.zen-sleeping-hint {
+  font-size: 11px;
+  color: #52525B;
+  margin-top: 14px;
+}
+
+body.light .zen-sleeping-hint {
+  color: #9CA3AF;
+}
+
+@keyframes zenAmbientPulse {
+  0% { opacity: 0.35; transform: translate(-50%, -50%) scale(0.9); }
+  100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes zenCardIn {
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes zenOrbitRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+/* ==========================================================================
+   STARTUP SPLASH ANIMATION
+   Centered Neutrino brand identity with smooth fade in and out on launch
+   ========================================================================== */
+.startup-splash-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999999;
+  background-color: #000000 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: pointer;
+  overflow: hidden;
+  box-sizing: border-box;
+  opacity: 1;
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.startup-splash-overlay.splash-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.startup-splash-overlay.splash-leaving {
+  opacity: 0;
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+.startup-splash-bg-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 1) 68%);
+}
+
+.startup-splash-orbital {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: splashContentEntrance 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.splash-ring {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.splash-ring-outer {
+  width: 220px;
+  height: 220px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  animation: splashSpin 26s linear infinite;
+}
+
+.splash-ring-inner {
+  width: 140px;
+  height: 140px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  animation: splashSpinReverse 18s linear infinite;
+}
+
+.splash-particle-orbit {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  animation: splashSpin 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.splash-quantum-dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.9);
+}
+
+.startup-splash-center {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: splashContentEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.startup-splash-logo {
+  font-family: 'Claude Serif', 'Instrument Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 64px;
+  font-weight: 300;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px 0;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.4);
+  animation: splashLogoGlow 2.4s ease-in-out infinite alternate;
+}
+
+.startup-splash-subline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.splash-dash {
+  width: 24px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.splash-tagline {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 400;
+}
+
+.startup-splash-loader {
+  position: absolute;
+  bottom: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: splashContentEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.splash-pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  animation: splashDotPulse 1.2s ease-in-out infinite;
+}
+
+.splash-pulse-dot.dot-1 {
+  animation-delay: 0s;
+}
+
+.splash-pulse-dot.dot-2 {
+  animation-delay: 0.2s;
+}
+
+.splash-pulse-dot.dot-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes splashContentEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes splashSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes splashSpinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes splashLogoGlow {
+  0% {
+    text-shadow: 0 0 22px rgba(255, 255, 255, 0.2);
+  }
+  100% {
+    text-shadow: 0 0 45px rgba(255, 255, 255, 0.45), 0 0 12px rgba(255, 255, 255, 0.6);
+  }
+}
+
+@keyframes splashDotPulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    background: #FFFFFF;
+  }
+}
+
 
 
 

@@ -9,6 +9,7 @@ import { McpModal } from './components/McpModal';
 import { ThemeCustomizerModal } from './components/ThemeCustomizerModal';
 import { MediaPlayer } from './components/MediaPlayer';
 import { WelcomeModal, UserProfile } from './components/WelcomeModal';
+import { StartupSplash } from './components/StartupSplash';
 import { RightPinsDock } from './components/RightPinsDock';
 import { Shield, Moon, Sun, Sparkles, Palette } from 'lucide-react';
 import { TabState, ActiveMediaState } from './types';
@@ -42,6 +43,7 @@ export function App() {
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isNotificationTabsOpen, setIsNotificationTabsOpen] = useState(false);
+  const [isStartingUp, setIsStartingUp] = useState(true);
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
 
@@ -613,6 +615,11 @@ export function App() {
         isOpen={isWelcomeOpen}
         onComplete={handleWelcomeComplete}
       />
+
+      {/* Startup Splash Animation */}
+      {isStartingUp && (
+        <StartupSplash onFinished={() => setIsStartingUp(false)} />
+      )}
     </div>
   );
 }

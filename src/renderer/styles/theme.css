@@ -3191,11 +3191,11 @@ input:focus-visible {
 
 .notification-tabs-deck {
   position: fixed;
-  left: 24px;
-  top: 20px;
+  left: 16px;
+  top: 48px;
   bottom: 20px;
   width: 328px;
-  z-index: 125;
+  z-index: 180;
   display: flex;
   flex-direction: column;
   pointer-events: auto;
@@ -5873,6 +5873,293 @@ input:focus-visible {
   justify-content: space-between;
   margin-top: 26px;
 }
+
+/* ==========================================================================
+   FRAMELESS WINDOW SYSTEM & MACOS TRAFFIC LIGHTS
+   ========================================================================== */
+.macos-window-drag-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  z-index: 138;
+  -webkit-app-region: drag;
+  pointer-events: auto;
+}
+
+.macos-window-controls-cluster {
+  position: fixed;
+  top: 10px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 175;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+}
+
+.macos-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 20px;
+  -webkit-app-region: no-drag;
+}
+
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  transition: filter 0.15s ease, transform 0.1s ease;
+  -webkit-app-region: no-drag;
+}
+
+.traffic-light.close {
+  background-color: #ff5f56;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.traffic-light.minimize {
+  background-color: #ffbd2e;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.traffic-light.maximize {
+  background-color: #27c93f;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.traffic-glyph {
+  opacity: 0;
+  font-size: 8px;
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.65);
+  line-height: 1;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.macos-traffic-lights:hover .traffic-glyph {
+  opacity: 1;
+}
+
+.traffic-light:hover {
+  filter: brightness(1.08);
+}
+
+.traffic-light:active {
+  transform: scale(0.92);
+  filter: brightness(0.85);
+}
+
+/* Dedicated Spaces & Tabs Toggle Pill */
+.macos-tabs-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f4f4f5;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-app-region: no-drag;
+}
+
+.macos-tabs-toggle-pill:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-0.5px);
+}
+
+.macos-tabs-toggle-pill.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.25);
+}
+
+.macos-tabs-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.macos-tabs-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 9.5px;
+  font-weight: 600;
+}
+
+.macos-tabs-toggle-pill.active .macos-tabs-count {
+  background: rgba(0, 0, 0, 0.15);
+  color: #000000;
+}
+
+[data-theme="light"] .macos-tabs-toggle-pill {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #18181b;
+}
+
+[data-theme="light"] .macos-tabs-toggle-pill:hover {
+  background: rgba(0, 0, 0, 0.09);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .macos-tabs-toggle-pill.active {
+  background: #18181b;
+  color: #ffffff;
+  border-color: #18181b;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .macos-tabs-toggle-pill.active .macos-tabs-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+[data-theme="light"] .macos-tabs-count {
+  background: rgba(0, 0, 0, 0.08);
+  color: #18181b;
+}
+
+/* ==========================================================================
+   LEFT EDGE HOVER TRIGGER & NOTIFICATION HAIRLINES
+   ========================================================================== */
+.left-edge-hover-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 14px;
+  z-index: 135;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.notification-hairlines-container {
+  position: fixed;
+  top: 90px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px 8px 2px;
+  z-index: 136;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.tab-hairline-marker {
+  width: 3px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab-hairline-marker.active {
+  width: 5px;
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+.tab-hairline-marker:hover {
+  width: 7px;
+  background: #ffffff;
+}
+
+[data-theme="light"] .tab-hairline-marker {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] .tab-hairline-marker.active {
+  background: #18181b;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .tab-hairline-marker:hover {
+  width: 7px;
+  background: #18181b;
+}
+
+/* Tab Deck Outside Backdrop */
+.notification-tabs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 124;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeInBackdrop 0.2s ease forwards;
+  pointer-events: auto;
+}
+
+.notification-tabs-backdrop.closing {
+  animation: fadeOutBackdrop 0.22s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOutBackdrop {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Ensure no-drag region on all interactive elements across the app */
+.minimal-top-right-cluster,
+.minimal-pill-btn,
+.minimal-icon-btn,
+.floating-url-pill,
+.floating-url-input-wrap,
+.right-pins-dock,
+.right-pins-container,
+.right-pin-item,
+.notification-tabs-deck,
+.command-bar-overlay,
+.command-bar-container,
+.shield-modal-backdrop,
+.shield-modal-card,
+.mcp-modal-backdrop,
+.mcp-modal-card,
+.theme-modal-backdrop,
+.theme-modal-card,
+.welcome-modal-backdrop,
+.welcome-modal-card,
+.media-player-pip {
+  -webkit-app-region: no-drag;
+}
+
 
 
 

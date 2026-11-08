@@ -376,6 +376,34 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
       }
     };
 
+    const handleBeforeInput = (e: any) => {
+      const input = e?.input || e;
+      if (input.type === 'keyDown' || e.type === 'keydown') {
+        if (input.key === 'Escape' || e.key === 'Escape') {
+          window.dispatchEvent(new CustomEvent('neutrino:toggle-tabs', { detail: { open: false } }));
+          window.dispatchEvent(new CustomEvent('neutrino:close-command-bar'));
+          return;
+        }
+        if (input.control || input.meta || e.ctrlKey || e.metaKey) {
+          const k = (input.key || e.key || '').toLowerCase();
+          if (k === 'e') {
+            if (e.preventDefault) e.preventDefault();
+            window.dispatchEvent(new CustomEvent('neutrino:toggle-tabs'));
+          } else if (k === 'w') {
+            if (e.preventDefault) e.preventDefault();
+            window.dispatchEvent(new CustomEvent('neutrino:close-active-tab'));
+          } else if (k === 't') {
+            if (e.preventDefault) e.preventDefault();
+            window.neutrino?.createTab?.('neutrino://newtab', activeSpaceId);
+            onOpenCommandBar?.();
+          } else if (k === 'k' || k === 'l') {
+            if (e.preventDefault) e.preventDefault();
+            onOpenCommandBar?.();
+          }
+        }
+      }
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
@@ -387,6 +415,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('media-paused', handleMediaPause);
     webview.addEventListener('new-window', handleNewWindow);
     webview.addEventListener('did-fail-load', handleFailLoad);
+    webview.addEventListener('before-input-event', handleBeforeInput);
   };
 
   if (!activeTab) {

@@ -112,6 +112,7 @@ declare global {
       onCloseActiveTab?: (cb: () => void) => () => void;
       onOpenCommandBar?: (cb: () => void) => () => void;
       onToggleTabs?: (cb: () => void) => () => void;
+      onEscapePressed?: (cb: () => void) => () => void;
     };
   }
 }

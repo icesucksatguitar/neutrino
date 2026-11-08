@@ -340,11 +340,16 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
 
       {/* Expanded State: Sliding Mini-Window Preview Cards Deck with Fade-In AND Fade-Out Animation */}
       {renderStatus !== 'closed' && (
-        <div
-          className={`notification-tabs-deck ${renderStatus === 'closing' ? 'deck-anim-closing' : 'deck-anim-open'}`}
-          onMouseEnter={handleMouseEnterDeck}
-          onMouseLeave={handleMouseLeaveDeck}
-        >
+        <>
+          <div
+            className={`notification-tabs-backdrop ${renderStatus === 'closing' ? 'closing' : ''}`}
+            onClick={() => onToggle(false)}
+          />
+          <div
+            className={`notification-tabs-deck ${renderStatus === 'closing' ? 'deck-anim-closing' : 'deck-anim-open'}`}
+            onMouseEnter={handleMouseEnterDeck}
+            onMouseLeave={handleMouseLeaveDeck}
+          >
           {/* Deck Header: Title & New Tab */}
           <div className="notification-deck-header">
             <span className="deck-title">Spaces & Tabs</span>
@@ -510,6 +515,7 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Undo Toast */}

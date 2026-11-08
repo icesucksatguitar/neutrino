@@ -85,8 +85,9 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'Neutrino Browser',
-    backgroundColor: '#0A0A0B',
-    frame: true, // Native Windows OS frame
+    backgroundColor: '#000000',
+    frame: false, // Frameless window with custom macOS traffic light controls
+    titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -289,8 +290,16 @@ app.whenReady().then(() => {
     }
 
     contents.on('before-input-event', (event, input) => {
-      if (input.type === 'keyDown' && (input.control || input.meta)) {
-        const key = input.key.toLowerCase();
+      if (input.type === 'keyDown') {
+        if (input.key === 'Escape') {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:escape-pressed');
+          }
+          return;
+        }
+
+        if (input.control || input.meta) {
+          const key = input.key.toLowerCase();
 
         // Ctrl+W -> Close active tab
         if (key === 'w') {
@@ -389,7 +398,8 @@ app.whenReady().then(() => {
           }
         }
       }
-    });
+    }
+  });
   });
 
   app.on('activate', () => {

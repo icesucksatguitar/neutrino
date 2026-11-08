@@ -223,9 +223,33 @@ export function App() {
       const open = e?.detail?.open;
       setIsNotificationTabsOpen(prev => typeof open === 'boolean' ? open : !prev);
     };
+    const handleCloseActiveTab = () => {
+      if (state.activeTabId) {
+        closeTab(state.activeTabId);
+      }
+    };
+
+    // Native Electron IPC listeners (works from webviews & OS level)
+    const unsubIpcToggle = window.neutrino?.onToggleTabs?.(() => {
+      setIsNotificationTabsOpen((prev) => !prev);
+    });
+    const unsubIpcClose = window.neutrino?.onCloseActiveTab?.(() => {
+      if (state.activeTabId) {
+        closeTab(state.activeTabId);
+      }
+    });
+    const unsubIpcCmd = window.neutrino?.onOpenCommandBar?.(() => {
+      setIsCommandBarOpen(true);
+    });
+    const unsubIpcEsc = window.neutrino?.onEscapePressed?.(() => {
+      setIsNotificationTabsOpen(false);
+      setIsCommandBarOpen(false);
+    });
+
     window.addEventListener('neutrino:open-command-bar', handleOpenCommandBar);
     window.addEventListener('neutrino:close-command-bar', handleCloseCommandBar);
     window.addEventListener('neutrino:toggle-tabs', handleToggleTabs);
+    window.addEventListener('neutrino:close-active-tab', handleCloseActiveTab);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+1..4 -> Switch Spaces
@@ -240,10 +264,15 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      unsubIpcToggle?.();
+      unsubIpcClose?.();
+      unsubIpcCmd?.();
+      unsubIpcEsc?.();
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('neutrino:open-command-bar', handleOpenCommandBar);
       window.removeEventListener('neutrino:close-command-bar', handleCloseCommandBar);
       window.removeEventListener('neutrino:toggle-tabs', handleToggleTabs);
+      window.removeEventListener('neutrino:close-active-tab', handleCloseActiveTab);
     };
   }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen]);
 
@@ -345,6 +374,62 @@ export function App() {
 
   return (
     <div className="arc-app-shell radical-minimalism-shell">
+      {/* Frameless Top Drag Bar for native-feeling window movement */}
+      <div className="macos-window-drag-bar" />
+
+      {/* macOS Frameless Window Controls & Tabs Switcher (Top Left) */}
+      <aside className="macos-window-controls-cluster" aria-label="Window Controls">
+        <div className="macos-traffic-lights">
+          <button
+            className="traffic-light close"
+            onClick={() => window.neutrino?.windowControl('close')}
+            title="Close"
+            aria-label="Close"
+          >
+            <span className="traffic-glyph">✕</span>
+          </button>
+          <button
+            className="traffic-light minimize"
+            onClick={() => window.neutrino?.windowControl('minimize')}
+            title="Minimize"
+            aria-label="Minimize"
+          >
+            <span className="traffic-glyph">−</span>
+          </button>
+          <button
+            className="traffic-light maximize"
+            onClick={() => window.neutrino?.windowControl('maximize')}
+            title="Maximize"
+            aria-label="Maximize"
+          >
+            <span className="traffic-glyph">+</span>
+          </button>
+        </div>
+
+        {/* Dedicated Spaces & Tabs Toggle Pill */}
+        <button
+          className={`macos-tabs-toggle-pill ${isNotificationTabsOpen ? 'active' : ''}`}
+          onClick={() => setIsNotificationTabsOpen((prev) => !prev)}
+          title="Spaces & Tabs (Ctrl+E)"
+          aria-label="Spaces & Tabs"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <span className="macos-tabs-label">Tabs</span>
+          <span className="macos-tabs-count">{state.tabs.length}</span>
+        </button>
+      </aside>
+
+      {/* Left Edge Hover Trigger (Opens tab panel from any site or blank page) */}
+      <div
+        className="left-edge-hover-zone"
+        onMouseEnter={() => setIsNotificationTabsOpen(true)}
+      />
+
       {/* Space Name Animation Overlay */}
       {spaceOverlay && (
         <div className="macos-space-name-overlay">

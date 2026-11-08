@@ -75,4 +75,10 @@ contextBridge.exposeInMainWorld('neutrino', {
     ipcRenderer.on('neutrino:toggle-tabs', handler);
     return () => ipcRenderer.removeListener('neutrino:toggle-tabs', handler);
   },
+
+  onEscapePressed: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:escape-pressed', handler);
+    return () => ipcRenderer.removeListener('neutrino:escape-pressed', handler);
+  },
 });

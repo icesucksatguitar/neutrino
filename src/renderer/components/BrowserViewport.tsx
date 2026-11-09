@@ -50,6 +50,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   userName,
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
+  const attachedListenersRef = useRef<Set<string>>(new Set());
   const [activeMediaTabId, setActiveMediaTabId] = useState<string | null>(null);
   const [zoomIndicator, setZoomIndicator] = useState<{ factor: number; visible: boolean }>({
     factor: 1.0,
@@ -139,7 +140,17 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         if (!u || u.startsWith('neutrino://') || u.startsWith('about:')) return;
 
         if (isDarkMode) {
-          // 1. Tell page that dark mode is preferred
+          // Check if DarkReader is already active to avoid re-evaluating 362KB of JS
+          const checkRes = await wv.executeJavaScript?.(`
+            (() => {
+              if (window.__neutrino_darkreader_active) return 'ACTIVE';
+              return typeof window.DarkReader !== 'undefined' ? 'LOADED' : 'NONE';
+            })()
+          `).catch(() => 'NONE');
+
+          if (checkRes === 'ACTIVE') return;
+
+          // Tell page that dark mode is preferred
           await wv.executeJavaScript?.(`
             (() => {
               try {
@@ -149,10 +160,12 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             })();
           `).catch(() => {});
 
-          // 2. Inject DarkReader library directly without template string interpolation
-          await wv.executeJavaScript?.(darkReaderCode).catch(() => {});
+          // Inject DarkReader library only if not already loaded into DOM
+          if (checkRes === 'NONE') {
+            await wv.executeJavaScript?.(darkReaderCode).catch(() => {});
+          }
 
-          // 3. Enable DarkReader with ideal contrast and brightness
+          // Enable DarkReader with ideal contrast and brightness
           await wv.executeJavaScript?.(`
             (() => {
               try {
@@ -190,14 +203,13 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     [isDarkMode]
   );
 
-  // Sync dark theme whenever isDarkMode flips or active tab changes
+  // Sync dark theme for active tab immediately when theme or tab changes
   useEffect(() => {
     window.neutrino?.setThemeMode?.(isDarkMode ? 'dark' : 'light');
-
-    for (const tabId of Object.keys(webviewRefs.current)) {
-      syncDarkThemeForTab(tabId);
+    if (activeTab?.id) {
+      syncDarkThemeForTab(activeTab.id);
     }
-  }, [isDarkMode, syncDarkThemeForTab]);
+  }, [isDarkMode, activeTab?.id, syncDarkThemeForTab]);
 
   // Poll / Query media state from webviews
   const checkTabMedia = useCallback(async (tabId: string) => {
@@ -265,17 +277,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     }
   }, [activeMediaTabId, onMediaStateChange]);
 
-  // Periodic media heartbeat (every 1.2s)
+  // Relaxed media progress updater: only monitors the single tab actually playing media
   useEffect(() => {
+    if (!activeMediaTabId) return;
     const timer = setInterval(() => {
-      for (const tab of tabs) {
-        if (tab.url && tab.url !== 'neutrino://newtab' && !tab.isSleeping) {
-          checkTabMedia(tab.id);
-        }
-      }
-    }, 1200);
+      checkTabMedia(activeMediaTabId);
+    }, 2500);
     return () => clearInterval(timer);
-  }, [tabs, checkTabMedia]);
+  }, [activeMediaTabId, checkTabMedia]);
 
   // Handle media commands from mini player or MCP
   useEffect(() => {
@@ -321,9 +330,21 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     }
   }, [activeTab?.id, activeTab?.url]);
 
-  // Attach event listeners for each tab webview
+  // Clean up references for closed tabs
+  useEffect(() => {
+    const currentTabIds = new Set(tabs.map((t) => t.id));
+    for (const id of Array.from(attachedListenersRef.current)) {
+      if (!currentTabIds.has(id)) {
+        attachedListenersRef.current.delete(id);
+        delete webviewRefs.current[id];
+      }
+    }
+  }, [tabs]);
+
+  // Attach event listeners for each tab webview (guaranteed strictly once per webview)
   const attachWebviewEvents = (tabId: string, webview: any) => {
-    if (!webview) return;
+    if (!webview || attachedListenersRef.current.has(tabId)) return;
+    attachedListenersRef.current.add(tabId);
 
     // Optional styling for PDF viewers without overriding native web styling
     const injectPdfViewerDarkTheme = async () => {
@@ -384,7 +405,10 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                   overlays.forEach((el) => { el.style.display = 'none'; });
                 } catch(e) {}
               };
-              setInterval(skip, 250);
+              // High-efficiency reactive observer instead of aggressive polling
+              const obs = new MutationObserver(() => requestAnimationFrame(skip));
+              obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
+              setInterval(skip, 2000);
             })();
           `).catch(() => {});
         }
@@ -398,9 +422,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         canGoBack: webview.canGoBack?.() ?? false,
         canGoForward: webview.canGoForward?.() ?? false,
       });
-      checkTabMedia(tabId);
       injectPdfViewerDarkTheme();
-      syncDarkThemeForTab(tabId);
     };
 
     const handleTitle = (e: any) => {
@@ -422,9 +444,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         });
 
         if (webview.setUserAgent) webview.setUserAgent(DESKTOP_USER_AGENT);
-
-        injectAdblocking();
-        syncDarkThemeForTab(tabId);
       }
     };
 

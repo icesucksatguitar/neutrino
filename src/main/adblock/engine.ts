@@ -174,18 +174,22 @@ export class BraveShieldEngine {
       return { blocked: false, domain: host, rule: 'Whitelist' };
     }
 
-    // Check exact domain or subdomain match
-    for (const tracker of KNOWN_TRACKERS) {
-      if (host === tracker || host.endsWith('.' + tracker)) {
-        const cat = this.categorizeDomain(tracker);
+    // High-speed O(1) domain & subdomain suffix lookup
+    let currentDomain = host;
+    while (currentDomain) {
+      if (KNOWN_TRACKERS.has(currentDomain)) {
+        const cat = this.categorizeDomain(currentDomain);
         this.recordBlock(cat);
         return {
           blocked: true,
           domain: host,
           category: cat,
-          rule: `Blocklist: ${tracker}`,
+          rule: `Blocklist: ${currentDomain}`,
         };
       }
+      const dotIndex = currentDomain.indexOf('.');
+      if (dotIndex === -1) break;
+      currentDomain = currentDomain.substring(dotIndex + 1);
     }
 
     // Check URL path and query patterns for in-page ad networks, YouTube video ads, and telemetry

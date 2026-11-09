@@ -89,20 +89,42 @@ export function useBrowser() {
       });
     });
 
-    const unregTracker = window.neutrino.onTrackerBlocked?.((item) => {
+    // High-performance batched tracker updates (prevents UI thread hitching on heavy pages)
+    const trackerQueue: BlockedTrackerItem[] = [];
+    let trackerFlushTimer: any = null;
+
+    const flushTrackerQueue = () => {
+      trackerFlushTimer = null;
+      if (trackerQueue.length === 0) return;
+
+      const itemsToFlush = trackerQueue.splice(0, trackerQueue.length);
+      const totalCount = itemsToFlush.length;
+      let adsCount = 0;
+      for (const it of itemsToFlush) {
+        if (it.category === 'Advertising') adsCount++;
+      }
+
       setBlockedTrackers((prev) => [
-        { ...item, timestamp: Date.now() },
-        ...prev.slice(0, 49),
-      ]);
+        ...itemsToFlush.map((it) => ({ ...it, timestamp: it.timestamp || Date.now() })),
+        ...prev,
+      ].slice(0, 50));
+
       setState((prev) => ({
         ...prev,
         shieldStats: {
           ...prev.shieldStats,
-          totalBlocked: prev.shieldStats.totalBlocked + 1,
-          trackersBlocked: prev.shieldStats.trackersBlocked + 1,
-          adsBlocked: prev.shieldStats.adsBlocked + (item.category === 'Advertising' ? 1 : 0),
+          totalBlocked: prev.shieldStats.totalBlocked + totalCount,
+          trackersBlocked: prev.shieldStats.trackersBlocked + totalCount,
+          adsBlocked: prev.shieldStats.adsBlocked + adsCount,
         },
       }));
+    };
+
+    const unregTracker = window.neutrino.onTrackerBlocked?.((item) => {
+      trackerQueue.push(item);
+      if (!trackerFlushTimer) {
+        trackerFlushTimer = setTimeout(flushTrackerQueue, 250);
+      }
     });
 
     // Initial shield stats fetch
@@ -127,6 +149,7 @@ export function useBrowser() {
     window.addEventListener('neutrino:mock-tabs', handleMockTabs);
 
     return () => {
+      if (trackerFlushTimer) clearTimeout(trackerFlushTimer);
       unregState?.();
       unregCloseActiveTab?.();
       unregTracker?.();

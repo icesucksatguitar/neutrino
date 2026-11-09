@@ -7,12 +7,17 @@ import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 
-// Performance and rendering flags (Clean native Windows Per-Monitor V2 DPI scaling)
+// Maximum performance and hardware acceleration flags
 app.commandLine.appendSwitch('high-dpi-support', '1');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('disable-background-timer-throttling');
-app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+app.commandLine.appendSwitch('enable-accelerated-video-decode');
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+app.commandLine.appendSwitch('num-raster-threads', '4');
+app.commandLine.appendSwitch('enable-quic');
+app.commandLine.appendSwitch('enable-fast-unload');
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 // Set native theme source to dark by default
@@ -473,10 +478,14 @@ app.whenReady().then(() => {
 
           if (isDarkMode && darkReaderCode) {
             const url = contents.getURL();
-            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:')) {
-              await contents.executeJavaScript(darkReaderCode);
-              await contents.executeJavaScript(`
-                (() => {
+            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:') && !isAuthOrSecurityUrl(url)) {
+              const alreadyActive = await contents.executeJavaScript(`Boolean(window.__neutrino_darkreader_active)`).catch(() => false);
+              if (!alreadyActive) {
+                const hasLib = await contents.executeJavaScript(`typeof window.DarkReader !== 'undefined'`).catch(() => false);
+                if (!hasLib) {
+                  await contents.executeJavaScript(darkReaderCode).catch(() => {});
+                }
+                await contents.executeJavaScript(`
                   try {
                     if (window.DarkReader) {
                       DarkReader.setFetchMethod(window.fetch);
@@ -484,8 +493,8 @@ app.whenReady().then(() => {
                       window.__neutrino_darkreader_active = true;
                     }
                   } catch(e) {}
-                })();
-              `);
+                `).catch(() => {});
+              }
             }
           }
         } catch {}

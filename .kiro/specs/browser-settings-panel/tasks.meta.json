@@ -1,0 +1,336 @@
+{
+  "pbtResults": {
+    "1.2 Write property test for settings normalization in `tests/unit/settings.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794247036912
+    },
+    "1.5 Write property test for the DarkReader decision in `tests/unit/darkMode.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794247053879
+    },
+    "1.3 Write property test for exclusion entry normalization in `tests/unit/settings.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794247306952
+    },
+    "1.4 Write property test for add, remove and toggle in `tests/unit/settings.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794248276274
+    },
+    "1.6 Write property test for search URLs in `tests/unit/settings.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794248478693
+    }
+  },
+  "executionHistory": {
+    "1.1 Create `src/main/settings.ts`, `src/main/urlClassifier.ts` and `src/main/darkMode.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246601943
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246617892
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246922983
+      }
+    ],
+    "1.2 Write property test for settings normalization in `tests/unit/settings.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246602159
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246937161
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247163884
+      }
+    ],
+    "1.3 Write property test for exclusion entry normalization in `tests/unit/settings.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246602343
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247179498
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248039105
+      }
+    ],
+    "1.4 Write property test for add, remove and toggle in `tests/unit/settings.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246602562
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248193612
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248409829
+      }
+    ],
+    "1.5 Write property test for the DarkReader decision in `tests/unit/darkMode.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246602704
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246937275
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247164097
+      }
+    ],
+    "1.6 Write property test for search URLs in `tests/unit/settings.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246602889
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248416914
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248495406
+      }
+    ],
+    "2.1 Add `saveSettings` to storage and an auto-sleep switch to the Zen manager": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603017
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246618689
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246923245
+      }
+    ],
+    "2.2 Wire settings and the single DarkReader injector into `src/main/index.ts` and `src/main/preload.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603159
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246937327
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247164185
+      }
+    ],
+    "2.3 Repoint the preservation live modules": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603329
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247179812
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248038913
+      }
+    ],
+    "2.4 Write unit tests for Zen auto-sleep in `tests/unit/resourceManager.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603465
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246938356
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247164335
+      }
+    ],
+    "3. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603590
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248504302
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248571767
+      }
+    ],
+    "4.1 Create `useSettings` and `SettingsPanel`, and add panel styles": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603753
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247180285
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248039276
+      }
+    ],
+    "4.2 Update `CommandBar` and `ShieldModal`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246603914
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246939596
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794247164804
+      }
+    ],
+    "4.3 Remove the renderer DarkReader injection from `BrowserViewport.tsx`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246604086
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246940313
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248038471
+      }
+    ],
+    "4.4 Wire the panel into `App.tsx` and `useBrowser.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246604225
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248194498
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248409541
+      }
+    ],
+    "4.5 Write a source check for the single injector in `tests/unit/darkMode.test.ts`": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246604359
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248055624
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248183669
+      }
+    ],
+    "5. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794246604483
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248577699
+      },
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248652634
+      }
+    ],
+    "2. Main-process wiring": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248039789
+      }
+    ],
+    "4. Renderer settings panel and wiring": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248410050
+      }
+    ],
+    "1. Pure settings and dark-mode modules": [
+      {
+        "executionId": "4b68dcf3-8345-4c72-b06f-f628396b2db4",
+        "chatSessionId": "sess_cbfff564-a6b5-4e0d-8b19-191d87794521",
+        "timestamp": 1794248495642
+      }
+    ]
+  }
+}

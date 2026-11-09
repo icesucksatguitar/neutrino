@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Space, TabState, ActiveMediaState } from '../types';
 import { Homescreen } from './Homescreen';
 import { Moon, Sparkles, Globe } from 'lucide-react';
-import darkReaderCode from 'darkreader/darkreader.js?raw';
 
 interface BrowserViewportProps {
   activeTab?: TabState;
@@ -130,86 +129,10 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     return () => window.removeEventListener('wheel', handleWheel);
   }, [changeZoom]);
 
-  // Universal Force Dark Mode Controller (DarkReader engine)
-  const syncDarkThemeForTab = useCallback(
-    async (tabId: string) => {
-      const wv = webviewRefs.current[tabId];
-      if (!wv) return;
-      try {
-        const u = wv.getURL?.() || '';
-        if (!u || u.startsWith('neutrino://') || u.startsWith('about:')) return;
-
-        if (isDarkMode) {
-          // Check if DarkReader is already active to avoid re-evaluating 362KB of JS
-          const checkRes = await wv.executeJavaScript?.(`
-            (() => {
-              if (window.__neutrino_darkreader_active) return 'ACTIVE';
-              return typeof window.DarkReader !== 'undefined' ? 'LOADED' : 'NONE';
-            })()
-          `).catch(() => 'NONE');
-
-          if (checkRes === 'ACTIVE') return;
-
-          // Tell page that dark mode is preferred
-          await wv.executeJavaScript?.(`
-            (() => {
-              try {
-                document.documentElement.style.colorScheme = 'dark';
-                if (document.body) document.body.style.colorScheme = 'dark';
-              } catch(e) {}
-            })();
-          `).catch(() => {});
-
-          // Inject DarkReader library only if not already loaded into DOM
-          if (checkRes === 'NONE') {
-            await wv.executeJavaScript?.(darkReaderCode).catch(() => {});
-          }
-
-          // Enable DarkReader with ideal contrast and brightness
-          await wv.executeJavaScript?.(`
-            (() => {
-              try {
-                if (window.DarkReader) {
-                  DarkReader.setFetchMethod(window.fetch);
-                  DarkReader.enable({
-                    brightness: 100,
-                    contrast: 95,
-                    sepia: 0
-                  });
-                  window.__neutrino_darkreader_active = true;
-                }
-              } catch(e) {}
-            })();
-          `).catch(() => {});
-        } else {
-          // Light mode: disable DarkReader and restore native theme
-          await wv.executeJavaScript?.(`
-            (() => {
-              try {
-                document.documentElement.style.colorScheme = 'light';
-                if (document.body) document.body.style.colorScheme = 'light';
-                if (window.DarkReader) {
-                  DarkReader.disable();
-                  window.__neutrino_darkreader_active = false;
-                }
-              } catch(e) {}
-            })();
-          `).catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
-    },
-    [isDarkMode]
-  );
-
-  // Sync dark theme for active tab immediately when theme or tab changes
+  // The main process owns page dark mode; it re-applies it to every webview on this call
   useEffect(() => {
     window.neutrino?.setThemeMode?.(isDarkMode ? 'dark' : 'light');
-    if (activeTab?.id) {
-      syncDarkThemeForTab(activeTab.id);
-    }
-  }, [isDarkMode, activeTab?.id, syncDarkThemeForTab]);
+  }, [isDarkMode, activeTab?.id]);
 
   // Poll / Query media state from webviews
   const checkTabMedia = useCallback(async (tabId: string) => {
@@ -376,7 +299,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         const factor = tabZoomMap.current[tabId] ?? activeTab?.zoomFactor ?? 1.0;
         if (webview.setZoomFactor) webview.setZoomFactor(factor);
         injectPdfViewerDarkTheme();
-        syncDarkThemeForTab(tabId);
         injectAdblocking();
       } catch {
         // ignore

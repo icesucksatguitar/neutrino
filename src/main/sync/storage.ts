@@ -128,6 +128,21 @@ export class LocalStorageManager {
     }
   }
 
+  /** Writes the full settings object and keeps the saved spaces and bookmarks unchanged. */
+  public saveSettings(settings: Record<string, unknown>) {
+    try {
+      const existing = this.loadState();
+      const payload = {
+        spaces: existing.spaces,
+        bookmarks: existing.bookmarks,
+        settings,
+      };
+      fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Storage Error] Failed to persist settings:', err);
+    }
+  }
+
   public exportSyncPackage(): string {
     const state = this.loadState();
     const pkg: LocalSyncPayload = {

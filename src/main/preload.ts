@@ -48,6 +48,22 @@ contextBridge.exposeInMainWorld('neutrino', {
   // Theme Controls
   setThemeMode: (mode: 'dark' | 'light') => ipcRenderer.invoke('neutrino:set-theme-mode', mode),
 
+  // Browser Settings
+  getSettings: () => ipcRenderer.invoke('neutrino:get-settings'),
+  updateSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('neutrino:update-settings', patch),
+
+  onSettingsUpdated: (callback: (settings: any) => void) => {
+    const handler = (_: unknown, settings: any) => callback(settings);
+    ipcRenderer.on('neutrino:settings-updated', handler);
+    return () => ipcRenderer.removeListener('neutrino:settings-updated', handler);
+  },
+
+  onOpenSettings: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:open-settings', handler);
+    return () => ipcRenderer.removeListener('neutrino:open-settings', handler);
+  },
+
   // Reactive State Events
   onStateUpdate: (callback: (state: any) => void) => {
     const handler = (_: unknown, state: any) => callback(state);

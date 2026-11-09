@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TabState, Space } from '../types';
+import { SEARCH_ENGINES, SearchEngineId, buildSearchUrl, hostForExclusion } from '../../main/settings';
 
 interface CommandBarProps {
   isOpen: boolean;
@@ -16,6 +17,11 @@ interface CommandBarProps {
   onOpenMcp?: () => void;
   onOpenTheme?: () => void;
   onOpenShields?: () => void;
+  searchEngine?: SearchEngineId;
+  onOpenSettings?: () => void;
+  activeTabUrl?: string;
+  isActiveSiteExcluded?: boolean;
+  onToggleSiteDarkMode?: () => void;
 }
 
 export const CommandBar: React.FC<CommandBarProps> = ({
@@ -33,6 +39,11 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onOpenMcp,
   onOpenTheme,
   onOpenShields,
+  searchEngine = 'google',
+  onOpenSettings,
+  activeTabUrl,
+  isActiveSiteExcluded,
+  onToggleSiteDarkMode,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -66,8 +77,20 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       (t.url && t.url.toLowerCase().includes(query.toLowerCase()))
   );
 
+  // Only http(s) tabs have a host that can go on the dark-mode exclusion list.
+  const activeSiteHost = activeTabUrl ? hostForExclusion(activeTabUrl) : null;
+
   // Command items prefixed with ">"
-  const commands = [
+  const allCommands: Array<{ id: string; title: string; hint: string; action: () => void }> = [
+    {
+      id: 'cmd-open-settings',
+      title: '> Open Settings',
+      hint: 'Ctrl+,',
+      action: () => {
+        onOpenSettings?.();
+        onClose();
+      },
+    },
     {
       id: 'cmd-theme',
       title: '> Toggle Dark / Light Theme',
@@ -119,7 +142,18 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         onClose();
       },
     },
-  ].filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
+  ];
+
+  if (activeSiteHost) {
+    allCommands.push({
+      id: 'cmd-toggle-site-dark-mode',
+      title: '> Toggle Dark Mode for This Site',
+      hint: isActiveSiteExcluded ? `Use dark mode on ${activeSiteHost}` : `Exclude ${activeSiteHost}`,
+      action: () => onToggleSiteDarkMode?.(),
+    });
+  }
+
+  const commands = allCommands.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
 
   const items: Array<{
     type: 'tab' | 'command' | 'url';
@@ -133,18 +167,23 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
   // If user typed something that looks like search/url
   if (query.trim()) {
+    const trimmed = query.trim();
+    const hasScheme = trimmed.includes('://');
+    const looksLikeHost = !hasScheme && trimmed.includes('.') && !trimmed.includes(' ');
+    const willSearch = !hasScheme && !looksLikeHost;
+    const engineLabel = (SEARCH_ENGINES[searchEngine] ?? SEARCH_ENGINES.google).label;
     items.push({
       type: 'url',
       id: 'item-navigate',
-      title: `Navigate to "${query.trim()}"`,
-      subline: query.includes('.') ? 'Go to URL' : 'Search with Google',
+      title: `Navigate to "${trimmed}"`,
+      subline: willSearch ? `Search with ${engineLabel}` : 'Go to URL',
       hint: '↵ to go',
       action: () => {
-        let target = query.trim();
-        if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
+        let target = trimmed;
+        if (looksLikeHost) {
           target = 'https://' + target;
-        } else if (!target.includes('://')) {
-          target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
+        } else if (willSearch) {
+          target = buildSearchUrl(searchEngine, target);
         }
         onNavigate(target);
         onClose();

@@ -8,6 +8,8 @@ interface ShieldModalProps {
   stats: ShieldStats;
   blockedItems: BlockedTrackerItem[];
   onToggleShields: () => void;
+  /** Whether shields are on. Defaults to true until App.tsx passes the saved `adblockEnabled` state. */
+  enabled?: boolean;
 }
 
 export const ShieldModal: React.FC<ShieldModalProps> = ({
@@ -16,6 +18,7 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
   stats,
   blockedItems,
   onToggleShields,
+  enabled = true,
 }) => {
   if (!isOpen) return null;
 
@@ -24,7 +27,11 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
       <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
-            <ShieldCheck size={20} style={{ color: 'var(--shield-green)' }} />
+            {enabled ? (
+              <ShieldCheck size={20} style={{ color: 'var(--shield-green)' }} />
+            ) : (
+              <ShieldAlert size={20} style={{ color: 'var(--text-muted)' }} />
+            )}
             <span>Neutrino Shields</span>
           </div>
           <button className="close-btn" onClick={onClose}>
@@ -43,17 +50,23 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
           border: '1px solid var(--border-subtle)',
         }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '13.5px' }}>Brave-level Protections Active</div>
+            <div style={{ fontWeight: 700, fontSize: '13.5px' }}>
+              {enabled ? 'Brave-level Protections Active' : 'Protections paused'}
+            </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Blocking cross-site trackers, ads, and fingerprinting
+              {enabled
+                ? 'Blocking cross-site trackers, ads, and fingerprinting'
+                : 'Trackers and ads are not being blocked'}
             </div>
           </div>
           <button
             onClick={onToggleShields}
+            aria-pressed={enabled}
+            aria-label={enabled ? 'Shields on, click to turn off' : 'Shields off, click to turn on'}
             style={{
-              backgroundColor: 'var(--shield-green)',
-              color: '#ffffff',
-              border: 'none',
+              backgroundColor: enabled ? 'var(--shield-green)' : 'var(--bg-subtle)',
+              color: enabled ? '#ffffff' : 'var(--text-muted)',
+              border: enabled ? 'none' : '1px solid var(--border-subtle)',
               padding: '6px 14px',
               borderRadius: '16px',
               fontWeight: 700,
@@ -61,7 +74,7 @@ export const ShieldModal: React.FC<ShieldModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            ACTIVE
+            {enabled ? 'ACTIVE' : 'OFF'}
           </button>
         </div>
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, screen, webContents, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, session, screen, webContents, nativeTheme, WebContents } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { BraveShieldEngine } from './adblock/engine';
@@ -6,6 +6,9 @@ import { ZenResourceManager } from './resourceManager';
 import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
+import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
+import { BrowserSettings, normalizeSettings } from './settings';
+import { shouldInjectDarkReader, DARK_READER_ENABLE_SCRIPT, DARK_READER_DISABLE_SCRIPT } from './darkMode';
 
 // Maximum performance and hardware acceleration flags
 app.commandLine.appendSwitch('high-dpi-support', '1');
@@ -53,52 +56,102 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
+// Browser settings: load, fill defaults, and apply the parts owned by the main process.
+let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
+adblockEngine.setEnabled(settings.adblockEnabled);
+resourceManager.setAutoSleepEnabled(settings.zenSleepEnabled);
+
+function getWebviewContents(): WebContents[] {
+  return webContents.getAllWebContents().filter((wc) => !wc.isDestroyed() && wc.getType() === 'webview');
+}
+
+/**
+ * The only code that loads DarkReader into webviews. Enables it on eligible pages while dark
+ * mode is on, and disables it everywhere else without reloading the page.
+ */
+async function applyDarkMode(wc: WebContents): Promise<void> {
+  if (wc.isDestroyed()) return;
+  const run = (code: string) => wc.executeJavaScript(code).catch(() => undefined);
+
+  let url = '';
+  try {
+    url = wc.getURL();
+  } catch {
+    return;
+  }
+  const eligible = shouldInjectDarkReader(url, settings.darkModeExclusions);
+
+  if (isDarkMode && darkReaderCode && eligible) {
+    await run(`
+      try {
+        document.documentElement.style.colorScheme = 'dark';
+        if (document.body) document.body.style.colorScheme = 'dark';
+      } catch (e) {}
+    `);
+    const alreadyActive = await run(`Boolean(window.__neutrino_darkreader_active)`);
+    if (alreadyActive === true) return;
+    const hasLib = await run(`typeof window.DarkReader !== 'undefined'`);
+    if (hasLib !== true) {
+      await run(darkReaderCode);
+    }
+    await run(DARK_READER_ENABLE_SCRIPT);
+    return;
+  }
+
+  const hasLib = await run(`typeof window.DarkReader !== 'undefined'`);
+  if (hasLib === true) {
+    await run(DARK_READER_DISABLE_SCRIPT);
+  }
+  // Excluded pages keep their own look and follow prefers-color-scheme from nativeTheme.
+  if (!isDarkMode && eligible) {
+    await run(`
+      try {
+        document.documentElement.style.colorScheme = 'light';
+        if (document.body) document.body.style.colorScheme = 'light';
+      } catch (e) {}
+    `);
+  }
+}
+
+async function applyDarkModeToAllWebviews(): Promise<void> {
+  await Promise.all(getWebviewContents().map((wc) => applyDarkMode(wc).catch(() => undefined)));
+}
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+
+function applySettings(prev: BrowserSettings, next: BrowserSettings) {
+  if (prev.adblockEnabled !== next.adblockEnabled) {
+    adblockEngine.setEnabled(next.adblockEnabled);
+  }
+  if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
+    resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
+  }
+  if (!sameList(prev.darkModeExclusions, next.darkModeExclusions)) {
+    void applyDarkModeToAllWebviews();
+  }
+}
+
+/** Merges a patch from the renderer, re-validates it, applies, saves and broadcasts the result. */
+function updateSettings(patch: unknown): BrowserSettings {
+  const safePatch = patch !== null && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
+  const prev = settings;
+  const next = normalizeSettings({ ...prev, ...safePatch });
+  settings = next;
+  applySettings(prev, next);
+  storage.saveSettings(next);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('neutrino:settings-updated', next);
+  }
+  return next;
+}
+
 export const CHROME_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
-export function isGoogleAuthUrl(url: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes('accounts.google.com') ||
-    url.includes('myaccount.google.com') ||
-    url.includes('accounts.youtube.com') ||
-    url.includes('oauth2.googleapis.com') ||
-    url.includes('apis.google.com/oauth')
-  );
-}
-
-export function isAuthOrSecurityUrl(url: string): boolean {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  return (
-    isGoogleAuthUrl(url) ||
-    lower.includes('recaptcha') ||
-    lower.includes('gstatic.com') ||
-    lower.includes('turnstile') ||
-    lower.includes('challenges.cloudflare.com') ||
-    lower.includes('hcaptcha') ||
-    lower.includes('appleid.apple.com') ||
-    lower.includes('github.com/login') ||
-    lower.includes('api.github.com') ||
-    lower.includes('login.microsoftonline.com') ||
-    lower.includes('login.live.com') ||
-    lower.includes('msftauth.net') ||
-    lower.includes('identitytoolkit.googleapis.com') ||
-    lower.includes('securetoken.googleapis.com') ||
-    lower.includes('auth0.com') ||
-    lower.includes('clerk.') ||
-    lower.includes('supabase.co') ||
-    lower.includes('penpencil.co') ||
-    lower.includes('pw.live') ||
-    lower.includes('/oauth') ||
-    lower.includes('/auth') ||
-    lower.includes('/signin') ||
-    lower.includes('/signup') ||
-    lower.includes('/login') ||
-    lower.includes('/otp') ||
-    lower.includes('/token')
-  );
-}
+// Re-exported so existing imports from index (e.g. tests requiring dist-main/index.js) keep working.
+export { isGoogleAuthUrl, isAuthOrSecurityUrl };
 
 // Global user-agent fallback
 app.userAgentFallback = CHROME_USER_AGENT;
@@ -292,9 +345,17 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('neutrino:toggle-shields', async () => {
-    const current = adblockEngine.isEnabled();
-    adblockEngine.setEnabled(!current);
-    return adblockEngine.isEnabled();
+    // Routed through the settings path so every toggle is saved and broadcast.
+    const next = updateSettings({ adblockEnabled: !settings.adblockEnabled });
+    return next.adblockEnabled;
+  });
+
+  ipcMain.handle('neutrino:get-settings', async () => {
+    return settings;
+  });
+
+  ipcMain.handle('neutrino:update-settings', async (_, patch: unknown) => {
+    return updateSettings(patch);
   });
 
   ipcMain.handle('neutrino:zen-optimize', async () => {
@@ -345,32 +406,7 @@ function setupIpcHandlers() {
     isDarkMode = mode === 'dark';
     nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
 
-    const allWcs = webContents.getAllWebContents();
-    for (const wc of allWcs) {
-      if (wc.getType() === 'webview') {
-        try {
-          if (isDarkMode) {
-            await wc.executeJavaScript(`
-              try {
-                if (window.DarkReader) {
-                  DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
-                  window.__neutrino_darkreader_active = true;
-                }
-              } catch(e) {}
-            `);
-          } else {
-            await wc.executeJavaScript(`
-              try {
-                if (window.DarkReader) {
-                  DarkReader.disable();
-                  window.__neutrino_darkreader_active = false;
-                }
-              } catch(e) {}
-            `);
-          }
-        } catch {}
-      }
-    }
+    await applyDarkModeToAllWebviews();
     return { success: true };
   });
 
@@ -476,27 +512,7 @@ app.whenReady().then(() => {
             }
           }
 
-          if (isDarkMode && darkReaderCode) {
-            const url = contents.getURL();
-            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:') && !isAuthOrSecurityUrl(url)) {
-              const alreadyActive = await contents.executeJavaScript(`Boolean(window.__neutrino_darkreader_active)`).catch(() => false);
-              if (!alreadyActive) {
-                const hasLib = await contents.executeJavaScript(`typeof window.DarkReader !== 'undefined'`).catch(() => false);
-                if (!hasLib) {
-                  await contents.executeJavaScript(darkReaderCode).catch(() => {});
-                }
-                await contents.executeJavaScript(`
-                  try {
-                    if (window.DarkReader) {
-                      DarkReader.setFetchMethod(window.fetch);
-                      DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
-                      window.__neutrino_darkreader_active = true;
-                    }
-                  } catch(e) {}
-                `).catch(() => {});
-              }
-            }
-          }
+          await applyDarkMode(contents);
         } catch {}
       });
     }
@@ -512,6 +528,15 @@ app.whenReady().then(() => {
 
         if (input.control || input.meta) {
           const key = input.key.toLowerCase();
+
+        // Ctrl+Comma -> Open Settings (also covers focus inside a webview)
+        if (key === ',') {
+          event.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:open-settings');
+          }
+          return;
+        }
 
         // Ctrl+W -> Close active tab
         if (key === 'w') {

@@ -158,6 +158,11 @@ export function useBrowser() {
   }, []);
 
   const navigate = useCallback((url: string) => {
+    // neutrino://settings opens the Settings panel and leaves the Active_Tab URL unchanged.
+    if (typeof url === 'string' && url.trim().toLowerCase() === 'neutrino://settings') {
+      window.dispatchEvent(new CustomEvent('neutrino:open-settings'));
+      return;
+    }
     window.neutrino?.navigate(url);
   }, []);
 

@@ -11,7 +11,10 @@ import { MediaPlayer } from './components/MediaPlayer';
 import { WelcomeModal, UserProfile } from './components/WelcomeModal';
 import { StartupSplash } from './components/StartupSplash';
 import { RightPinsDock } from './components/RightPinsDock';
-import { Shield, Moon, Sun, Sparkles, Palette } from 'lucide-react';
+import { SettingsPanel } from './components/SettingsPanel';
+import { useSettings } from './hooks/useSettings';
+import { isHostExcluded, toggleSiteExclusion } from '../main/settings';
+import { Shield, Moon, Sun, Sparkles, Palette, Settings } from 'lucide-react';
 import { TabState, ActiveMediaState } from './types';
 import './styles/theme.css';
 
@@ -40,6 +43,10 @@ export function App() {
     toggleShields,
     zenOptimize,
   } = useBrowser();
+
+  const { settings, updateSettings } = useSettings();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const openSettings = useCallback(() => setIsSettingsOpen(true), []);
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isNotificationTabsOpen, setIsNotificationTabsOpen] = useState(false);
@@ -70,13 +77,36 @@ export function App() {
     setIsWelcomeOpen(false);
   };
 
-  // Automated background memory compression (Zen backend)
+  // Display name edited in the Settings panel; same key and shape WelcomeModal writes.
+  const handleUserNameChange = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setUserProfile((prev) => {
+      const base: UserProfile = prev ?? {
+        name: trimmed,
+        email: null,
+        isGuest: true,
+        theme: 'obsidian',
+        mode: 'minimal',
+      };
+      const next: UserProfile = { ...base, name: trimmed };
+      try {
+        localStorage.setItem('neutrino_user_profile', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Automated background memory compression (Zen backend); skipped while Zen auto-sleep is off.
+  // Manual Zen commands (Command Bar) call zenOptimize directly and are unaffected.
+  const zenSleepEnabled = settings.zenSleepEnabled;
   useEffect(() => {
+    if (!zenSleepEnabled) return;
     const interval = setInterval(() => {
       zenOptimize();
     }, 180000);
     return () => clearInterval(interval);
-  }, [zenOptimize]);
+  }, [zenOptimize, zenSleepEnabled]);
 
   // Auto-hide top controls on active web pages so they never block website controls
   const isWebpage = Boolean(
@@ -126,19 +156,29 @@ export function App() {
     }
   });
 
+  // Persist and apply a theme mode; shared by the top-bar toggle, Command Bar and Settings panel.
+  const applyDarkModeSideEffects = (next: boolean) => {
+    try {
+      localStorage.setItem('neutrino_dark_theme', next ? 'true' : 'false');
+    } catch {}
+    if (next) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.classList.add('dark-mode');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.body.classList.remove('dark-mode');
+    }
+  };
+
+  const setDarkMode = useCallback((next: boolean) => {
+    applyDarkModeSideEffects(next);
+    setIsDarkMode(next);
+  }, []);
+
   const toggleDarkMode = () => {
     setIsDarkMode((prev) => {
       const next = !prev;
-      try {
-        localStorage.setItem('neutrino_dark_theme', next ? 'true' : 'false');
-      } catch {}
-      if (next) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.body.classList.add('dark-mode');
-      } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.body.classList.remove('dark-mode');
-      }
+      applyDarkModeSideEffects(next);
       return next;
     });
   };
@@ -250,8 +290,16 @@ export function App() {
     const unsubIpcEsc = window.neutrino?.onEscapePressed?.(() => {
       setIsNotificationTabsOpen(false);
       setIsCommandBarOpen(false);
+      setIsSettingsOpen(false);
     });
+    // Ctrl+Comma while a webview has focus (main process before-input-event)
+    const unsubIpcSettings = window.neutrino?.onOpenSettings?.(() => {
+      setIsSettingsOpen(true);
+    });
+    // neutrino://settings from useBrowser.navigate
+    const handleOpenSettingsEvent = () => setIsSettingsOpen(true);
 
+    window.addEventListener('neutrino:open-settings', handleOpenSettingsEvent);
     window.addEventListener('neutrino:open-command-bar', handleOpenCommandBar);
     window.addEventListener('neutrino:close-command-bar', handleCloseCommandBar);
     window.addEventListener('neutrino:toggle-tabs', handleToggleTabs);
@@ -274,6 +322,8 @@ export function App() {
       unsubIpcClose?.();
       unsubIpcCmd?.();
       unsubIpcEsc?.();
+      unsubIpcSettings?.();
+      window.removeEventListener('neutrino:open-settings', handleOpenSettingsEvent);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('neutrino:open-command-bar', handleOpenCommandBar);
       window.removeEventListener('neutrino:close-command-bar', handleCloseCommandBar);
@@ -365,6 +415,12 @@ export function App() {
           e.stopPropagation();
           e.stopImmediatePropagation();
           window.neutrino?.reload();
+        } else if (key === ',') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          setIsCommandBarOpen(false);
+          setIsSettingsOpen(true);
         }
       }
     };
@@ -372,6 +428,21 @@ export function App() {
     window.addEventListener('keydown', handleGlobalKeyDown, true);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown, true);
   }, [state.activeTabId, state.activeSpaceId, closeTab, createTab]);
+
+  // Dark-mode exclusion for the Active_Tab host (Command Bar "Toggle Dark Mode for This Site")
+  const activeTabUrl = activeTab?.url;
+  const isActiveSiteExcluded = activeTabUrl
+    ? isHostExcluded(activeTabUrl, settings.darkModeExclusions)
+    : false;
+  const handleToggleSiteDarkMode = useCallback(() => {
+    if (!activeTabUrl) return;
+    updateSettings({
+      darkModeExclusions: toggleSiteExclusion(settings.darkModeExclusions, activeTabUrl),
+    });
+  }, [activeTabUrl, settings.darkModeExclusions, updateSettings]);
+
+  const shieldsBlockedCount =
+    state.shieldStats.totalBlocked || (state.shieldStats.trackersBlocked + state.shieldStats.adsBlocked);
 
   const shouldShowMiniPlayer =
     activeMediaState &&
@@ -478,11 +549,15 @@ export function App() {
           <button
             className="minimal-pill-btn"
             onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
-            title={`Shields active: ${state.shieldStats.totalBlocked || (state.shieldStats.trackersBlocked + state.shieldStats.adsBlocked)} blocked`}
+            title={
+              settings.adblockEnabled
+                ? `Shields active: ${shieldsBlockedCount} blocked`
+                : `Shields off: ${shieldsBlockedCount} blocked`
+            }
             aria-label="Shields"
           >
             <Shield size={14} className="modern-btn-icon" />
-            <span>{state.shieldStats.totalBlocked || (state.shieldStats.trackersBlocked + state.shieldStats.adsBlocked)}</span>
+            <span>{shieldsBlockedCount}</span>
           </button>
 
           <button
@@ -513,6 +588,15 @@ export function App() {
             aria-label="Themes & Appearance"
           >
             <Palette size={15} />
+          </button>
+
+          <button
+            className="minimal-icon-btn"
+            onClick={openSettings}
+            title="Settings (Ctrl+,)"
+            aria-label="Settings"
+          >
+            <Settings size={15} />
           </button>
         </div>
       </div>
@@ -584,6 +668,11 @@ export function App() {
         onOpenMcp={() => setIsMcpModalOpen(true)}
         onOpenTheme={() => setIsThemeModalOpen(true)}
         onOpenShields={() => setIsShieldModalOpen(true)}
+        searchEngine={settings.searchEngine}
+        onOpenSettings={openSettings}
+        activeTabUrl={activeTabUrl}
+        isActiveSiteExcluded={isActiveSiteExcluded}
+        onToggleSiteDarkMode={handleToggleSiteDarkMode}
       />
 
       {/* Shield Modal Flyout */}
@@ -593,6 +682,21 @@ export function App() {
         stats={state.shieldStats}
         blockedItems={blockedTrackers}
         onToggleShields={toggleShields}
+        enabled={settings.adblockEnabled}
+      />
+
+      {/* Browser Settings Panel (gear / Ctrl+, / Command Bar / neutrino://settings) */}
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        isDarkMode={isDarkMode}
+        onSetDarkMode={setDarkMode}
+        onOpenThemeStudio={() => setIsThemeModalOpen(true)}
+        activeTabUrl={activeTabUrl}
+        userName={userProfile?.name ?? ''}
+        onUserNameChange={handleUserNameChange}
       />
 
       {/* MCP Drawer (Right-Side) */}

@@ -1,3 +1,7 @@
+import type { BrowserSettings } from '../main/settings';
+
+export type { BrowserSettings };
+
 export interface Space {
   id: string;
   name: string;
@@ -107,6 +111,11 @@ declare global {
       mediaControl?: (action: string, params?: any) => Promise<any>;
       captureTabPreview?: (tabUrl: string) => Promise<string | null>;
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
+      setThemeMode?: (mode: 'dark' | 'light') => Promise<{ success: boolean }>;
+      getSettings?: () => Promise<BrowserSettings>;
+      updateSettings?: (patch: Partial<BrowserSettings>) => Promise<BrowserSettings>;
+      onSettingsUpdated?: (cb: (settings: BrowserSettings) => void) => () => void;
+      onOpenSettings?: (cb: () => void) => () => void;
       onStateUpdate: (cb: (state: BrowserAppState) => void) => () => void;
       onTrackerBlocked: (cb: (item: BlockedTrackerItem) => void) => () => void;
       onCloseActiveTab?: (cb: () => void) => () => void;

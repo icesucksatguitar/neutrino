@@ -1,0 +1,170 @@
+{
+  "pbtResults": {
+    "2. Write preservation property tests (BEFORE implementing the fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794241969068
+    },
+    "1. Write bug condition exploration tests": {
+      "status": "passed",
+      "failingExample": "Exploration tests failed on unfixed code as expected (12 of 12 bug-condition tests; 1 sanity guard passed). Counterexamples:\n- UA (1.4-1.6): [{platform:\"win32\",os:\"Windows NT 10.0; Win64; x64\"},\"0.0.0\",\"100.0.1000.0\"] -> UA is CHROME_USER_AGENT \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36\" (Chrome-shaped, no Neutrino token, version not derived, OS fixed to Windows)\n- Client hints: rewrite adds Sec-CH-UA/sec-ch-ua/Sec-CH-UA-Mobile/Platform (6 keys) with \"Google Chrome\" brand\n- Ad skipper (1.9): [rate 0.25, muted false, duration 30, [ad 1 tick, content 1 tick]] -> currentTime written to 30 (= duration) on tick 1\n- Playback-critical (1.10): \"https://www.youtube.com/ptracking?ei=0\" -> blocked: true, rule \"Pattern: ad-endpoint\"\n- Dialog rule (1.11): cosmetic CSS contains \"tp-yt-paper-dialog:has(#feedback)\"\n- GPU (1.12): index.ts appends ignore-gpu-blocklist, enable-gpu-rasterization, enable-zero-copy, enable-native-gpu-memory-buffers\n- Greeting (1.13): [hour 0, minute 0, empty storage, no prop] -> \"Good morning, Yash\"\n- MCP (1.14): serverInfo.version \"0.1.0\" vs package.json \"0.2.0\"\n- Badges (1.15): [\"3.5\",\"4o\",\"Flash\",\"R1\"]\n- Permissions (1.18): [\"https://a.com\",\"media\",userAllows=false] -> granted with 0 prompts; check handler true\n- Popup title (1.19): \"about:blank\" / \"\" -> title \"Sign In\"\n- Logging (1.20): [errorCode -1, \"https://a.com\", \"ERR_NAME_NOT_RESOLVED\"] -> 1 console.warn in production",
+      "lastRunTimestamp": 1794242779267
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration tests": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241418189
+      },
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241431832
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing the fix)": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241418473
+      },
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241432648
+      },
+      {
+        "executionId": "2cbe3bf6-64c3-46e7-a453-2e38ac4509e5",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794245359957
+      }
+    ],
+    "3.1 Add the central user-agent module and browser identity wiring": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241418676
+      }
+    ],
+    "3.2 Remove the client-hint header rewrite": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241418806
+      }
+    ],
+    "3.3 Add URL classifiers and the sign-in rejection detector with \"Open in system browser\"": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241418955
+      }
+    ],
+    "3.4 Rewrite the YouTube ad controller": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241419266
+      }
+    ],
+    "3.5 Allow playback-critical YouTube requests through shields": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241419410
+      }
+    ],
+    "3.6 Remove the YouTube dialog cosmetic rule": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241419560
+      }
+    ],
+    "3.7 Skip DarkReader on native-dark sites and inject it once from the main process": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241419704
+      }
+    ],
+    "3.8 Remove the forced GPU switches": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241419859
+      }
+    ],
+    "3.9 Use a neutral greeting when no name is stored": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420011
+      }
+    ],
+    "3.10 Report the app version from the MCP server": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420158
+      }
+    ],
+    "3.11 Remove model badges and label bandwidth as an estimate": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420299
+      }
+    ],
+    "3.12 Add the packaging ignore list and leftover-file check": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420458
+      }
+    ],
+    "3.13 Replace grant-all permissions with prompts and remembered per-site grants": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420614
+      }
+    ],
+    "3.14 Title popups from their page": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420757
+      }
+    ],
+    "3.15 Gate debug logging to development builds": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241420901
+      }
+    ],
+    "3.16 Verify bug condition exploration tests now pass": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241421052
+      }
+    ],
+    "3.17 Verify preservation tests still pass": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241421351
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "a80c1742-87ae-40da-9d6a-94a601001a7e",
+        "chatSessionId": "sess_889b4db4-732f-4da8-a9e3-3286c48e3a6c",
+        "timestamp": 1794241421565
+      }
+    ]
+  }
+}

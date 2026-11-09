@@ -10,6 +10,7 @@ export class ZenResourceManager {
   private tabInfos: Map<string, TabResourceInfo> = new Map();
   private checkInterval: NodeJS.Timeout | null = null;
   private onSleepTabCallback?: (tabId: string) => void;
+  private autoSleepEnabled = true;
 
   constructor() {
     this.startMonitor();
@@ -61,6 +62,11 @@ export class ZenResourceManager {
     return this.tabInfos.get(tabId)?.isSleeping ?? false;
   }
 
+  /** Turns inactivity sleeping on or off. Manual sleepTab, wakeTab and sleepAllBackgroundTabs are unaffected. */
+  public setAutoSleepEnabled(enabled: boolean) {
+    this.autoSleepEnabled = enabled;
+  }
+
   public setOnSleepCallback(cb: (tabId: string) => void) {
     this.onSleepTabCallback = cb;
   }
@@ -93,6 +99,7 @@ export class ZenResourceManager {
 
   private startMonitor() {
     this.checkInterval = setInterval(() => {
+      if (!this.autoSleepEnabled) return;
       const now = Date.now();
       for (const [id, info] of this.tabInfos.entries()) {
         if (!info.isSleeping && now - info.lastActiveTimestamp > this.inactivityThresholdMs) {

@@ -7,12 +7,10 @@ import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 
-// Maximum performance and hardware acceleration flags
+// Maximum performance and hardware acceleration flags (stable for Windows D3D11/Vulkan video)
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
 app.commandLine.appendSwitch('enable-accelerated-video-decode');
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 app.commandLine.appendSwitch('num-raster-threads', '4');
@@ -53,8 +51,12 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
+const chromeVersion = process.versions.chrome || '130.0.0.0';
+const chromeMajor = chromeVersion.split('.')[0] || '130';
+
+// Standard pure Chrome User Agent with no "Electron" or app-name tokens
 export const CHROME_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
 
 export function isGoogleAuthUrl(url: string): boolean {
   if (!url) return false;
@@ -64,6 +66,16 @@ export function isGoogleAuthUrl(url: string): boolean {
     url.includes('accounts.youtube.com') ||
     url.includes('oauth2.googleapis.com') ||
     url.includes('apis.google.com/oauth')
+  );
+}
+
+export function isMediaStreamingUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('googlevideo.com') ||
+    lower.includes('videoplayback') ||
+    lower.includes('youtubei/v1/player')
   );
 }
 
@@ -100,7 +112,7 @@ export function isAuthOrSecurityUrl(url: string): boolean {
   );
 }
 
-// Global user-agent fallback
+// 1. Set global fallback user agent to pure Chrome
 app.userAgentFallback = CHROME_USER_AGENT;
 
 function setupNetworkInterception() {
@@ -110,6 +122,9 @@ function setupNetworkInterception() {
   // Enforce standard clean desktop Chrome user agent across all sessions
   currentSession.setUserAgent(CHROME_USER_AGENT);
   neutrinoSession.setUserAgent(CHROME_USER_AGENT);
+
+  // 5. Clear partition storage once after the change
+  neutrinoSession.clearStorageData().catch(() => {});
 
   const applyInterception = (sess: any) => {
     try {
@@ -126,8 +141,8 @@ function setupNetworkInterception() {
         return;
       }
 
-      // Never block authentication, identity providers, CAPTCHA, or verification endpoints
-      if (isAuthOrSecurityUrl(url)) {
+      // Never block YouTube video streams, playback feeds, authentication, CAPTCHA, or verification endpoints
+      if (isAuthOrSecurityUrl(url) || isMediaStreamingUrl(url)) {
         callback({ cancel: false });
         return;
       }
@@ -149,13 +164,15 @@ function setupNetworkInterception() {
       callback({ cancel: false });
     });
 
-    // Provide authentic Chromium Client Hints & User-Agent across all requests
+    // 2. Override sec-ch-ua, sec-ch-ua-mobile and sec-ch-ua-platform in webRequest.onBeforeSendHeaders
     sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
       const headers = { ...details.requestHeaders };
 
+      const secChUa = `"Chromium";v="${chromeMajor}", "Google Chrome";v="${chromeMajor}", "Not?A_Brand";v="99"`;
       headers['User-Agent'] = CHROME_USER_AGENT;
-      headers['Sec-CH-UA'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
-      headers['sec-ch-ua'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
+      headers['user-agent'] = CHROME_USER_AGENT;
+      headers['Sec-CH-UA'] = secChUa;
+      headers['sec-ch-ua'] = secChUa;
       headers['Sec-CH-UA-Mobile'] = '?0';
       headers['sec-ch-ua-mobile'] = '?0';
       headers['Sec-CH-UA-Platform'] = '"Windows"';
@@ -182,6 +199,12 @@ function setupNetworkInterception() {
 }
 
 function createWindow() {
+  const iconPath = fs.existsSync(path.join(__dirname, '..', 'assets', 'icon.ico'))
+    ? path.join(__dirname, '..', 'assets', 'icon.ico')
+    : fs.existsSync(path.join(app.getAppPath(), 'assets', 'icon.ico'))
+    ? path.join(app.getAppPath(), 'assets', 'icon.ico')
+    : undefined;
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -189,6 +212,7 @@ function createWindow() {
     minHeight: 640,
     title: 'Neutrino Browser',
     backgroundColor: '#000000',
+    icon: iconPath,
     frame: false, // Frameless window with custom macOS traffic light controls
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,

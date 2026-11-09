@@ -671,7 +671,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               partition: 'persist:neutrino',
               allowpopups: 'true',
               useragent: DESKTOP_USER_AGENT,
-              webpreferences: 'contextIsolation=yes',
+              webpreferences: 'contextIsolation=yes,nodeIntegration=no',
               style: {
                 display: 'inline-flex',
                 position: 'absolute',

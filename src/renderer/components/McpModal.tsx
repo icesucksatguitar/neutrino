@@ -134,7 +134,7 @@ export const McpModal: React.FC<McpModalProps> = ({
           if (parsed.name) name = parsed.name;
         }
       }
-    } catch {}
+    } catch { }
     if (hour >= 0 && hour < 12) {
       return `Good morning, ${name}`;
     } else if (hour >= 12 && hour < 17) {
@@ -432,7 +432,7 @@ export const McpModal: React.FC<McpModalProps> = ({
           el.focus();
           document.execCommand('insertText', false, ${JSON.stringify(info + '\n\n')});
         }
-      `).catch(() => {});
+      `).catch(() => { });
     }
   };
 
@@ -521,9 +521,8 @@ export const McpModal: React.FC<McpModalProps> = ({
             <div
               className="mcp-tab-slider-pill"
               style={{
-                transform: `translateX(${
-                  activeTabType === 'assistants' ? '0%' : activeTabType === 'local' ? '100%' : '200%'
-                })`,
+                transform: `translateX(${activeTabType === 'assistants' ? '0%' : activeTabType === 'local' ? '100%' : '200%'
+                  })`,
               }}
             />
             <button

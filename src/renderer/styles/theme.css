@@ -159,26 +159,42 @@
      Tweak these variables to customize color, speed, blur, size, and intensity
      ========================================================================== */
   /* Intensity & Visibility */
-  --glow-opacity: 0.42;        /* Base glow intensity (0.2 to 0.7) */
-  --glow-blur: 110px;          /* Softness / spread of the blur (90px - 130px) */
-  --glow-size: 1040px;         /* Horizontal width of the glow area (900px - 1100px) */
-  --glow-height: 580px;        /* Vertical height of the glow area */
+  --glow-opacity: 0.42;
+  /* Base glow intensity (0.2 to 0.7) */
+  --glow-blur: 110px;
+  /* Softness / spread of the blur (90px - 130px) */
+  --glow-size: 1040px;
+  /* Horizontal width of the glow area (900px - 1100px) */
+  --glow-height: 580px;
+  /* Vertical height of the glow area */
 
   /* Animation Speeds (Higher = Slower, gentler motion) */
-  --glow-speed: 24s;           /* Color cycle duration across the rainbow spectrum */
-  --glow-drift-speed-1: 22s;   /* Drift duration for blob 1 */
-  --glow-drift-speed-2: 28s;   /* Drift duration for blob 2 */
-  --glow-drift-speed-3: 17s;   /* Drift duration for blob 3 */
-  --glow-drift-speed-4: 25s;   /* Drift duration for blob 4 */
+  --glow-speed: 24s;
+  /* Color cycle duration across the rainbow spectrum */
+  --glow-drift-speed-1: 22s;
+  /* Drift duration for blob 1 */
+  --glow-drift-speed-2: 28s;
+  /* Drift duration for blob 2 */
+  --glow-drift-speed-3: 17s;
+  /* Drift duration for blob 3 */
+  --glow-drift-speed-4: 25s;
+  /* Drift duration for blob 4 */
 
   /* Color Palette Stops (Gold -> Orange -> Magenta -> Violet -> Blue -> Teal -> Gold) */
-  --glow-gold: #F59E0B;        /* Warm golden-yellow anchor (Gemini inspired) */
-  --glow-amber: #FBBF24;       /* Radiant amber highlight */
-  --glow-orange: #F97316;      /* Vivid sunrise orange */
-  --glow-magenta: #EC4899;     /* Deep glowing magenta */
-  --glow-violet: #8B5CF6;      /* Soft neon violet */
-  --glow-blue: #3B82F6;        /* Electric sky blue */
-  --glow-teal: #14B8A6;        /* Oceanic teal */
+  --glow-gold: #F59E0B;
+  /* Warm golden-yellow anchor (Gemini inspired) */
+  --glow-amber: #FBBF24;
+  /* Radiant amber highlight */
+  --glow-orange: #F97316;
+  /* Vivid sunrise orange */
+  --glow-magenta: #EC4899;
+  /* Deep glowing magenta */
+  --glow-violet: #8B5CF6;
+  /* Soft neon violet */
+  --glow-blue: #3B82F6;
+  /* Electric sky blue */
+  --glow-teal: #14B8A6;
+  /* Oceanic teal */
 
   /* ==========================================================================
      NEUTRINO PURE OLED PITCH BLACK PALETTE (DEFAULT DARK)
@@ -3507,8 +3523,11 @@ input:focus-visible {
   flex-direction: column;
   gap: 14px;
   position: relative;
+  overflow-y: auto;
   overflow-y: auto !important;
   overflow-x: hidden;
+  max-height: calc(100vh - 150px);
+  padding: 4px 6px 14px 4px;
   max-height: calc(100vh - 130px);
   padding: 4px 8px 32px 4px;
   scroll-behavior: smooth;
@@ -3519,6 +3538,7 @@ input:focus-visible {
 .notification-card-stack::-webkit-scrollbar,
 .notification-card-stack.mini-window-deck::-webkit-scrollbar,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar {
+  width: 5px;
   width: 6px;
 }
 
@@ -3531,6 +3551,8 @@ input:focus-visible {
 .notification-card-stack::-webkit-scrollbar-thumb,
 .notification-card-stack.mini-window-deck::-webkit-scrollbar-thumb,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.22);
   border-radius: 4px;
 }
@@ -4136,6 +4158,7 @@ input:focus-visible {
 }
 
 .command-bar-raw-input {
+  flex: 1;
   width: 100%;
   background: transparent;
   border: none;
@@ -5284,7 +5307,7 @@ input:focus-visible {
   filter: blur(var(--glow-blur, 110px));
   pointer-events: none;
   transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
 }
 
@@ -5352,9 +5375,11 @@ input:focus-visible {
   0% {
     transform: translate(-30px, -20px) scale(0.95) rotate(0deg);
   }
+
   50% {
     transform: translate(35px, 25px) scale(1.08) rotate(12deg);
   }
+
   100% {
     transform: translate(-10px, 35px) scale(1.02) rotate(-8deg);
   }
@@ -5364,9 +5389,11 @@ input:focus-visible {
   0% {
     transform: translate(35px, 20px) scale(1.05) rotate(0deg);
   }
+
   50% {
     transform: translate(-25px, -30px) scale(0.92) rotate(-14deg);
   }
+
   100% {
     transform: translate(20px, -15px) scale(1.06) rotate(10deg);
   }
@@ -5376,9 +5403,11 @@ input:focus-visible {
   0% {
     transform: translate(-20px, 30px) scale(1.0) rotate(0deg);
   }
+
   50% {
     transform: translate(30px, -25px) scale(1.12) rotate(15deg);
   }
+
   100% {
     transform: translate(-35px, -10px) scale(0.94) rotate(-10deg);
   }
@@ -5388,9 +5417,11 @@ input:focus-visible {
   0% {
     transform: translate(15px, -35px) scale(0.96) rotate(0deg);
   }
+
   50% {
     transform: translate(-30px, 20px) scale(1.04) rotate(-12deg);
   }
+
   100% {
     transform: translate(25px, 15px) scale(1.10) rotate(8deg);
   }
@@ -5401,6 +5432,7 @@ input:focus-visible {
   0% {
     filter: hue-rotate(0deg);
   }
+
   100% {
     filter: hue-rotate(360deg);
   }
@@ -5412,9 +5444,11 @@ input:focus-visible {
     animation: none !important;
     will-change: auto !important;
   }
+
   .ambient-glow-color-cycle {
     animation: none !important;
   }
+
   .ambient-glow-container {
     transition: none !important;
     will-change: auto !important;

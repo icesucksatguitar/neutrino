@@ -158,11 +158,11 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 if (document.body) document.body.style.colorScheme = 'dark';
               } catch(e) {}
             })();
-          `).catch(() => {});
+          `).catch(() => { });
 
           // Inject DarkReader library only if not already loaded into DOM
           if (checkRes === 'NONE') {
-            await wv.executeJavaScript?.(darkReaderCode).catch(() => {});
+            await wv.executeJavaScript?.(darkReaderCode).catch(() => { });
           }
 
           // Enable DarkReader with ideal contrast and brightness
@@ -180,7 +180,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 }
               } catch(e) {}
             })();
-          `).catch(() => {});
+          `).catch(() => { });
         } else {
           // Light mode: disable DarkReader and restore native theme
           await wv.executeJavaScript?.(`
@@ -194,7 +194,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 }
               } catch(e) {}
             })();
-          `).catch(() => {});
+          `).catch(() => { });
         }
       } catch {
         // ignore
@@ -297,19 +297,19 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
     const { action, value } = mediaCommand;
     if (action === 'play') {
-      webview.executeJavaScript(`document.querySelector('video, audio')?.play()`).catch(() => {});
+      webview.executeJavaScript(`document.querySelector('video, audio')?.play()`).catch(() => { });
     } else if (action === 'pause') {
-      webview.executeJavaScript(`document.querySelector('video, audio')?.pause()`).catch(() => {});
+      webview.executeJavaScript(`document.querySelector('video, audio')?.pause()`).catch(() => { });
     } else if (action === 'seek' && typeof value === 'number') {
       webview.executeJavaScript(`
         const m = document.querySelector('video, audio');
         if (m) m.currentTime = ${value};
-      `).catch(() => {});
+      `).catch(() => { });
     } else if (action === 'volume' && typeof value === 'number') {
       webview.executeJavaScript(`
         const m = document.querySelector('video, audio');
         if (m) m.volume = ${Math.max(0, Math.min(1, value))};
-      `).catch(() => {});
+      `).catch(() => { });
     }
   }, [mediaCommand, activeMediaTabId, activeTab?.id]);
 
@@ -410,9 +410,9 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
               setInterval(skip, 2000);
             })();
-          `).catch(() => {});
+          `).catch(() => { });
         }
-      } catch {}
+      } catch { }
     };
 
     const handleStartLoading = () => onUpdateTab(tabId, { isLoading: true });
@@ -635,28 +635,28 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             style={
               isActive
                 ? {
-                    display: 'flex',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: '100%',
-                    minWidth: '100%',
-                    minHeight: '100%',
-                    zIndex: 1,
-                  }
+                  display: 'flex',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  zIndex: 1,
+                }
                 : {
-                    display: 'none',
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: '1px',
-                    height: '1px',
-                    opacity: 0,
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                  }
+                  display: 'none',
+                  position: 'absolute',
+                  left: '-9999px',
+                  width: '1px',
+                  height: '1px',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }
             }
           >
             {React.createElement('webview', {

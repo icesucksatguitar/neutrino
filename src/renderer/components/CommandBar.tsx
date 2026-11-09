@@ -113,7 +113,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
           if (h.startsWith(cleanQ) || h.split('.')[0].startsWith(cleanQ)) {
             return h;
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -256,17 +256,17 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       hint: '↵ to go',
       action: () => {
         let target = query.trim();
-        if (matchedDomain && (target.toLowerCase() === cleanQ || target.endsWith('-'))) {
-          target = 'https://' + matchedDomain;
-        } else if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
-          target = 'https://' + target;
-        } else if (!target.includes('://')) {
-          target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
-        }
-        onNavigate(target);
-        onClose();
-      },
-    });
+          if (matchedDomain && (target.toLowerCase() === cleanQ || target.endsWith('-'))) {
+            target = 'https://' + matchedDomain;
+          } else if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
+            target = 'https://' + target;
+          } else if (!target.includes('://')) {
+            target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
+          }
+          onNavigate(target);
+          onClose();
+        },
+      });
   }
 
   // Add tabs

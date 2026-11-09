@@ -56,7 +56,7 @@ const chromeMajor = chromeVersion.split('.')[0] || '130';
 
 // Standard pure Chrome User Agent with no "Electron" or app-name tokens
 export const CHROME_USER_AGENT =
-  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
 
 export function isGoogleAuthUrl(url: string): boolean {
   if (!url) return false;
@@ -124,12 +124,12 @@ function setupNetworkInterception() {
   neutrinoSession.setUserAgent(CHROME_USER_AGENT);
 
   // 5. Clear partition storage once after the change
-  neutrinoSession.clearStorageData().catch(() => {});
+  neutrinoSession.clearStorageData().catch(() => { });
 
   const applyInterception = (sess: any) => {
     try {
       sess.setUserAgent(CHROME_USER_AGENT);
-    } catch {}
+    } catch { }
 
     // Intercept web requests with Brave-grade ad & tracker blocker
     sess.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details: any, callback: any) => {
@@ -141,28 +141,28 @@ function setupNetworkInterception() {
         return;
       }
 
-      // Never block YouTube video streams, playback feeds, authentication, CAPTCHA, or verification endpoints
-      if (isAuthOrSecurityUrl(url) || isMediaStreamingUrl(url)) {
-        callback({ cancel: false });
-        return;
-      }
-
-      const decision = adblockEngine.checkUrl(url);
-      if (decision.blocked) {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('neutrino:tracker-blocked', {
-            url,
-            domain: decision.domain,
-            category: decision.category,
-            rule: decision.rule,
-          });
+        // Never block YouTube video streams, playback feeds, authentication, CAPTCHA, or verification endpoints
+        if (isAuthOrSecurityUrl(url) || isMediaStreamingUrl(url)) {
+          callback({ cancel: false });
+          return;
         }
-        callback({ cancel: true });
-        return;
-      }
 
-      callback({ cancel: false });
-    });
+        const decision = adblockEngine.checkUrl(url);
+        if (decision.blocked) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:tracker-blocked', {
+              url,
+              domain: decision.domain,
+              category: decision.category,
+              rule: decision.rule,
+            });
+          }
+          callback({ cancel: true });
+          return;
+        }
+
+        callback({ cancel: false });
+      });
 
     // 2. Override sec-ch-ua, sec-ch-ua-mobile and sec-ch-ua-platform in webRequest.onBeforeSendHeaders
     sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
@@ -202,8 +202,8 @@ function createWindow() {
   const iconPath = fs.existsSync(path.join(__dirname, '..', 'assets', 'icon.ico'))
     ? path.join(__dirname, '..', 'assets', 'icon.ico')
     : fs.existsSync(path.join(app.getAppPath(), 'assets', 'icon.ico'))
-    ? path.join(app.getAppPath(), 'assets', 'icon.ico')
-    : undefined;
+      ? path.join(app.getAppPath(), 'assets', 'icon.ico')
+      : undefined;
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -392,7 +392,7 @@ function setupIpcHandlers() {
               } catch(e) {}
             `);
           }
-        } catch {}
+        } catch { }
       }
     }
     return { success: true };
@@ -412,7 +412,7 @@ function setupIpcHandlers() {
           }
         }
       }
-    } catch {}
+    } catch { }
     return null;
   });
 }
@@ -491,7 +491,7 @@ app.whenReady().then(() => {
               if (!window.google_tag_manager) window.google_tag_manager = {};
               if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
             } catch(e) {}
-          `).catch(() => {});
+          `).catch(() => { });
           if (adblockEngine.isEnabled()) {
             await contents.insertCSS(adblockEngine.getCosmeticFilterCSS());
             const url = contents.getURL();
@@ -507,7 +507,7 @@ app.whenReady().then(() => {
               if (!alreadyActive) {
                 const hasLib = await contents.executeJavaScript(`typeof window.DarkReader !== 'undefined'`).catch(() => false);
                 if (!hasLib) {
-                  await contents.executeJavaScript(darkReaderCode).catch(() => {});
+                  await contents.executeJavaScript(darkReaderCode).catch(() => { });
                 }
                 await contents.executeJavaScript(`
                   try {
@@ -517,11 +517,11 @@ app.whenReady().then(() => {
                       window.__neutrino_darkreader_active = true;
                     }
                   } catch(e) {}
-                `).catch(() => {});
+                `).catch(() => { });
               }
             }
           }
-        } catch {}
+        } catch { }
       });
     }
 
@@ -537,105 +537,105 @@ app.whenReady().then(() => {
         if (input.control || input.meta) {
           const key = input.key.toLowerCase();
 
-        // Ctrl+W -> Close active tab
-        if (key === 'w') {
-          event.preventDefault();
-          const active = browserManager.getActiveTab();
-          if (active) {
-            browserManager.closeTab(active.id);
+          // Ctrl+W -> Close active tab
+          if (key === 'w') {
+            event.preventDefault();
+            const active = browserManager.getActiveTab();
+            if (active) {
+              browserManager.closeTab(active.id);
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:close-active-tab');
+            }
+            return;
           }
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:close-active-tab');
-          }
-          return;
-        }
 
-        // Ctrl+T -> New Tab & Open Command Bar
-        if (key === 't') {
-          event.preventDefault();
-          const space = browserManager.getActiveSpaceId();
-          browserManager.createTab('neutrino://newtab', space);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:open-command-bar');
+          // Ctrl+T -> New Tab & Open Command Bar
+          if (key === 't') {
+            event.preventDefault();
+            const space = browserManager.getActiveSpaceId();
+            browserManager.createTab('neutrino://newtab', space);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:open-command-bar');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+K or Ctrl+L -> Open Command Bar
-        if (key === 'k' || key === 'l') {
-          event.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:open-command-bar');
+          // Ctrl+K or Ctrl+L -> Open Command Bar
+          if (key === 'k' || key === 'l') {
+            event.preventDefault();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:open-command-bar');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+E -> Toggle Notification Tabs
-        if (key === 'e') {
-          event.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:toggle-tabs');
+          // Ctrl+E -> Toggle Notification Tabs
+          if (key === 'e') {
+            event.preventDefault();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:toggle-tabs');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+R -> Reload
-        if (key === 'r') {
-          event.preventDefault();
-          if (contents.getType() === 'webview') {
-            contents.reload();
-          } else {
-            const allWcs = webContents.getAllWebContents();
-            for (const wc of allWcs) {
-              if (wc.getType() === 'webview') {
-                wc.reload();
+          // Ctrl+R -> Reload
+          if (key === 'r') {
+            event.preventDefault();
+            if (contents.getType() === 'webview') {
+              contents.reload();
+            } else {
+              const allWcs = webContents.getAllWebContents();
+              for (const wc of allWcs) {
+                if (wc.getType() === 'webview') {
+                  wc.reload();
+                }
               }
             }
+            return;
           }
-          return;
-        }
 
-        // Zoom Controls: Only for guest webviews, NEVER for host UI
-        if (contents.getType() === 'webview') {
-          if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
-            event.preventDefault();
-            const current = contents.getZoomFactor();
-            const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
-            contents.setZoomFactor(next);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: next });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-            }
-          } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
-            event.preventDefault();
-            const current = contents.getZoomFactor();
-            const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
-            contents.setZoomFactor(next);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: next });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-            }
-          } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
-            event.preventDefault();
-            contents.setZoomFactor(1.0);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: 1.0 });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+          // Zoom Controls: Only for guest webviews, NEVER for host UI
+          if (contents.getType() === 'webview') {
+            if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
+              event.preventDefault();
+              const current = contents.getZoomFactor();
+              const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
+              contents.setZoomFactor(next);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: next });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+              }
+            } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
+              event.preventDefault();
+              const current = contents.getZoomFactor();
+              const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
+              contents.setZoomFactor(next);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: next });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+              }
+            } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
+              event.preventDefault();
+              contents.setZoomFactor(1.0);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: 1.0 });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+              }
             }
           }
         }
       }
-    }
-  });
+    });
   });
 
   app.on('activate', () => {

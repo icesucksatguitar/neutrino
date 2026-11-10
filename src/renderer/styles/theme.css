@@ -4096,6 +4096,127 @@ input:focus-visible {
   cursor: pointer;
 }
 
+/* Google sign-in handoff notice (AuthHandoffNotice.tsx) */
+.auth-handoff-notice {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 32px));
+  padding: 12px 12px 12px 16px;
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #F2F2F3;
+  font-size: 12px;
+  z-index: 240;
+  animation: floatIn 0.25s ease-out;
+}
+
+.auth-handoff-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-handoff-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.auth-handoff-text {
+  margin: 4px 0 0;
+  color: #A1A1AA;
+  line-height: 1.45;
+}
+
+.auth-handoff-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.auth-handoff-primary,
+.auth-handoff-secondary,
+.auth-handoff-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.auth-handoff-primary {
+  padding: 0 10px;
+  background: #FFFFFF;
+  color: #0A0A0B;
+  font-weight: 600;
+}
+
+.auth-handoff-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-handoff-secondary {
+  padding: 0 10px;
+  background: transparent;
+  color: #F2F2F3;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.auth-handoff-close {
+  width: 28px;
+  justify-content: center;
+  background: transparent;
+  color: #A1A1AA;
+}
+
+.auth-handoff-close:hover,
+.auth-handoff-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-handoff-primary:focus-visible,
+.auth-handoff-secondary:focus-visible,
+.auth-handoff-close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+[data-theme="light"] .auth-handoff-notice {
+  background: rgba(250, 247, 242, 0.96);
+  border-color: rgba(60, 50, 40, 0.16);
+  box-shadow: 0 14px 36px rgba(60, 50, 40, 0.18);
+  color: #1C1917;
+}
+
+[data-theme="light"] .auth-handoff-text,
+[data-theme="light"] .auth-handoff-close {
+  color: #756E66;
+}
+
+[data-theme="light"] .auth-handoff-primary {
+  background: #1C1917;
+  color: #FAF7F2;
+}
+
+[data-theme="light"] .auth-handoff-secondary {
+  color: #1C1917;
+  border-color: rgba(60, 50, 40, 0.2);
+}
+
 /* 4. Command Bar (Cmd+K / Cmd+L) */
 .command-bar-modal-backdrop {
   position: absolute;

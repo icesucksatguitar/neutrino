@@ -145,9 +145,12 @@ app.whenReady().then(async () => {
 
     const pageUA = seen.page && seen.page['user-agent'];
     const jsUA = seen.report && seen.report.userAgent;
-    const headerBrands = parseBrands(seen.page && seen.page['sec-ch-ua']);
+    // Chromium does not attach client hints to the top-level navigation to 127.0.0.1 (in the control
+    // partition either), only to the subresource, so read the hints from whichever request has them.
+    const hintHeaders = (seen.page && seen.page['sec-ch-ua'] ? seen.page : seen.sub) || {};
+    const headerBrands = parseBrands(hintHeaders['sec-ch-ua']);
     const jsBrands = seen.report && seen.report.brands ? seen.report.brands.map((b) => `${b.brand}/${b.version}`).sort() : null;
-    const headerPlatform = seen.page && seen.page['sec-ch-ua-platform'];
+    const headerPlatform = hintHeaders['sec-ch-ua-platform'];
 
     const checks = {
       'User-Agent header equals navigator.userAgent': pageUA === jsUA,
@@ -157,7 +160,7 @@ app.whenReady().then(async () => {
         Boolean(pageUA) && (pageUA.match(/Neutrino\//g) || []).length === 1 && pageUA.indexOf('Neutrino/') < pageUA.indexOf('Chrome/'),
       'UA has no Electron/ token': Boolean(pageUA) && !pageUA.includes('Electron/'),
       'Sec-CH-UA brands equal navigator.userAgentData.brands': JSON.stringify(headerBrands) === JSON.stringify(jsBrands),
-      'Sec-CH-UA has no "Google Chrome" brand': !String((seen.page && seen.page['sec-ch-ua']) || '').includes('Google Chrome'),
+      'Sec-CH-UA has no "Google Chrome" brand': !String(hintHeaders['sec-ch-ua'] || '').includes('Google Chrome'),
       'Sec-CH-UA-Platform equals navigator.userAgentData.platform':
         headerPlatform === `"${seen.report && seen.report.platform}"`,
       'Sec-CH-UA-Platform reports the real OS': headerPlatform === `"${EXPECTED_PLATFORM}"`,
@@ -173,14 +176,14 @@ app.whenReady().then(async () => {
       observed: {
         userAgentHeader: pageUA,
         navigatorUserAgent: jsUA,
-        secChUaHeader: seen.page && seen.page['sec-ch-ua'],
+        secChUaHeader: hintHeaders['sec-ch-ua'],
         secChUaPlatformHeader: headerPlatform,
         navigatorBrands: jsBrands,
         navigatorPlatform: seen.report && seen.report.platform,
         subresourceHintKeys: hintKeys(seen.sub),
         controlSubresourceHintKeys: hintKeys(control.sub),
         controlUserAgent: control.page && control.page['user-agent'],
-        controlSecChUa: control.page && control.page['sec-ch-ua'],
+        controlSecChUa: (control.page && control.page['sec-ch-ua']) || (control.sub && control.sub['sec-ch-ua']),
       },
       checks,
       failed: Object.entries(checks)

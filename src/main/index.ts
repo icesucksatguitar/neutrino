@@ -54,7 +54,6 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
-<<<<<<< HEAD
 // Browser settings: load, fill defaults, and apply the parts owned by the main process.
 let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
 adblockEngine.setEnabled(settings.adblockEnabled);
@@ -146,29 +145,15 @@ function updateSettings(patch: unknown): BrowserSettings {
   return next;
 }
 
-=======
 const chromeVersion = process.versions.chrome || '130.0.0.0';
 const chromeMajor = chromeVersion.split('.')[0] || '130';
 
 // Standard pure Chrome User Agent with no "Electron" or app-name tokens
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
 export const CHROME_USER_AGENT =
-`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
 
-<<<<<<< HEAD
 // Re-exported so existing imports from index (e.g. tests requiring dist-main/index.js) keep working.
 export { isGoogleAuthUrl, isAuthOrSecurityUrl };
-=======
-export function isGoogleAuthUrl(url: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes('accounts.google.com') ||
-    url.includes('myaccount.google.com') ||
-    url.includes('accounts.youtube.com') ||
-    url.includes('oauth2.googleapis.com') ||
-    url.includes('apis.google.com/oauth')
-  );
-}
 
 export function isMediaStreamingUrl(url: string): boolean {
   if (!url) return false;
@@ -179,40 +164,6 @@ export function isMediaStreamingUrl(url: string): boolean {
     lower.includes('youtubei/v1/player')
   );
 }
-
-export function isAuthOrSecurityUrl(url: string): boolean {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  return (
-    isGoogleAuthUrl(url) ||
-    lower.includes('recaptcha') ||
-    lower.includes('gstatic.com') ||
-    lower.includes('turnstile') ||
-    lower.includes('challenges.cloudflare.com') ||
-    lower.includes('hcaptcha') ||
-    lower.includes('appleid.apple.com') ||
-    lower.includes('github.com/login') ||
-    lower.includes('api.github.com') ||
-    lower.includes('login.microsoftonline.com') ||
-    lower.includes('login.live.com') ||
-    lower.includes('msftauth.net') ||
-    lower.includes('identitytoolkit.googleapis.com') ||
-    lower.includes('securetoken.googleapis.com') ||
-    lower.includes('auth0.com') ||
-    lower.includes('clerk.') ||
-    lower.includes('supabase.co') ||
-    lower.includes('penpencil.co') ||
-    lower.includes('pw.live') ||
-    lower.includes('/oauth') ||
-    lower.includes('/auth') ||
-    lower.includes('/signin') ||
-    lower.includes('/signup') ||
-    lower.includes('/login') ||
-    lower.includes('/otp') ||
-    lower.includes('/token')
-  );
-}
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
 
 // 1. Set global fallback user agent to pure Chrome
 app.userAgentFallback = CHROME_USER_AGENT;
@@ -479,36 +430,7 @@ function setupIpcHandlers() {
     isDarkMode = mode === 'dark';
     nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
 
-<<<<<<< HEAD
     await applyDarkModeToAllWebviews();
-=======
-    const allWcs = webContents.getAllWebContents();
-    for (const wc of allWcs) {
-      if (wc.getType() === 'webview') {
-        try {
-          if (isDarkMode) {
-            await wc.executeJavaScript(`
-              try {
-                if (window.DarkReader) {
-                  DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
-                  window.__neutrino_darkreader_active = true;
-                }
-              } catch(e) {}
-            `);
-          } else {
-            await wc.executeJavaScript(`
-              try {
-                if (window.DarkReader) {
-                  DarkReader.disable();
-                  window.__neutrino_darkreader_active = false;
-                }
-              } catch(e) {}
-            `);
-          }
-        } catch { }
-      }
-    }
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
     return { success: true };
   });
 
@@ -614,33 +536,8 @@ app.whenReady().then(() => {
             }
           }
 
-<<<<<<< HEAD
           await applyDarkMode(contents);
         } catch {}
-=======
-          if (isDarkMode && darkReaderCode) {
-            const url = contents.getURL();
-            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:') && !isAuthOrSecurityUrl(url)) {
-              const alreadyActive = await contents.executeJavaScript(`Boolean(window.__neutrino_darkreader_active)`).catch(() => false);
-              if (!alreadyActive) {
-                const hasLib = await contents.executeJavaScript(`typeof window.DarkReader !== 'undefined'`).catch(() => false);
-                if (!hasLib) {
-                  await contents.executeJavaScript(darkReaderCode).catch(() => { });
-                }
-                await contents.executeJavaScript(`
-                  try {
-                    if (window.DarkReader) {
-                      DarkReader.setFetchMethod(window.fetch);
-                      DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
-                      window.__neutrino_darkreader_active = true;
-                    }
-                  } catch(e) {}
-                `).catch(() => { });
-              }
-            }
-          }
-        } catch { }
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
       });
     }
 
@@ -656,23 +553,15 @@ app.whenReady().then(() => {
         if (input.control || input.meta) {
           const key = input.key.toLowerCase();
 
-<<<<<<< HEAD
-        // Ctrl+Comma -> Open Settings (also covers focus inside a webview)
-        if (key === ',') {
-          event.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:open-settings');
+          // Ctrl+Comma -> Open Settings (also covers focus inside a webview)
+          if (key === ',') {
+            event.preventDefault();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:open-settings');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+W -> Close active tab
-        if (key === 'w') {
-          event.preventDefault();
-          const active = browserManager.getActiveTab();
-          if (active) {
-            browserManager.closeTab(active.id);
-=======
           // Ctrl+W -> Close active tab
           if (key === 'w') {
             event.preventDefault();
@@ -684,7 +573,6 @@ app.whenReady().then(() => {
               mainWindow.webContents.send('neutrino:close-active-tab');
             }
             return;
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
           }
 
           // Ctrl+T -> New Tab & Open Command Bar

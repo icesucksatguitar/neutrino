@@ -294,9 +294,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       subline: willSearch ? `Search with ${engineLabel}` : 'Go to URL',
       hint: '↵ to go',
       action: () => {
-<<<<<<< HEAD
         let target = trimmed;
-        if (looksLikeHost) {
+        if (matchedDomain && (target.toLowerCase() === cleanQ || target.endsWith('-'))) {
+          target = 'https://' + matchedDomain;
+        } else if (looksLikeHost) {
           target = 'https://' + target;
         } else if (willSearch) {
           target = buildSearchUrl(searchEngine, target);
@@ -305,20 +306,6 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         onClose();
       },
     });
-=======
-        let target = query.trim();
-          if (matchedDomain && (target.toLowerCase() === cleanQ || target.endsWith('-'))) {
-            target = 'https://' + matchedDomain;
-          } else if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
-            target = 'https://' + target;
-          } else if (!target.includes('://')) {
-            target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
-          }
-          onNavigate(target);
-          onClose();
-        },
-      });
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
   }
 
   // Add tabs

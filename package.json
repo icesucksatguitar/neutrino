@@ -9,12 +9,8 @@
     "build": "npm run build:renderer && npm run build:main",
     "start": "npm run build && (set ELECTRON_RUN_AS_NODE=& electron .)",
     "start:packaged": "cmd /c \"set ELECTRON_RUN_AS_NODE=& release\\Neutrino-win32-x64\\Neutrino.exe\"",
-<<<<<<< HEAD
-    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true",
+    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true --icon=assets/icon.ico",
     "test": "vitest --run"
-=======
-    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true --icon=assets/icon.ico"
->>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
   },
   "dependencies": {
     "anthropic-fonts": "^1.1.0",

@@ -4896,6 +4896,13 @@ input:focus-visible {
   position: absolute;
   inset: 0;
   z-index: 1;
+  transition: top 0.18s cubic-bezier(0.16, 1, 0.3, 1), height 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Offset web canvas below top header so window controls & tabs never collide with website navigation */
+.arc-viewport-container.edge-to-edge.with-site-top-offset {
+  top: 44px;
+  height: calc(100vh - 44px);
 }
 
 .arc-web-canvas-frame.seamless {
@@ -4905,7 +4912,7 @@ input:focus-visible {
   border: none;
 }
 
-/* Top Edge Hover Trigger (Reveals top controls smoothly on web pages) */
+/* Top Edge Hover Trigger (Smooth trigger zone when needed) */
 .top-edge-hover-zone {
   position: fixed;
   top: 0;
@@ -4918,7 +4925,7 @@ input:focus-visible {
   -webkit-app-region: no-drag !important;
 }
 
-/* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with website controls) */
+/* Floating Top Chrome Capsule */
 .floating-top-chrome-capsule {
   position: fixed;
   top: 0;
@@ -4942,15 +4949,48 @@ input:focus-visible {
   pointer-events: auto !important;
 }
 
-/* Protective background wash when visible over web pages */
-.floating-top-chrome-capsule.visible.on-webpage {
-  background: linear-gradient(180deg, rgba(10, 10, 11, 0.90) 0%, rgba(10, 10, 11, 0.65) 68%, transparent 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Dedicated Solid/Glass Top Bar on Webpages: Cleanly sits above the website, eliminating site overlap */
+.floating-top-chrome-capsule.on-webpage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  background: #0d0d10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  pointer-events: none;
+  z-index: 10000;
 }
 
-[data-theme="light"] .floating-top-chrome-capsule.visible.on-webpage {
-  background: linear-gradient(180deg, rgba(250, 247, 242, 0.92) 0%, rgba(250, 247, 242, 0.70) 68%, transparent 100%);
+[data-theme="light"] .floating-top-chrome-capsule.on-webpage {
+  background: #fbfbfa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.floating-top-chrome-capsule.on-webpage .macos-window-controls-cluster {
+  top: 6px;
+  left: 14px;
+}
+
+.floating-top-chrome-capsule.on-webpage .top-floating-url-pill {
+  top: 6px;
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.floating-top-chrome-capsule.on-webpage .minimal-top-right-cluster {
+  top: 6px;
+  right: 14px;
+}
+
+.floating-top-chrome-capsule.on-webpage .minimal-pill-btn,
+.floating-top-chrome-capsule.on-webpage .minimal-icon-btn {
+  height: 32px;
 }
 
 .minimal-top-right-cluster {
@@ -6497,6 +6537,10 @@ input:focus-visible {
   z-index: 9998;
   -webkit-app-region: drag;
   pointer-events: auto;
+}
+
+.macos-window-drag-bar.on-webpage {
+  height: 44px;
 }
 
 .macos-window-controls-cluster {

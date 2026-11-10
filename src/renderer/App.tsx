@@ -108,83 +108,17 @@ export function App() {
     return () => clearInterval(interval);
   }, [zenOptimize, zenSleepEnabled]);
 
-  // Auto-hide top controls on active web pages so they never block website controls
+  // Active webpage detection: on web pages, the viewport is pulled down below the 44px top header
+  // so window controls, tabs, and site navigation controls never collide.
   const isWebpage = Boolean(
     activeTab?.url &&
     activeTab.url !== 'neutrino://newtab' &&
     activeTab.url !== 'about:blank' &&
     !activeTab.isSleeping
   );
-  const [isTopHovered, setIsTopHovered] = useState(false);
-  const topHideTimerRef = useRef<any>(null);
+  const [isHtmlFullscreen, setIsHtmlFullscreen] = useState(false);
 
-  const shouldShowTopBar =
-    !isWebpage ||
-    isTopHovered ||
-    isCommandBarOpen ||
-    isNotificationTabsOpen ||
-    isShieldModalOpen ||
-    isMcpModalOpen ||
-    isThemeModalOpen;
-
-  const handleTopHoverEnter = useCallback(() => {
-    if (topHideTimerRef.current) {
-      clearTimeout(topHideTimerRef.current);
-      topHideTimerRef.current = null;
-    }
-    setIsTopHovered(true);
-  }, []);
-
-  const handleTopHoverLeave = useCallback(() => {
-    if (!isWebpage) return;
-    if (topHideTimerRef.current) {
-      clearTimeout(topHideTimerRef.current);
-    }
-    topHideTimerRef.current = setTimeout(() => {
-      setIsTopHovered(false);
-    }, 650);
-  }, [isWebpage]);
-
-  useEffect(() => {
-    if (!isWebpage) {
-      setIsTopHovered(true);
-      return;
-    }
-
-    // Default to hidden on web pages until user hovers the top edge
-    setIsTopHovered(false);
-
-    const handleMouseMove = (e: MouseEvent) => {
-      // Hovering top 40px reveals top controls smoothly
-      if (e.clientY <= 40) {
-        handleTopHoverEnter();
-      } else if (
-        e.clientY > 80 &&
-        !isCommandBarOpen &&
-        !isNotificationTabsOpen &&
-        !isShieldModalOpen &&
-        !isMcpModalOpen &&
-        !isThemeModalOpen
-      ) {
-        handleTopHoverLeave();
-      }
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
-    };
-  }, [
-    isWebpage,
-    handleTopHoverEnter,
-    handleTopHoverLeave,
-    isCommandBarOpen,
-    isNotificationTabsOpen,
-    isShieldModalOpen,
-    isMcpModalOpen,
-    isThemeModalOpen,
-  ]);
+  const shouldShowTopBar = !isHtmlFullscreen;
 
   // Persistent Dark Theme state (default dark mode per brief: #0A0A0B)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -491,9 +425,9 @@ export function App() {
 
   return (
     <div className="arc-app-shell radical-minimalism-shell">
-      {/* Frameless Top Drag Bar only when on newtab or when top bar is visible */}
-      {(!isWebpage || shouldShowTopBar) && (
-        <div className="macos-window-drag-bar" />
+      {/* Frameless Top Drag Bar */}
+      {!isHtmlFullscreen && (
+        <div className={`macos-window-drag-bar ${isWebpage ? 'on-webpage' : ''}`} />
       )}
 
       {/* Left Edge Hover Trigger (Opens tab panel from any site or blank page) */}
@@ -509,21 +443,9 @@ export function App() {
         </div>
       )}
 
-      {/* Top Edge Invisible Trigger Zone: catches upward mouse gestures on web pages */}
-      {isWebpage && !shouldShowTopBar && (
-        <div
-          className="top-edge-hover-zone"
-          onMouseEnter={handleTopHoverEnter}
-          onMouseMove={handleTopHoverEnter}
-        />
-      )}
-
-      {/* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with site controls) */}
+      {/* Top Chrome Header Bar (Solid dedicated header on web pages, floating on newtab) */}
       <div
         className={`floating-top-chrome-capsule ${isWebpage ? 'on-webpage' : ''} ${shouldShowTopBar ? 'visible' : 'autohidden'}`}
-        onMouseEnter={handleTopHoverEnter}
-        onMouseMove={handleTopHoverEnter}
-        onMouseLeave={handleTopHoverLeave}
       >
         {/* Top Left: macOS Frameless Window Controls & Tabs Switcher (Opaque) */}
         <aside className="macos-window-controls-cluster" aria-label="Window Controls">
@@ -651,8 +573,8 @@ export function App() {
         isOnWebpage={isWebpage}
       />
 
-      {/* Edge-to-Edge Web Canvas Viewport */}
-      <main className={`arc-viewport-container edge-to-edge ${spaceTransitionClass}`}>
+      {/* Edge-to-Edge Web Canvas Viewport (pulled down on web pages so site controls never collide) */}
+      <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${spaceTransitionClass}`}>
         <div className="arc-web-canvas-frame seamless">
           <BrowserViewport
             activeTab={activeTab}
@@ -668,13 +590,7 @@ export function App() {
             onMediaStateChange={handleMediaStateChange}
             mediaCommand={mediaCommand}
             userName={userProfile?.name}
-            onTopHover={(isHovering) => {
-              if (isHovering) {
-                handleTopHoverEnter();
-              } else {
-                handleTopHoverLeave();
-              }
-            }}
+            onFullscreenChange={setIsHtmlFullscreen}
           />
         </div>
       </main>

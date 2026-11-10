@@ -18,6 +18,7 @@ interface BrowserViewportProps {
   mediaCommand?: { action: string; tabId?: string; value?: number; timestamp: number } | null;
   userName?: string;
   onTopHover?: (isHovering: boolean) => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 export const DESKTOP_USER_AGENT =
@@ -49,6 +50,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   mediaCommand,
   userName,
   onTopHover,
+  onFullscreenChange,
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const attachedListenersRef = useRef<Set<string>>(new Set());
@@ -483,6 +485,12 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('did-fail-load', handleFailLoad);
     webview.addEventListener('before-input-event', handleBeforeInput);
     webview.addEventListener('console-message', handleConsoleMessage);
+    webview.addEventListener('enter-html-full-screen', () => {
+      onFullscreenChange?.(true);
+    });
+    webview.addEventListener('leave-html-full-screen', () => {
+      onFullscreenChange?.(false);
+    });
   };
 
   if (!activeTab) {

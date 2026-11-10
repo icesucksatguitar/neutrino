@@ -59,7 +59,8 @@ The plan follows the bug condition methodology from design.md. Task 1 adds vites
 
 - [ ] 3. Fix Google sign-in, YouTube playback and release readiness
 
-  - [ ] 3.1 Add the central user-agent module and browser identity wiring
+  - [x] 3.1 Add the central user-agent module and browser identity wiring
+    - Done: `src/main/userAgent.ts`, `src/main/browserIdentity.ts`; webview `useragent` attributes and per-navigation `setUserAgent` calls removed
     - Create `src/main/userAgent.ts` (pure, no Electron import) with `buildUserAgent(defaultUA, productName, productVersion, chromeVersion, platform)`: take the OS token from the first parenthesised group of the default UA, fall back to the per-`process.platform` frozen Chromium token when parsing fails, and return `Mozilla/5.0 (<os>) AppleWebKit/537.36 (KHTML, like Gecko) Neutrino/<productVersion> Chrome/<chromeVersion> Safari/537.36`
     - Create `src/main/browserIdentity.ts` with `getBrowserUserAgent()` (computed once from `app.userAgentFallback` captured before any override, `app.getVersion()` and `process.versions.chrome`) and `applyBrowserIdentity(session)`
     - In `src/main/index.ts`: delete `CHROME_USER_AGENT`, set `app.userAgentFallback`, and call `session.setUserAgent` once for `defaultSession`, `persist:neutrino` and the assistant partitions before any window loads. Remove `setUserAgent` calls in `browser-window-created` and `web-contents-created`
@@ -69,14 +70,20 @@ The plan follows the bug condition methodology from design.md. Task 1 adds vites
     - _Preservation: one UA per session fixed before the first navigation; `persist:neutrino` partition and storage untouched (3.3)_
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 3.3_
 
-  - [ ] 3.2 Remove the client-hint header rewrite
+  - [x] 3.2 Remove the client-hint header rewrite
+    - Done; `tests/integration/headerCoherence.cjs --identity=fixed` passes all checks (the harness now reads hints from the subresource, because Chromium sends none on the top-level navigation to 127.0.0.1)
     - Delete the `onBeforeSendHeaders` handler in `setupNetworkInterception` so Chromium sends its own `Sec-CH-UA*` values
     - _Bug_Condition: C_ua(input) where "Google Chrome" is in Sec-CH-UA, brands disagree with navigator.userAgentData, or hints are added by the app_
     - _Expected_Behavior: Sec-CH-UA* = Chromium-generated hints matching navigator.userAgentData with the real platform (design Property 1)_
     - _Preservation: shield `onBeforeRequest` handling unchanged (3.8, 3.9)_
     - _Requirements: 1.6, 2.6_
 
-  - [ ] 3.3 Add URL classifiers and the sign-in rejection detector with "Open in system browser"
+  - [x] 3.3 Add URL classifiers and the sign-in rejection detector with "Open in system browser"
+    - Implemented with a different design (google-oauth handoff fix): `src/main/googleAuth.ts` (pure detection, handoff target and tracker), `src/main/authHandoff.ts` (webContents and IPC wiring) and `src/renderer/components/AuthHandoffNotice.tsx` (one notice in the main window for tabs, popups and the drawer, instead of per-view banners and a native dialog)
+    - The handoff opens the page the sign-in started from, never the OAuth authorization or callback URL: those carry `state`/PKCE values bound to Neutrino's session, so they would fail in the system browser
+    - Also detects Google's OAuth `disallowed_useragent` error page; the IPC takes a handoff id, never a URL
+    - Also fixed: tab webviews no longer re-navigate on their own URL echoes (src rewrite reloaded every navigation and replayed OAuth callbacks), startup no longer clears `persist:neutrino` storage, `disable-blink-features=AutomationControlled` removed
+    - `isYouTubeHost` and `isPlaybackCriticalRequest` (YouTube part of this task) are not done
     - Create `src/main/urlClassifier.ts` (pure) with `isGoogleAuthUrl`, `isAuthOrSecurityUrl` (same list and matching as today), `isRejectionPage`, `isYouTubeHost` and `isPlaybackCriticalRequest`, matching on parsed hostnames and parent domains
     - In `web-contents-created`, track per `webContents.id` the last non-rejection `accounts.google.com` URL on `did-navigate` and `did-redirect-navigation`
     - On a rejection page: for a webview (tab or drawer) send `neutrino:signin-rejected` `{ webContentsId, retryUrl }` to the main window; for a popup show `dialog.showMessageBox` with "Open in system browser" and "Close", calling `shell.openExternal(retryUrl)` and closing the popup on the first button
@@ -182,7 +189,8 @@ The plan follows the bug condition methodology from design.md. Task 1 adds vites
     - _Preservation: remembered allows and safe permissions granted without a prompt (design Property 13, 3.15)_
     - _Requirements: 1.18, 2.18, 3.15_
 
-  - [ ] 3.14 Title popups from their page
+  - [x] 3.14 Title popups from their page
+    - Done: `src/main/windowOpen.ts` (`decideWindowOpen`, `buildPopupWindowOptions`)
     - Remove `title: 'Sign In'` from `overrideBrowserWindowOptions`; set the title to the popup URL's hostname when known and let `page-title-updated` replace it
     - _Bug_Condition: C_rel(input) where input IS PopupOpen AND popupTitle() = "Sign In"_
     - _Expected_Behavior: result.title != "Sign In" OR pageTitle = "Sign In" (design Property 8)_

@@ -28,25 +28,26 @@ import path from 'path';
 import { BraveShieldEngine } from '../../src/main/adblock/engine';
 import { McpServer } from '../../src/main/mcp/server';
 
-import { originalBuildUserAgent, originalRewriteHeaders } from './fixtures/original/userAgent';
+import { buildUserAgent } from '../../src/main/userAgent';
+import { buildPopupWindowOptions } from '../../src/main/windowOpen';
 import { createOriginalSkipAds } from './fixtures/original/adSkipper';
 import { originalHomescreenGreeting, originalMcpGreeting, GreetingStorage } from './fixtures/original/greeting';
 import { createOriginalPermissionHandlers, SENSITIVE_PERMISSIONS } from './fixtures/original/permissions';
-import { originalPopupWindowOptions } from './fixtures/original/popupOptions';
 import { createOriginalHandleFailLoad } from './fixtures/original/failLoad';
 
 // ---------------------------------------------------------------------------
 // SUBJECT: the code under test. Re-point these at the fixed modules in task 3.16.
 // ---------------------------------------------------------------------------
 const SUBJECT = {
-  buildUserAgent: originalBuildUserAgent,
-  rewriteHeaders: originalRewriteHeaders,
+  buildUserAgent,
+  // The onBeforeSendHeaders rewrite was deleted: outgoing headers are what Chromium sent.
+  rewriteHeaders: (headers: Record<string, string>) => headers,
   runAdTick: (fake: FakeYouTube) => createOriginalSkipAds(fake.document)(),
   homescreenGreeting: (date: Date, storage: GreetingStorage, userNameProp: string | undefined) =>
     originalHomescreenGreeting(date, userNameProp, storage),
   mcpGreeting: (date: Date, storage: GreetingStorage) => originalMcpGreeting(date, storage),
   permissionHandlers: createOriginalPermissionHandlers,
-  popupOptions: originalPopupWindowOptions,
+  popupOptions: buildPopupWindowOptions,
   handleFailLoad: createOriginalHandleFailLoad,
 };
 

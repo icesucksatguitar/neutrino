@@ -12,6 +12,7 @@ import { WelcomeModal, UserProfile } from './components/WelcomeModal';
 import { StartupSplash } from './components/StartupSplash';
 import { RightPinsDock } from './components/RightPinsDock';
 import { SettingsPanel } from './components/SettingsPanel';
+import { AuthHandoffNotice } from './components/AuthHandoffNotice';
 import { useSettings } from './hooks/useSettings';
 import { isHostExcluded, toggleSiteExclusion } from '../main/settings';
 import { Shield, Moon, Sun, Sparkles, Palette, Settings } from 'lucide-react';
@@ -594,6 +595,9 @@ export function App() {
           />
         </div>
       </main>
+
+      {/* Google sign-in refused in-app: offer to continue in the default browser */}
+      <AuthHandoffNotice />
 
       {/* Vertical Pinned Websites Dock (Right Side with macOS Magnification) */}
       <RightPinsDock onNavigate={navigate} isOnWebpage={isWebpage} />

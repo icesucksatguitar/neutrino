@@ -6,7 +6,7 @@
 // modules without touching the properties in preservation.test.ts:
 //
 //   liveIsAuthOrSecurityUrl     -> src/main/urlClassifier.ts  isAuthOrSecurityUrl       (task 3.3)
-//   liveWindowOpenDecision      -> extracted window-open decision used by index.ts      (task 3.3 / 3.14)
+//   liveWindowOpenDecision      -> src/main/windowOpen.ts     decideWindowOpen (done: google-oauth handoff fix)
 //   liveShouldInjectDarkReader  -> src/main/darkMode.ts       shouldInjectDarkReader    (done by spec browser-settings-panel,
 //                                  task 2.3: called with DEFAULT_SETTINGS.darkModeExclusions from src/main/settings.ts)
 //   liveDarkReaderSettings      -> src/main/darkMode.ts       DARK_READER_SETTINGS      (done by spec browser-settings-panel, task 2.3)
@@ -20,11 +20,11 @@
 import { BraveShieldEngine } from '../../src/main/adblock/engine';
 import { isAuthOrSecurityUrl as originalIsAuthOrSecurityUrl } from './fixtures/original/authUrl';
 import {
-  originalWindowOpenDecision,
+  decideWindowOpen,
   type WindowOpenContext,
   type WindowOpenDecision,
   type WindowOpenDetails,
-} from './fixtures/original/windowOpen';
+} from '../../src/main/windowOpen';
 import { DARK_READER_SETTINGS, shouldInjectDarkReader } from '../../src/main/darkMode';
 import { DEFAULT_SETTINGS } from '../../src/main/settings';
 import {
@@ -53,7 +53,7 @@ export function liveWindowOpenDecision<W>(
   details: WindowOpenDetails,
   ctx: Omit<WindowOpenContext<W>, 'isAuthOrSecurityUrl'>,
 ): WindowOpenDecision<W> {
-  return originalWindowOpenDecision(details, { ...ctx, isAuthOrSecurityUrl: liveIsAuthOrSecurityUrl });
+  return decideWindowOpen(details, { ...ctx, isAuthOrSecurityUrl: liveIsAuthOrSecurityUrl });
 }
 
 export function liveShouldInjectDarkReader(url: string): boolean {

@@ -4913,10 +4913,11 @@ input:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  height: 6px;
-  z-index: 130;
-  pointer-events: auto;
+  height: 16px;
+  z-index: 9999;
+  pointer-events: auto !important;
   background: transparent;
+  -webkit-app-region: no-drag !important;
 }
 
 /* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with website controls) */
@@ -4926,21 +4927,32 @@ input:focus-visible {
   left: 0;
   right: 0;
   height: 60px;
-  z-index: 140;
+  z-index: 10000;
   pointer-events: none;
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
 }
 
 .floating-top-chrome-capsule.autohidden {
-  transform: translateY(-56px);
+  transform: translateY(-64px);
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .floating-top-chrome-capsule.visible {
   transform: translateY(0);
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: auto !important;
+}
+
+/* Protective background wash when visible over web pages */
+.floating-top-chrome-capsule.visible.on-webpage {
+  background: linear-gradient(180deg, rgba(10, 10, 11, 0.90) 0%, rgba(10, 10, 11, 0.65) 68%, transparent 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .floating-top-chrome-capsule.visible.on-webpage {
+  background: linear-gradient(180deg, rgba(250, 247, 242, 0.92) 0%, rgba(250, 247, 242, 0.70) 68%, transparent 100%);
 }
 
 .minimal-top-right-cluster {
@@ -4950,8 +4962,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  pointer-events: auto;
-  z-index: 100;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+  z-index: 10002 !important;
 }
 
 .minimal-pill-btn {
@@ -6456,7 +6469,7 @@ input:focus-visible {
   left: 0;
   right: 0;
   height: 38px;
-  z-index: 138;
+  z-index: 9998;
   -webkit-app-region: drag;
   pointer-events: auto;
 }
@@ -6468,9 +6481,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 100;
-  -webkit-app-region: no-drag;
-  pointer-events: auto;
+  z-index: 10002 !important;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 .macos-traffic-lights {
@@ -6728,6 +6741,7 @@ input:focus-visible {
 .minimal-top-right-cluster,
 .minimal-pill-btn,
 .minimal-icon-btn,
+.top-floating-url-pill,
 .floating-url-pill,
 .floating-url-input-wrap,
 .right-pins-dock,

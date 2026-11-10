@@ -18,6 +18,7 @@ interface BrowserViewportProps {
   onMediaStateChange?: (state: ActiveMediaState | null) => void;
   mediaCommand?: { action: string; tabId?: string; value?: number; timestamp: number } | null;
   userName?: string;
+  onTopHover?: (isHovering: boolean) => void;
 }
 
 export const DESKTOP_USER_AGENT =
@@ -48,6 +49,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   onMediaStateChange,
   mediaCommand,
   userName,
+  onTopHover,
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const attachedListenersRef = useRef<Set<string>>(new Set());
@@ -378,9 +380,32 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         injectPdfViewerDarkTheme();
         syncDarkThemeForTab(tabId);
         injectAdblocking();
+        injectTopHoverDetector();
       } catch {
         // ignore
       }
+    };
+
+    const injectTopHoverDetector = () => {
+      try {
+        webview.executeJavaScript(`
+          (() => {
+            if (window.__neutrino_top_detector_installed) return;
+            window.__neutrino_top_detector_installed = true;
+            let wasNearTop = false;
+            window.addEventListener('mousemove', (e) => {
+              const isNearTop = e.clientY <= 36;
+              if (isNearTop && !wasNearTop) {
+                wasNearTop = true;
+                console.log('__neutrino_top_hover:enter');
+              } else if (!isNearTop && wasNearTop && e.clientY > 80) {
+                wasNearTop = false;
+                console.log('__neutrino_top_hover:leave');
+              }
+            }, { passive: true });
+          })();
+        `).catch(() => {});
+      } catch {}
     };
 
     const injectAdblocking = () => {
@@ -393,12 +418,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               window.__neutrino_ad_skipper_injected = true;
               const skip = () => {
                 try {
-                  const v = document.querySelector('video');
-                  const ad = document.querySelector('.ad-showing, .ad-interrupting');
-                  if (ad && v && !isNaN(v.duration) && isFinite(v.duration)) {
-                    v.currentTime = v.duration;
-                    v.playbackRate = 16.0;
-                  }
                   const btns = document.querySelectorAll('.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button.ytp-ad-skip-button, .ytp-ad-overlay-close-button');
                   btns.forEach((b) => b.click());
                   const overlays = document.querySelectorAll('.ytp-ad-overlay-container, ytd-ad-slot-renderer, #player-ads');
@@ -514,6 +533,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
       }
     };
 
+    const handleConsoleMessage = (e: any) => {
+      if (e.message === '__neutrino_top_hover:enter') {
+        onTopHover?.(true);
+      } else if (e.message === '__neutrino_top_hover:leave') {
+        onTopHover?.(false);
+      }
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
@@ -526,6 +553,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('new-window', handleNewWindow);
     webview.addEventListener('did-fail-load', handleFailLoad);
     webview.addEventListener('before-input-event', handleBeforeInput);
+    webview.addEventListener('console-message', handleConsoleMessage);
   };
 
   if (!activeTab) {

@@ -82,10 +82,38 @@ export function App() {
   const isWebpage = Boolean(
     activeTab?.url &&
     activeTab.url !== 'neutrino://newtab' &&
-    activeTab.url !== 'about:blank'
+    activeTab.url !== 'about:blank' &&
+    !activeTab.isSleeping
   );
   const [isTopHovered, setIsTopHovered] = useState(false);
   const topHideTimerRef = useRef<any>(null);
+
+  const shouldShowTopBar =
+    !isWebpage ||
+    isTopHovered ||
+    isCommandBarOpen ||
+    isNotificationTabsOpen ||
+    isShieldModalOpen ||
+    isMcpModalOpen ||
+    isThemeModalOpen;
+
+  const handleTopHoverEnter = useCallback(() => {
+    if (topHideTimerRef.current) {
+      clearTimeout(topHideTimerRef.current);
+      topHideTimerRef.current = null;
+    }
+    setIsTopHovered(true);
+  }, []);
+
+  const handleTopHoverLeave = useCallback(() => {
+    if (!isWebpage) return;
+    if (topHideTimerRef.current) {
+      clearTimeout(topHideTimerRef.current);
+    }
+    topHideTimerRef.current = setTimeout(() => {
+      setIsTopHovered(false);
+    }, 650);
+  }, [isWebpage]);
 
   useEffect(() => {
     if (!isWebpage) {
@@ -97,24 +125,36 @@ export function App() {
     setIsTopHovered(false);
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Hovering top 36px reveals top controls smoothly
-      if (e.clientY <= 36) {
-        if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
-        setIsTopHovered(true);
-      } else if (e.clientY > 68) {
-        if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
-        topHideTimerRef.current = setTimeout(() => {
-          setIsTopHovered(false);
-        }, 220);
+      // Hovering top 40px reveals top controls smoothly
+      if (e.clientY <= 40) {
+        handleTopHoverEnter();
+      } else if (
+        e.clientY > 80 &&
+        !isCommandBarOpen &&
+        !isNotificationTabsOpen &&
+        !isShieldModalOpen &&
+        !isMcpModalOpen &&
+        !isThemeModalOpen
+      ) {
+        handleTopHoverLeave();
       }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
     };
-  }, [isWebpage]);
+  }, [
+    isWebpage,
+    handleTopHoverEnter,
+    handleTopHoverLeave,
+    isCommandBarOpen,
+    isNotificationTabsOpen,
+    isShieldModalOpen,
+    isMcpModalOpen,
+    isThemeModalOpen,
+  ]);
 
   // Persistent Dark Theme state (default dark mode per brief: #0A0A0B)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -380,8 +420,10 @@ export function App() {
 
   return (
     <div className="arc-app-shell radical-minimalism-shell">
-      {/* Frameless Top Drag Bar for native-feeling window movement */}
-      <div className="macos-window-drag-bar" />
+      {/* Frameless Top Drag Bar only when on newtab or when top bar is visible */}
+      {(!isWebpage || shouldShowTopBar) && (
+        <div className="macos-window-drag-bar" />
+      )}
 
       {/* Left Edge Hover Trigger (Opens tab panel from any site or blank page) */}
       <div
@@ -396,29 +438,21 @@ export function App() {
         </div>
       )}
 
-      {/* Top Edge Invisible Trigger Zone (reveals controls on web pages when hovered) */}
-      {isWebpage && (
+      {/* Top Edge Invisible Trigger Zone: catches upward mouse gestures on web pages */}
+      {isWebpage && !shouldShowTopBar && (
         <div
           className="top-edge-hover-zone"
-          onMouseEnter={() => {
-            if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
-            setIsTopHovered(true);
-          }}
+          onMouseEnter={handleTopHoverEnter}
+          onMouseMove={handleTopHoverEnter}
         />
       )}
 
       {/* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with site controls) */}
       <div
-        className={`floating-top-chrome-capsule ${isWebpage && !isTopHovered && !isCommandBarOpen && !isNotificationTabsOpen ? 'autohidden' : 'visible'}`}
-        onMouseEnter={() => {
-          if (topHideTimerRef.current) clearTimeout(topHideTimerRef.current);
-          setIsTopHovered(true);
-        }}
-        onMouseLeave={() => {
-          if (isWebpage) {
-            topHideTimerRef.current = setTimeout(() => setIsTopHovered(false), 220);
-          }
-        }}
+        className={`floating-top-chrome-capsule ${isWebpage ? 'on-webpage' : ''} ${shouldShowTopBar ? 'visible' : 'autohidden'}`}
+        onMouseEnter={handleTopHoverEnter}
+        onMouseMove={handleTopHoverEnter}
+        onMouseLeave={handleTopHoverLeave}
       >
         {/* Top Left: macOS Frameless Window Controls & Tabs Switcher (Opaque) */}
         <aside className="macos-window-controls-cluster" aria-label="Window Controls">
@@ -549,6 +583,13 @@ export function App() {
             onMediaStateChange={handleMediaStateChange}
             mediaCommand={mediaCommand}
             userName={userProfile?.name}
+            onTopHover={(isHovering) => {
+              if (isHovering) {
+                handleTopHoverEnter();
+              } else {
+                handleTopHoverLeave();
+              }
+            }}
           />
         </div>
       </main>

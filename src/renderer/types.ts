@@ -83,6 +83,17 @@ export interface ThemeConfig {
   fontSize?: number;
 }
 
+/** Sent when Google refuses a sign-in inside Neutrino (see src/main/authHandoff.ts). */
+export interface AuthHandoffNotice {
+  handoffId: string;
+  provider: 'google';
+  reason: 'browser-not-secure' | 'disallowed-useragent';
+  siteHost: string;
+  isPopup: boolean;
+}
+
+export type AuthHandoffResult = { ok: true; siteHost: string } | { ok: false; error: string };
+
 declare global {
   interface Window {
     neutrino?: {
@@ -122,6 +133,10 @@ declare global {
       onOpenCommandBar?: (cb: () => void) => () => void;
       onToggleTabs?: (cb: () => void) => () => void;
       onEscapePressed?: (cb: () => void) => () => void;
+      onAuthHandoffRequired?: (cb: (notice: AuthHandoffNotice) => void) => () => void;
+      openAuthHandoff?: (handoffId: string) => Promise<AuthHandoffResult>;
+      copyAuthHandoffLink?: (handoffId: string) => Promise<AuthHandoffResult>;
+      dismissAuthHandoff?: (handoffId: string) => Promise<AuthHandoffResult>;
     };
   }
 }

@@ -9,13 +9,15 @@ import { BrowserManager } from './browserManager';
 import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
 import { BrowserSettings, normalizeSettings } from './settings';
 import { shouldInjectDarkReader, DARK_READER_ENABLE_SCRIPT, DARK_READER_DISABLE_SCRIPT } from './darkMode';
+import { applyBrowserIdentity, getBrowserUserAgent } from './browserIdentity';
+import { decideWindowOpen } from './windowOpen';
+import { AuthHandoffController } from './authHandoff';
 
 // Maximum performance and stable rendering flags for Windows
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
-app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 
 // Set native theme source to dark by default
 nativeTheme.themeSource = 'dark';
@@ -141,13 +143,6 @@ function updateSettings(patch: unknown): BrowserSettings {
   return next;
 }
 
-const chromeVersion = process.versions.chrome || '130.0.0.0';
-const chromeMajor = chromeVersion.split('.')[0] || '130';
-
-// Standard pure Chrome User Agent with no "Electron" or app-name tokens
-export const CHROME_USER_AGENT =
-  `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
-
 // Re-exported so existing imports from index (e.g. tests requiring dist-main/index.js) keep working.
 export { isGoogleAuthUrl, isAuthOrSecurityUrl };
 
@@ -167,24 +162,19 @@ export function isMediaStreamingUrl(url: string): boolean {
   );
 }
 
-// 1. Set global fallback user agent to pure Chrome
-app.userAgentFallback = CHROME_USER_AGENT;
+// One honest browser identity for every session (see src/main/userAgent.ts). Set before any
+// window or session exists so nothing loads with Electron's default UA.
+app.userAgentFallback = getBrowserUserAgent();
+
+// Continues Google sign-in in the system browser when Google refuses it in-app.
+const authHandoff = new AuthHandoffController({ getMainWindow: () => mainWindow });
 
 function setupNetworkInterception() {
   const currentSession = session.defaultSession;
   const neutrinoSession = session.fromPartition('persist:neutrino');
 
-  // Enforce standard clean desktop Chrome user agent across all sessions
-  currentSession.setUserAgent(CHROME_USER_AGENT);
-  neutrinoSession.setUserAgent(CHROME_USER_AGENT);
-
-  // 5. Clear partition storage once after the change
-  neutrinoSession.clearStorageData().catch(() => { });
-
-  const applyInterception = (sess: any) => {
-    try {
-      sess.setUserAgent(CHROME_USER_AGENT);
-    } catch { }
+  const applyInterception = (sess: Electron.Session) => {
+    applyBrowserIdentity(sess);
 
     // Intercept web requests with Brave-grade ad & tracker blocker
     sess.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details: any, callback: any) => {
@@ -219,22 +209,8 @@ function setupNetworkInterception() {
         callback({ cancel: false });
       });
 
-    // 2. Override sec-ch-ua, sec-ch-ua-mobile and sec-ch-ua-platform in webRequest.onBeforeSendHeaders
-    sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
-      const headers = { ...details.requestHeaders };
-
-      const secChUa = `"Chromium";v="${chromeMajor}", "Google Chrome";v="${chromeMajor}", "Not?A_Brand";v="99"`;
-      headers['User-Agent'] = CHROME_USER_AGENT;
-      headers['user-agent'] = CHROME_USER_AGENT;
-      headers['Sec-CH-UA'] = secChUa;
-      headers['sec-ch-ua'] = secChUa;
-      headers['Sec-CH-UA-Mobile'] = '?0';
-      headers['sec-ch-ua-mobile'] = '?0';
-      headers['Sec-CH-UA-Platform'] = '"Windows"';
-      headers['sec-ch-ua-platform'] = '"Windows"';
-
-      callback({ requestHeaders: headers });
-    });
+    // Request headers are not rewritten: Chromium's own User-Agent and Sec-CH-UA* values already
+    // match navigator.userAgent and navigator.userAgentData.
 
     // Automatically allow webview permissions and credentials
     sess.setPermissionCheckHandler(() => true);
@@ -304,6 +280,8 @@ function createWindow() {
 
 // Register IPC handlers
 function setupIpcHandlers() {
+  authHandoff.registerIpc(ipcMain);
+
   ipcMain.handle('neutrino:navigate', async (_, url: string) => {
     const active = browserManager.getActiveTab();
     if (active) {
@@ -462,7 +440,6 @@ app.whenReady().then(() => {
 
   // Configure newly created browser windows (including OAuth popups)
   app.on('browser-window-created', (_, win) => {
-    win.webContents.setUserAgent(CHROME_USER_AGENT);
     if (win !== mainWindow) {
       win.show();
       win.focus();
@@ -471,50 +448,20 @@ app.whenReady().then(() => {
 
   // Universal handlers for all WebContents (browser UI & webview tabs)
   app.on('web-contents-created', (_, contents) => {
-    contents.setUserAgent(CHROME_USER_AGENT);
+    authHandoff.attach(contents);
 
-    // Intercept target="_blank" and window.open
-    // Allow authentic OAuth popup windows to maintain window.opener, open regular links as Neutrino tabs
+    // Intercept target="_blank" and window.open: sign-in and featured popups stay real child
+    // windows (window.opener intact), regular links open as Neutrino tabs. See windowOpen.ts.
     contents.setWindowOpenHandler((details) => {
-      const url = details.url || '';
-      const hasWindowFeatures =
-        details.features &&
-        (details.features.includes('width=') ||
-          details.features.includes('height=') ||
-          details.features.includes('popup='));
-
-      const isPopup =
-        details.disposition === 'new-window' ||
-        hasWindowFeatures ||
-        isAuthOrSecurityUrl(url) ||
-        url === 'about:blank' ||
-        !url;
-
-      if (isPopup) {
-        return {
-          action: 'allow',
-          overrideBrowserWindowOptions: {
-            width: 540,
-            height: 700,
-            title: 'Sign In',
-            autoHideMenuBar: true,
-            backgroundColor: '#121316',
-            frame: true, // Native window frame with standard close/minimize controls
-            parent: mainWindow || undefined,
-            modal: false,
-            webPreferences: {
-              partition: 'persist:neutrino',
-              contextIsolation: true,
-              nodeIntegration: false,
-              sandbox: false,
-            },
-          },
-        };
+      const decision = decideWindowOpen(details, {
+        isAuthOrSecurityUrl,
+        mainWindow,
+        activeTab: browserManager.getActiveTab(),
+      });
+      if (decision.action === 'allow') {
+        return { action: 'allow', overrideBrowserWindowOptions: decision.overrideBrowserWindowOptions };
       }
-
-      const active = browserManager.getActiveTab();
-      const spaceId = active ? active.spaceId : 'space-study';
-      browserManager.createTab(details.url, spaceId);
+      browserManager.createTab(decision.createTab.url, decision.createTab.spaceId);
       return { action: 'deny' };
     });
 

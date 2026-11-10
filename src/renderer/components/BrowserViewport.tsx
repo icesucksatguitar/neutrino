@@ -2,6 +2,12 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Space, TabState, ActiveMediaState } from '../types';
 import { Homescreen } from './Homescreen';
 import { Moon, Sparkles, Globe } from 'lucide-react';
+import {
+  WebviewNavState,
+  createWebviewNavState,
+  nextNavigation,
+  recordReportedNavigation,
+} from '../utils/webviewNavigation';
 
 interface BrowserViewportProps {
   activeTab?: TabState;
@@ -20,18 +26,8 @@ interface BrowserViewportProps {
   onTopHover?: (isHovering: boolean) => void;
 }
 
-export const DESKTOP_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
-
-export function isGoogleAuthUrl(url: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes('accounts.google.com') ||
-    url.includes('myaccount.google.com') ||
-    url.includes('accounts.youtube.com') ||
-    url.includes('oauth2.googleapis.com') ||
-    url.includes('apis.google.com/oauth')
-  );
+function hasWebview(url: string | undefined): url is string {
+  return !!url && url !== 'neutrino://newtab' && url !== 'about:blank';
 }
 
 export const BrowserViewport: React.FC<BrowserViewportProps> = ({
@@ -52,6 +48,9 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const attachedListenersRef = useRef<Set<string>>(new Set());
+  // Per-tab navigation bookkeeping (see utils/webviewNavigation.ts). `initialSrc` is the only value
+  // ever given to the webview's src attribute; later navigations use loadURL.
+  const navStatesRef = useRef<Record<string, WebviewNavState & { initialSrc: string }>>({});
   const [activeMediaTabId, setActiveMediaTabId] = useState<string | null>(null);
   const [zoomIndicator, setZoomIndicator] = useState<{ factor: number; visible: boolean }>({
     factor: 1.0,
@@ -238,31 +237,38 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     }
   }, [mediaCommand, activeMediaTabId, activeTab?.id]);
 
-  // Sync active webview URL navigation
+  // Navigate a tab's webview only when its URL was changed by the user or the app (omnibox, MCP,
+  // links opened as tabs), never in response to the webview's own navigations. Echoing those back
+  // reloads the page and replays one-time URLs such as OAuth callbacks.
   useEffect(() => {
-    if (!activeTab?.url) return;
-    if (activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank') return;
-    const wv = webviewRefs.current[activeTab.id];
-    if (wv && wv.loadURL) {
+    for (const tab of tabs) {
+      const state = navStatesRef.current[tab.id];
+      if (!state || !hasWebview(tab.url)) continue;
+      const target = nextNavigation(state, tab.url);
+      if (!target) continue;
+      const wv = webviewRefs.current[tab.id];
+      if (!wv) continue;
       try {
-        const current = wv.getURL?.();
-        if (current && current !== activeTab.url && !current.startsWith(activeTab.url)) {
-          wv.loadURL(activeTab.url);
-        }
-      } catch (err) {
-        // ignore
+        const pending = wv.loadURL(target);
+        if (pending && typeof pending.catch === 'function') pending.catch(() => { });
+      } catch {
+        // Guest not ready yet (before its first dom-ready): navigate through the attribute instead.
+        wv.setAttribute('src', target);
       }
     }
-  }, [activeTab?.id, activeTab?.url]);
+  }, [tabs]);
 
-  // Clean up references for closed tabs
+  // Clean up references for closed tabs and for tabs whose webview is no longer rendered
   useEffect(() => {
-    const currentTabIds = new Set(tabs.map((t) => t.id));
+    const liveWebviewTabIds = new Set(tabs.filter((t) => hasWebview(t.url)).map((t) => t.id));
     for (const id of Array.from(attachedListenersRef.current)) {
-      if (!currentTabIds.has(id)) {
+      if (!liveWebviewTabIds.has(id)) {
         attachedListenersRef.current.delete(id);
         delete webviewRefs.current[id];
       }
+    }
+    for (const id of Object.keys(navStatesRef.current)) {
+      if (!liveWebviewTabIds.has(id)) delete navStatesRef.current[id];
     }
   }, [tabs]);
 
@@ -384,49 +390,19 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     };
 
     const handleNav = (e: any) => {
-      if (e.url) {
-        onUpdateTab(tabId, {
-          url: e.url,
-          canGoBack: webview.canGoBack?.() ?? false,
-          canGoForward: webview.canGoForward?.() ?? false,
-        });
-
-        if (webview.setUserAgent) webview.setUserAgent(DESKTOP_USER_AGENT);
-      }
+      // did-navigate-in-page also fires for iframes; only the main frame is the tab's URL.
+      if (!e.url || e.isMainFrame === false) return;
+      const state = navStatesRef.current[tabId];
+      if (state) recordReportedNavigation(state, e.url);
+      onUpdateTab(tabId, {
+        url: e.url,
+        canGoBack: webview.canGoBack?.() ?? false,
+        canGoForward: webview.canGoForward?.() ?? false,
+      });
     };
 
     const handleMediaPlay = () => checkTabMedia(tabId);
     const handleMediaPause = () => checkTabMedia(tabId);
-
-    const handleNewWindow = (e: any) => {
-      if (!e.url) return;
-
-      const url = e.url.toLowerCase();
-      const isAuthOrPopup =
-        e.disposition === 'new-window' ||
-        (e.options && (e.options.width || e.options.height)) ||
-        isGoogleAuthUrl(e.url) ||
-        url.includes('appleid.apple.com') ||
-        url.includes('github.com/login') ||
-        url.includes('login.microsoftonline.com') ||
-        url.includes('login.live.com') ||
-        url.includes('/oauth') ||
-        url.includes('/auth') ||
-        url.includes('/signin') ||
-        url.includes('/signup') ||
-        url.includes('/login') ||
-        url.includes('auth0.com') ||
-        url.includes('clerk.') ||
-        url.includes('supabase.co');
-
-      // Allow authentic OAuth and modal popups so window.opener stays connected to parent site
-      if (isAuthOrPopup) {
-        return;
-      }
-
-      e.preventDefault();
-      window.neutrino?.createTab(e.url, activeSpaceId);
-    };
 
     const handleFailLoad = (e: any) => {
       if (e.errorCode !== -3) {
@@ -479,7 +455,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('did-navigate-in-page', handleNav);
     webview.addEventListener('media-started-playing', handleMediaPlay);
     webview.addEventListener('media-paused', handleMediaPause);
-    webview.addEventListener('new-window', handleNewWindow);
     webview.addEventListener('did-fail-load', handleFailLoad);
     webview.addEventListener('before-input-event', handleBeforeInput);
     webview.addEventListener('console-message', handleConsoleMessage);
@@ -579,9 +554,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
       {/* Keep webviews of all open web tabs alive in the background */}
       {tabs.map((tab) => {
-        if (!tab.url || tab.url === 'neutrino://newtab' || tab.url === 'about:blank') {
+        if (!hasWebview(tab.url)) {
           return null;
         }
+
+        if (!navStatesRef.current[tab.id]) {
+          navStatesRef.current[tab.id] = { ...createWebviewNavState(tab.url), initialSrc: tab.url };
+        }
+        const initialSrc = navStatesRef.current[tab.id].initialSrc;
 
         const isActive = tab.id === activeTab.id && !tab.isSleeping;
 
@@ -623,11 +603,10 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                   attachWebviewEvents(tab.id, el);
                 }
               },
-              src: tab.url,
+              src: initialSrc,
               className: 'chromium-webview',
               partition: 'persist:neutrino',
               allowpopups: 'true',
-              useragent: DESKTOP_USER_AGENT,
               webpreferences: 'contextIsolation=yes,nodeIntegration=no',
               style: {
                 display: 'inline-flex',

@@ -95,6 +95,17 @@ contextBridge.exposeInMainWorld('neutrino', {
     return () => ipcRenderer.removeListener('neutrino:toggle-tabs', handler);
   },
 
+  // Google sign-in handoff. The renderer only ever passes the handoff id; the URL to open stays in
+  // the main process (see src/main/authHandoff.ts).
+  onAuthHandoffRequired: (callback: (notice: any) => void) => {
+    const handler = (_: unknown, notice: any) => callback(notice);
+    ipcRenderer.on('neutrino:auth-handoff-required', handler);
+    return () => ipcRenderer.removeListener('neutrino:auth-handoff-required', handler);
+  },
+  openAuthHandoff: (handoffId: string) => ipcRenderer.invoke('neutrino:auth-handoff-open', handoffId),
+  copyAuthHandoffLink: (handoffId: string) => ipcRenderer.invoke('neutrino:auth-handoff-copy', handoffId),
+  dismissAuthHandoff: (handoffId: string) => ipcRenderer.invoke('neutrino:auth-handoff-dismiss', handoffId),
+
   onEscapePressed: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('neutrino:escape-pressed', handler);

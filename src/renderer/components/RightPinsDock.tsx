@@ -18,9 +18,10 @@ const DEFAULT_PINS: PinnedSite[] = [
 
 interface RightPinsDockProps {
   onNavigate: (url: string) => void;
+  isOnWebpage?: boolean;
 }
 
-export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate }) => {
+export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate, isOnWebpage = false }) => {
   const [pins, setPins] = useState<PinnedSite[]>(() => {
     try {
       const saved = localStorage.getItem('neutrino_pinned_sites');
@@ -140,14 +141,26 @@ export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate }) => {
 
   return (
     <>
+      {isOnWebpage && (
+        <div
+          className="right-pins-edge-hover-zone"
+          onMouseEnter={() => setIsHoveredDock(true)}
+        />
+      )}
       <aside
-        className="vertical-pins-dock-container"
+        className={`vertical-pins-dock-container ${isOnWebpage ? 'on-webpage' : ''} ${
+          isOnWebpage ? (isHoveredDock ? 'revealed' : 'autohidden') : ''
+        }`}
         ref={dockRef}
+        onMouseEnter={() => setIsHoveredDock(true)}
         onMouseMove={(e) => {
           setIsHoveredDock(true);
           handleMouseMove(e);
         }}
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={() => {
+          setIsHoveredDock(false);
+          handleMouseLeave();
+        }}
         aria-label="Pinned Websites Dock"
       >
         <div className="vertical-pins-dock-track">

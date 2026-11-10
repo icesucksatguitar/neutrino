@@ -14,6 +14,7 @@ interface NotificationTabsProps {
   onTogglePinTab: (tabId: string) => void;
   onSelectSpace?: (spaceId: string) => void;
   onUndoClose?: () => void;
+  isOnWebpage?: boolean;
 }
 
 export const NotificationTabs: React.FC<NotificationTabsProps> = ({
@@ -29,6 +30,7 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
   onTogglePinTab,
   onSelectSpace,
   onUndoClose,
+  isOnWebpage = false,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [swipingTabId, setSwipingTabId] = useState<string | null>(null);
@@ -320,22 +322,30 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
     <>
       {/* Collapsed State: Left Hairlines (Always rendered when deck is closed) */}
       {renderStatus === 'closed' && (
-        <div
-          className="notification-hairlines-container"
-          onMouseEnter={() => onToggle(true)}
-          title="Move cursor to edge or press Ctrl+E to open tabs"
-        >
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
-            return (
-              <div
-                key={tab.id}
-                className={`tab-hairline-marker ${isActive ? 'active' : ''} ${tab.isSleeping ? 'sleeping' : ''}`}
-                onClick={() => onSelectTab(tab.id)}
-              />
-            );
-          })}
-        </div>
+        <>
+          {isOnWebpage && (
+            <div
+              className="left-hairlines-edge-hover-zone"
+              onMouseEnter={() => onToggle(true)}
+            />
+          )}
+          <div
+            className={`notification-hairlines-container ${isOnWebpage ? 'on-webpage' : ''}`}
+            onMouseEnter={() => onToggle(true)}
+            title="Move cursor to edge or press Ctrl+E to open tabs"
+          >
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTabId;
+              return (
+                <div
+                  key={tab.id}
+                  className={`tab-hairline-marker ${isActive ? 'active' : ''} ${tab.isSleeping ? 'sleeping' : ''}`}
+                  onClick={() => onSelectTab(tab.id)}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Expanded State: Sliding Mini-Window Preview Cards Deck with Fade-In AND Fade-Out Animation */}

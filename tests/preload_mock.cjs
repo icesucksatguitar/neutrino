@@ -1,3 +1,10 @@
+try {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('neutrino_onboarding_completed', 'true');
+    localStorage.setItem('neutrino_user_profile', JSON.stringify({ name: 'Yash', email: 'yash@example.com' }));
+  }
+} catch (e) {}
+
 let stateListeners = [];
 let currentState = {
   tabs: [

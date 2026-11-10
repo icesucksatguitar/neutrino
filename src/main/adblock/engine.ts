@@ -194,11 +194,17 @@ export class BraveShieldEngine {
 
     const lowerUrl = urlStr.toLowerCase();
 
-    // Whitelist YouTube video streaming endpoints so playback never breaks
+    // Whitelist YouTube video streaming & playback endpoints so playback never breaks
     if (
       host.includes('googlevideo.com') ||
       lowerUrl.includes('videoplayback') ||
-      lowerUrl.includes('youtubei/v1/player')
+      lowerUrl.includes('youtubei/v1/player') ||
+      lowerUrl.includes('/api/stats/playback') ||
+      lowerUrl.includes('/api/stats/watchtime') ||
+      lowerUrl.includes('/api/stats/delayplay') ||
+      lowerUrl.includes('/api/stats/atr') ||
+      lowerUrl.includes('/api/stats/qoe') ||
+      lowerUrl.includes('/ptracking')
     ) {
       return { blocked: false, domain: host };
     }
@@ -318,7 +324,6 @@ export class BraveShieldEngine {
       ytd-banner-promo-renderer-background,
       ytd-statement-banner-renderer,
       .ytp-ad-overlay-container,
-      tp-yt-paper-dialog:has(#feedback),
       #player-ads {
         display: none !important;
         visibility: hidden !important;

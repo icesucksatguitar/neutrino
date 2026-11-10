@@ -648,6 +648,7 @@ export function App() {
         onCreateTab={createTab}
         onTogglePinTab={togglePinTab}
         onSelectSpace={handleSelectSpace}
+        isOnWebpage={isWebpage}
       />
 
       {/* Edge-to-Edge Web Canvas Viewport */}
@@ -679,7 +680,7 @@ export function App() {
       </main>
 
       {/* Vertical Pinned Websites Dock (Right Side with macOS Magnification) */}
-      <RightPinsDock onNavigate={navigate} />
+      <RightPinsDock onNavigate={navigate} isOnWebpage={isWebpage} />
 
       {/* Floating Media Player (PiP) */}
       {shouldShowMiniPlayer && (

@@ -10,12 +10,8 @@ import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
 import { BrowserSettings, normalizeSettings } from './settings';
 import { shouldInjectDarkReader, DARK_READER_ENABLE_SCRIPT, DARK_READER_DISABLE_SCRIPT } from './darkMode';
 
-// Maximum performance and hardware acceleration flags (stable for Windows D3D11/Vulkan video)
+// Maximum performance and stable rendering flags for Windows
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-accelerated-video-decode');
-app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
@@ -161,7 +157,13 @@ export function isMediaStreamingUrl(url: string): boolean {
   return (
     lower.includes('googlevideo.com') ||
     lower.includes('videoplayback') ||
-    lower.includes('youtubei/v1/player')
+    lower.includes('youtubei/v1/player') ||
+    lower.includes('youtube.com/api/stats/playback') ||
+    lower.includes('youtube.com/api/stats/watchtime') ||
+    lower.includes('youtube.com/api/stats/delayplay') ||
+    lower.includes('youtube.com/api/stats/atr') ||
+    lower.includes('youtube.com/api/stats/qoe') ||
+    lower.includes('youtube.com/ptracking')
   );
 }
 

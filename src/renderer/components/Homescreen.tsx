@@ -76,8 +76,9 @@ export const Homescreen: React.FC<HomescreenProps> = ({
     return () => clearInterval(interval);
   }, [getGreeting]);
 
-  // Keep search URL bar hidden at first; reveal on hover, click, or keyboard input
-  const [isSearchRevealed, setIsSearchRevealed] = useState(false);
+  // Search URL Bar is revealed by default as a clean minimal pill
+  const [isSearchRevealed, setIsSearchRevealed] = useState(true);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,11 +95,23 @@ export const Homescreen: React.FC<HomescreenProps> = ({
 
   return (
     <div
-      className="neutrino-minimal-newtab"
+      className={`neutrino-minimal-newtab ${isSearchFocused ? 'search-focused' : ''}`}
       onClick={() => {
         if (!isSearchRevealed) setIsSearchRevealed(true);
       }}
     >
+      {/* 1. Full-Viewport Ambient Background Glow Layer (Gemini-Inspired) */}
+      <div className={`ambient-glow-layer ${isSearchFocused ? 'glow-focused' : ''}`} aria-hidden="true">
+        <div className="ambient-glow-color-cycle">
+          <div className="ambient-glow-container">
+            <div className="ambient-glow-blob blob-1" />
+            <div className="ambient-glow-blob blob-2" />
+            <div className="ambient-glow-blob blob-3" />
+            <div className="ambient-glow-blob blob-4" />
+          </div>
+        </div>
+      </div>
+
       {/* Subtle organic texture grain */}
       <div className="newtab-grain-veil" />
 
@@ -118,16 +131,27 @@ export const Homescreen: React.FC<HomescreenProps> = ({
           </div>
         </div>
 
-        {/* Search URL Bar: Hidden at first, smoothly revealed on hover or click */}
+        {/* Search URL Bar Pill */}
         <div
           className={`newtab-search-reveal-wrapper ${isSearchRevealed ? 'revealed' : 'hidden'}`}
           onMouseEnter={() => setIsSearchRevealed(true)}
         >
           <div
             className="newtab-prompt-trigger monochromatic-pill"
+            tabIndex={0}
+            role="button"
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
             onClick={(e) => {
               e.stopPropagation();
               onOpenCommandBar?.();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenCommandBar?.();
+              }
             }}
             title="Search or enter URL (Ctrl+K or Ctrl+T)"
           >
@@ -135,7 +159,10 @@ export const Homescreen: React.FC<HomescreenProps> = ({
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <span className="prompt-text">Where to?</span>
+            <span className="prompt-text">Search or enter URL</span>
+            <div className="prompt-kbd-badge">
+              <kbd className="prompt-kbd">Ctrl K</kbd>
+            </div>
           </div>
         </div>
 

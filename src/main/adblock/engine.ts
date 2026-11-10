@@ -192,20 +192,27 @@ export class BraveShieldEngine {
       currentDomain = currentDomain.substring(dotIndex + 1);
     }
 
-    // Check URL path and query patterns for in-page ad networks, YouTube video ads, and telemetry
     const lowerUrl = urlStr.toLowerCase();
+
+    // Whitelist YouTube video streaming endpoints so playback never breaks
+    if (
+      host.includes('googlevideo.com') ||
+      lowerUrl.includes('videoplayback') ||
+      lowerUrl.includes('youtubei/v1/player')
+    ) {
+      return { blocked: false, domain: host };
+    }
+
+    // Check URL path and query patterns for in-page ad networks, external trackers, and telemetry
     if (
       lowerUrl.includes('/pagead/') ||
       lowerUrl.includes('/api/stats/ads') ||
-      lowerUrl.includes('/ptracking') ||
       lowerUrl.includes('googleads.g.doubleclick.net') ||
       lowerUrl.includes('securepubads.g.doubleclick.net') ||
       lowerUrl.includes('pagead2.googlesyndication.com') ||
       lowerUrl.includes('/ads/vpaid') ||
       lowerUrl.includes('/get_midroll_info') ||
       lowerUrl.includes('/ads?client=') ||
-      lowerUrl.includes('youtubei/v1/player/ad_break') ||
-      lowerUrl.includes('youtube.com/api/stats/qoe?adformat=') ||
       lowerUrl.includes('adnxs.com') ||
       lowerUrl.includes('rubiconproject.com') ||
       lowerUrl.includes('doubleclick.net') ||
@@ -291,7 +298,7 @@ export class BraveShieldEngine {
     }
   }
 
-  // Cosmetic Adblock CSS to hide intrusive ad frames and containers (YouTube, Google Ads, Banner networks)
+  // Cosmetic Adblock CSS to hide intrusive ad frames and banners (without breaking the native video player)
   public getCosmeticFilterCSS(): string {
     return `
       div[class*="ad-box"],
@@ -309,8 +316,7 @@ export class BraveShieldEngine {
       ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
       ytd-in-feed-ad-layout-renderer,
       ytd-banner-promo-renderer-background,
-      .video-ads,
-      .ytp-ad-module,
+      ytd-statement-banner-renderer,
       .ytp-ad-overlay-container,
       tp-yt-paper-dialog:has(#feedback),
       #player-ads {
@@ -323,7 +329,7 @@ export class BraveShieldEngine {
     `;
   }
 
-  // Safe client-side scriptlet to instantly skip YouTube video ads
+  // Safe client-side scriptlet to instantly click YouTube skip buttons and dismiss ad banners
   public getYouTubeAdSkipperScript(): string {
     return `
       (() => {
@@ -332,27 +338,27 @@ export class BraveShieldEngine {
 
         const skipAds = () => {
           try {
-            // 1. Fast-forward video ad if currently playing
-            const video = document.querySelector('video');
-            const adShowing = document.querySelector('.ad-showing, .ad-interrupting');
-            if (adShowing && video && !isNaN(video.duration) && isFinite(video.duration)) {
-              video.currentTime = video.duration;
-              video.playbackRate = 16.0;
-            }
-
-            // 2. Click any skip button that appears
+            // 1. Click skip ad button as soon as available
             const skipButtons = document.querySelectorAll(
               '.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button.ytp-ad-skip-button, .ytp-ad-overlay-close-button'
             );
-            skipButtons.forEach((btn) => (btn as HTMLElement).click());
+            skipButtons.forEach((btn) => {
+              if (btn && typeof btn.click === 'function') {
+                btn.click();
+              }
+            });
 
-            // 3. Dismiss ad overlay banners
+            // 2. Dismiss promotional overlays
             const overlays = document.querySelectorAll('.ytp-ad-overlay-container, ytd-ad-slot-renderer, #player-ads');
-            overlays.forEach((el) => { (el as HTMLElement).style.display = 'none'; });
+            overlays.forEach((el) => {
+              if (el && el.style) {
+                el.style.display = 'none';
+              }
+            });
           } catch (e) {}
         };
 
-        setInterval(skipAds, 250);
+        setInterval(skipAds, 400);
       })();
     `;
   }

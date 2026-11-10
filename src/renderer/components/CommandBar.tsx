@@ -24,6 +24,63 @@ interface CommandBarProps {
   onToggleSiteDarkMode?: () => void;
 }
 
+// Top global and productivity web domains for instant autocompletion
+const POPULAR_DOMAINS: string[] = [
+  'youtube.com',
+  'google.com',
+  'github.com',
+  'reddit.com',
+  'twitter.com',
+  'x.com',
+  'wikipedia.org',
+  'amazon.com',
+  'netflix.com',
+  'chatgpt.com',
+  'claude.ai',
+  'instagram.com',
+  'facebook.com',
+  'linkedin.com',
+  'spotify.com',
+  'twitch.tv',
+  'discord.com',
+  'stackoverflow.com',
+  'pinterest.com',
+  'yahoo.com',
+  'microsoft.com',
+  'apple.com',
+  'duckduckgo.com',
+  'notion.so',
+  'figma.com',
+  'pw.live',
+  'gmail.com',
+  'maps.google.com',
+  'gemini.google.com',
+  'openai.com',
+  'medium.com',
+  'substack.com',
+  'quora.com',
+  'ebay.com',
+  'imdb.com',
+  'whatsapp.com',
+  'telegram.org',
+  'coursera.org',
+  'udemy.com',
+];
+
+// Common short prefixes & abbreviations
+const SHORTCUT_MAP: Record<string, string> = {
+  yt: 'youtube.com',
+  gh: 'github.com',
+  rd: 'reddit.com',
+  tw: 'twitter.com',
+  fb: 'facebook.com',
+  ig: 'instagram.com',
+  sp: 'spotify.com',
+  nf: 'netflix.com',
+  gpt: 'chatgpt.com',
+  gm: 'gmail.com',
+};
+
 export const CommandBar: React.FC<CommandBarProps> = ({
   isOpen,
   tabs,
@@ -48,6 +105,49 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Normalize query for fuzzy and trailing character tolerance (e.g. "you-" -> "you")
+  const cleanQ = query.trim().toLowerCase().replace(/[-_/\\]+$/, '');
+
+  // Find best domain autocomplete suggestion
+  const matchedDomain = (() => {
+    if (!cleanQ || cleanQ.startsWith('>') || cleanQ.includes(' ')) return null;
+
+    // Direct shortcut check
+    if (SHORTCUT_MAP[cleanQ]) return SHORTCUT_MAP[cleanQ];
+
+    // Check open tabs domains first
+    for (const t of tabs) {
+      if (t.url) {
+        try {
+          const h = new URL(t.url).hostname.replace(/^www\./, '').toLowerCase();
+          if (h.startsWith(cleanQ) || h.split('.')[0].startsWith(cleanQ)) {
+            return h;
+          }
+        } catch { }
+      }
+    }
+
+    // Match popular domains
+    for (const d of POPULAR_DOMAINS) {
+      const nameWithoutTld = d.split('.')[0];
+      if (d.startsWith(cleanQ) || nameWithoutTld.startsWith(cleanQ)) {
+        return d;
+      }
+    }
+
+    return null;
+  })();
+
+  // Compute ghost autocomplete suffix (e.g., query="you" matchedDomain="youtube.com" -> suffix="tube.com")
+  const ghostSuffix = (() => {
+    if (!matchedDomain || !cleanQ) return '';
+    const norm = cleanQ.replace(/^https?:\/\//, '').replace(/^www\./, '');
+    if (matchedDomain.startsWith(norm)) {
+      return matchedDomain.slice(norm.length);
+    }
+    return '';
+  })();
 
   useEffect(() => {
     if (isOpen) {
@@ -165,6 +265,21 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     action: () => void;
   }> = [];
 
+  // Priority 1: Instant Site Domain Autocomplete (e.g. typing "you-" or "you" -> youtube.com)
+  if (matchedDomain) {
+    items.push({
+      type: 'url',
+      id: `autocomplete-${matchedDomain}`,
+      title: matchedDomain,
+      subline: `https://${matchedDomain}`,
+      hint: 'Tab to fill · ↵ to visit',
+      action: () => {
+        onNavigate(`https://${matchedDomain}`);
+        onClose();
+      },
+    });
+  }
+
   // If user typed something that looks like search/url
   if (query.trim()) {
     const trimmed = query.trim();
@@ -179,6 +294,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       subline: willSearch ? `Search with ${engineLabel}` : 'Go to URL',
       hint: '↵ to go',
       action: () => {
+<<<<<<< HEAD
         let target = trimmed;
         if (looksLikeHost) {
           target = 'https://' + target;
@@ -189,6 +305,20 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         onClose();
       },
     });
+=======
+        let target = query.trim();
+          if (matchedDomain && (target.toLowerCase() === cleanQ || target.endsWith('-'))) {
+            target = 'https://' + matchedDomain;
+          } else if (!target.includes('://') && target.includes('.') && !target.includes(' ')) {
+            target = 'https://' + target;
+          } else if (!target.includes('://')) {
+            target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
+          }
+          onNavigate(target);
+          onClose();
+        },
+      });
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
   }
 
   // Add tabs
@@ -224,6 +354,13 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
+    } else if (e.key === 'Tab' || (e.key === 'ArrowRight' && inputRef.current?.selectionStart === query.length)) {
+      if (matchedDomain) {
+        e.preventDefault();
+        setQuery(matchedDomain);
+        setSelectedIndex(0);
+        return;
+      }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex((prev) => (items.length ? (prev + 1) % items.length : 0));
@@ -234,6 +371,9 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       e.preventDefault();
       if (items[selectedIndex]) {
         items[selectedIndex].action();
+      } else if (matchedDomain) {
+        onNavigate(`https://${matchedDomain}`);
+        onClose();
       }
     }
   };
@@ -246,20 +386,28 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input
-            ref={inputRef}
-            type="text"
-            className="command-bar-raw-input"
-            placeholder="Search, jump to tab, or type > for commands..."
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
-            onKeyDown={handleKeyDown}
-          />
+          <div className="cmd-input-ghost-container">
+            <input
+              ref={inputRef}
+              type="text"
+              className="command-bar-raw-input"
+              placeholder="Search, enter URL, or type > for commands..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
+              onKeyDown={handleKeyDown}
+            />
+            {ghostSuffix && (
+              <span className="cmd-ghost-autocomplete">
+                <span className="cmd-ghost-typed">{query}</span>
+                <span className="cmd-ghost-fill">{ghostSuffix}</span>
+              </span>
+            )}
+          </div>
           <div className="command-bar-inline-hints">
-            <span><kbd>Tab</kbd> search tabs</span>
+            {matchedDomain && <span><kbd>Tab</kbd> autofill</span>}
             <span><kbd>↵</kbd> go</span>
           </div>
         </div>

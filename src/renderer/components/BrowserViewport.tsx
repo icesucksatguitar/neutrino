@@ -17,6 +17,7 @@ interface BrowserViewportProps {
   onMediaStateChange?: (state: ActiveMediaState | null) => void;
   mediaCommand?: { action: string; tabId?: string; value?: number; timestamp: number } | null;
   userName?: string;
+  onTopHover?: (isHovering: boolean) => void;
 }
 
 export const DESKTOP_USER_AGENT =
@@ -47,6 +48,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   onMediaStateChange,
   mediaCommand,
   userName,
+  onTopHover,
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const attachedListenersRef = useRef<Set<string>>(new Set());
@@ -129,7 +131,84 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     return () => window.removeEventListener('wheel', handleWheel);
   }, [changeZoom]);
 
+<<<<<<< HEAD
   // The main process owns page dark mode; it re-applies it to every webview on this call
+=======
+  // Universal Force Dark Mode Controller (DarkReader engine)
+  const syncDarkThemeForTab = useCallback(
+    async (tabId: string) => {
+      const wv = webviewRefs.current[tabId];
+      if (!wv) return;
+      try {
+        const u = wv.getURL?.() || '';
+        if (!u || u.startsWith('neutrino://') || u.startsWith('about:')) return;
+
+        if (isDarkMode) {
+          // Check if DarkReader is already active to avoid re-evaluating 362KB of JS
+          const checkRes = await wv.executeJavaScript?.(`
+            (() => {
+              if (window.__neutrino_darkreader_active) return 'ACTIVE';
+              return typeof window.DarkReader !== 'undefined' ? 'LOADED' : 'NONE';
+            })()
+          `).catch(() => 'NONE');
+
+          if (checkRes === 'ACTIVE') return;
+
+          // Tell page that dark mode is preferred
+          await wv.executeJavaScript?.(`
+            (() => {
+              try {
+                document.documentElement.style.colorScheme = 'dark';
+                if (document.body) document.body.style.colorScheme = 'dark';
+              } catch(e) {}
+            })();
+          `).catch(() => { });
+
+          // Inject DarkReader library only if not already loaded into DOM
+          if (checkRes === 'NONE') {
+            await wv.executeJavaScript?.(darkReaderCode).catch(() => { });
+          }
+
+          // Enable DarkReader with ideal contrast and brightness
+          await wv.executeJavaScript?.(`
+            (() => {
+              try {
+                if (window.DarkReader) {
+                  DarkReader.setFetchMethod(window.fetch);
+                  DarkReader.enable({
+                    brightness: 100,
+                    contrast: 95,
+                    sepia: 0
+                  });
+                  window.__neutrino_darkreader_active = true;
+                }
+              } catch(e) {}
+            })();
+          `).catch(() => { });
+        } else {
+          // Light mode: disable DarkReader and restore native theme
+          await wv.executeJavaScript?.(`
+            (() => {
+              try {
+                document.documentElement.style.colorScheme = 'light';
+                if (document.body) document.body.style.colorScheme = 'light';
+                if (window.DarkReader) {
+                  DarkReader.disable();
+                  window.__neutrino_darkreader_active = false;
+                }
+              } catch(e) {}
+            })();
+          `).catch(() => { });
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [isDarkMode]
+  );
+
+  // Sync dark theme for active tab immediately when theme or tab changes
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
   useEffect(() => {
     window.neutrino?.setThemeMode?.(isDarkMode ? 'dark' : 'light');
   }, [isDarkMode, activeTab?.id]);
@@ -220,19 +299,19 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
 
     const { action, value } = mediaCommand;
     if (action === 'play') {
-      webview.executeJavaScript(`document.querySelector('video, audio')?.play()`).catch(() => {});
+      webview.executeJavaScript(`document.querySelector('video, audio')?.play()`).catch(() => { });
     } else if (action === 'pause') {
-      webview.executeJavaScript(`document.querySelector('video, audio')?.pause()`).catch(() => {});
+      webview.executeJavaScript(`document.querySelector('video, audio')?.pause()`).catch(() => { });
     } else if (action === 'seek' && typeof value === 'number') {
       webview.executeJavaScript(`
         const m = document.querySelector('video, audio');
         if (m) m.currentTime = ${value};
-      `).catch(() => {});
+      `).catch(() => { });
     } else if (action === 'volume' && typeof value === 'number') {
       webview.executeJavaScript(`
         const m = document.querySelector('video, audio');
         if (m) m.volume = ${Math.max(0, Math.min(1, value))};
-      `).catch(() => {});
+      `).catch(() => { });
     }
   }, [mediaCommand, activeMediaTabId, activeTab?.id]);
 
@@ -300,9 +379,32 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         if (webview.setZoomFactor) webview.setZoomFactor(factor);
         injectPdfViewerDarkTheme();
         injectAdblocking();
+        injectTopHoverDetector();
       } catch {
         // ignore
       }
+    };
+
+    const injectTopHoverDetector = () => {
+      try {
+        webview.executeJavaScript(`
+          (() => {
+            if (window.__neutrino_top_detector_installed) return;
+            window.__neutrino_top_detector_installed = true;
+            let wasNearTop = false;
+            window.addEventListener('mousemove', (e) => {
+              const isNearTop = e.clientY <= 36;
+              if (isNearTop && !wasNearTop) {
+                wasNearTop = true;
+                console.log('__neutrino_top_hover:enter');
+              } else if (!isNearTop && wasNearTop && e.clientY > 80) {
+                wasNearTop = false;
+                console.log('__neutrino_top_hover:leave');
+              }
+            }, { passive: true });
+          })();
+        `).catch(() => {});
+      } catch {}
     };
 
     const injectAdblocking = () => {
@@ -315,12 +417,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               window.__neutrino_ad_skipper_injected = true;
               const skip = () => {
                 try {
-                  const v = document.querySelector('video');
-                  const ad = document.querySelector('.ad-showing, .ad-interrupting');
-                  if (ad && v && !isNaN(v.duration) && isFinite(v.duration)) {
-                    v.currentTime = v.duration;
-                    v.playbackRate = 16.0;
-                  }
                   const btns = document.querySelectorAll('.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button.ytp-ad-skip-button, .ytp-ad-overlay-close-button');
                   btns.forEach((b) => b.click());
                   const overlays = document.querySelectorAll('.ytp-ad-overlay-container, ytd-ad-slot-renderer, #player-ads');
@@ -332,9 +428,9 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
               setInterval(skip, 2000);
             })();
-          `).catch(() => {});
+          `).catch(() => { });
         }
-      } catch {}
+      } catch { }
     };
 
     const handleStartLoading = () => onUpdateTab(tabId, { isLoading: true });
@@ -436,6 +532,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
       }
     };
 
+    const handleConsoleMessage = (e: any) => {
+      if (e.message === '__neutrino_top_hover:enter') {
+        onTopHover?.(true);
+      } else if (e.message === '__neutrino_top_hover:leave') {
+        onTopHover?.(false);
+      }
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
@@ -448,6 +552,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     webview.addEventListener('new-window', handleNewWindow);
     webview.addEventListener('did-fail-load', handleFailLoad);
     webview.addEventListener('before-input-event', handleBeforeInput);
+    webview.addEventListener('console-message', handleConsoleMessage);
   };
 
   if (!activeTab) {
@@ -557,28 +662,28 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             style={
               isActive
                 ? {
-                    display: 'flex',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    width: '100%',
-                    height: '100%',
-                    minWidth: '100%',
-                    minHeight: '100%',
-                    zIndex: 1,
-                  }
+                  display: 'flex',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  zIndex: 1,
+                }
                 : {
-                    display: 'none',
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: '1px',
-                    height: '1px',
-                    opacity: 0,
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                  }
+                  display: 'none',
+                  position: 'absolute',
+                  left: '-9999px',
+                  width: '1px',
+                  height: '1px',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }
             }
           >
             {React.createElement('webview', {
@@ -593,7 +698,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
               partition: 'persist:neutrino',
               allowpopups: 'true',
               useragent: DESKTOP_USER_AGENT,
-              webpreferences: 'contextIsolation=yes',
+              webpreferences: 'contextIsolation=yes,nodeIntegration=no',
               style: {
                 display: 'inline-flex',
                 position: 'absolute',

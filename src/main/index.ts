@@ -10,12 +10,10 @@ import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
 import { BrowserSettings, normalizeSettings } from './settings';
 import { shouldInjectDarkReader, DARK_READER_ENABLE_SCRIPT, DARK_READER_DISABLE_SCRIPT } from './darkMode';
 
-// Maximum performance and hardware acceleration flags
+// Maximum performance and hardware acceleration flags (stable for Windows D3D11/Vulkan video)
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
 app.commandLine.appendSwitch('enable-accelerated-video-decode');
 app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
 app.commandLine.appendSwitch('num-raster-threads', '4');
@@ -56,6 +54,7 @@ const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpSer
 
 mcpServer.start();
 
+<<<<<<< HEAD
 // Browser settings: load, fill defaults, and apply the parts owned by the main process.
 let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
 adblockEngine.setEnabled(settings.adblockEnabled);
@@ -147,13 +146,75 @@ function updateSettings(patch: unknown): BrowserSettings {
   return next;
 }
 
-export const CHROME_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+=======
+const chromeVersion = process.versions.chrome || '130.0.0.0';
+const chromeMajor = chromeVersion.split('.')[0] || '130';
 
+// Standard pure Chrome User Agent with no "Electron" or app-name tokens
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
+export const CHROME_USER_AGENT =
+`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+
+<<<<<<< HEAD
 // Re-exported so existing imports from index (e.g. tests requiring dist-main/index.js) keep working.
 export { isGoogleAuthUrl, isAuthOrSecurityUrl };
+=======
+export function isGoogleAuthUrl(url: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('accounts.google.com') ||
+    url.includes('myaccount.google.com') ||
+    url.includes('accounts.youtube.com') ||
+    url.includes('oauth2.googleapis.com') ||
+    url.includes('apis.google.com/oauth')
+  );
+}
 
-// Global user-agent fallback
+export function isMediaStreamingUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('googlevideo.com') ||
+    lower.includes('videoplayback') ||
+    lower.includes('youtubei/v1/player')
+  );
+}
+
+export function isAuthOrSecurityUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return (
+    isGoogleAuthUrl(url) ||
+    lower.includes('recaptcha') ||
+    lower.includes('gstatic.com') ||
+    lower.includes('turnstile') ||
+    lower.includes('challenges.cloudflare.com') ||
+    lower.includes('hcaptcha') ||
+    lower.includes('appleid.apple.com') ||
+    lower.includes('github.com/login') ||
+    lower.includes('api.github.com') ||
+    lower.includes('login.microsoftonline.com') ||
+    lower.includes('login.live.com') ||
+    lower.includes('msftauth.net') ||
+    lower.includes('identitytoolkit.googleapis.com') ||
+    lower.includes('securetoken.googleapis.com') ||
+    lower.includes('auth0.com') ||
+    lower.includes('clerk.') ||
+    lower.includes('supabase.co') ||
+    lower.includes('penpencil.co') ||
+    lower.includes('pw.live') ||
+    lower.includes('/oauth') ||
+    lower.includes('/auth') ||
+    lower.includes('/signin') ||
+    lower.includes('/signup') ||
+    lower.includes('/login') ||
+    lower.includes('/otp') ||
+    lower.includes('/token')
+  );
+}
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
+
+// 1. Set global fallback user agent to pure Chrome
 app.userAgentFallback = CHROME_USER_AGENT;
 
 function setupNetworkInterception() {
@@ -164,10 +225,13 @@ function setupNetworkInterception() {
   currentSession.setUserAgent(CHROME_USER_AGENT);
   neutrinoSession.setUserAgent(CHROME_USER_AGENT);
 
+  // 5. Clear partition storage once after the change
+  neutrinoSession.clearStorageData().catch(() => { });
+
   const applyInterception = (sess: any) => {
     try {
       sess.setUserAgent(CHROME_USER_AGENT);
-    } catch {}
+    } catch { }
 
     // Intercept web requests with Brave-grade ad & tracker blocker
     sess.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details: any, callback: any) => {
@@ -179,36 +243,38 @@ function setupNetworkInterception() {
         return;
       }
 
-      // Never block authentication, identity providers, CAPTCHA, or verification endpoints
-      if (isAuthOrSecurityUrl(url)) {
-        callback({ cancel: false });
-        return;
-      }
-
-      const decision = adblockEngine.checkUrl(url);
-      if (decision.blocked) {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('neutrino:tracker-blocked', {
-            url,
-            domain: decision.domain,
-            category: decision.category,
-            rule: decision.rule,
-          });
+        // Never block YouTube video streams, playback feeds, authentication, CAPTCHA, or verification endpoints
+        if (isAuthOrSecurityUrl(url) || isMediaStreamingUrl(url)) {
+          callback({ cancel: false });
+          return;
         }
-        callback({ cancel: true });
-        return;
-      }
 
-      callback({ cancel: false });
-    });
+        const decision = adblockEngine.checkUrl(url);
+        if (decision.blocked) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:tracker-blocked', {
+              url,
+              domain: decision.domain,
+              category: decision.category,
+              rule: decision.rule,
+            });
+          }
+          callback({ cancel: true });
+          return;
+        }
 
-    // Provide authentic Chromium Client Hints & User-Agent across all requests
+        callback({ cancel: false });
+      });
+
+    // 2. Override sec-ch-ua, sec-ch-ua-mobile and sec-ch-ua-platform in webRequest.onBeforeSendHeaders
     sess.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
       const headers = { ...details.requestHeaders };
 
+      const secChUa = `"Chromium";v="${chromeMajor}", "Google Chrome";v="${chromeMajor}", "Not?A_Brand";v="99"`;
       headers['User-Agent'] = CHROME_USER_AGENT;
-      headers['Sec-CH-UA'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
-      headers['sec-ch-ua'] = '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"';
+      headers['user-agent'] = CHROME_USER_AGENT;
+      headers['Sec-CH-UA'] = secChUa;
+      headers['sec-ch-ua'] = secChUa;
       headers['Sec-CH-UA-Mobile'] = '?0';
       headers['sec-ch-ua-mobile'] = '?0';
       headers['Sec-CH-UA-Platform'] = '"Windows"';
@@ -235,6 +301,12 @@ function setupNetworkInterception() {
 }
 
 function createWindow() {
+  const iconPath = fs.existsSync(path.join(__dirname, '..', 'assets', 'icon.ico'))
+    ? path.join(__dirname, '..', 'assets', 'icon.ico')
+    : fs.existsSync(path.join(app.getAppPath(), 'assets', 'icon.ico'))
+      ? path.join(app.getAppPath(), 'assets', 'icon.ico')
+      : undefined;
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -242,6 +314,7 @@ function createWindow() {
     minHeight: 640,
     title: 'Neutrino Browser',
     backgroundColor: '#000000',
+    icon: iconPath,
     frame: false, // Frameless window with custom macOS traffic light controls
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
@@ -406,7 +479,36 @@ function setupIpcHandlers() {
     isDarkMode = mode === 'dark';
     nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
 
+<<<<<<< HEAD
     await applyDarkModeToAllWebviews();
+=======
+    const allWcs = webContents.getAllWebContents();
+    for (const wc of allWcs) {
+      if (wc.getType() === 'webview') {
+        try {
+          if (isDarkMode) {
+            await wc.executeJavaScript(`
+              try {
+                if (window.DarkReader) {
+                  DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
+                  window.__neutrino_darkreader_active = true;
+                }
+              } catch(e) {}
+            `);
+          } else {
+            await wc.executeJavaScript(`
+              try {
+                if (window.DarkReader) {
+                  DarkReader.disable();
+                  window.__neutrino_darkreader_active = false;
+                }
+              } catch(e) {}
+            `);
+          }
+        } catch { }
+      }
+    }
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
     return { success: true };
   });
 
@@ -424,7 +526,7 @@ function setupIpcHandlers() {
           }
         }
       }
-    } catch {}
+    } catch { }
     return null;
   });
 }
@@ -503,7 +605,7 @@ app.whenReady().then(() => {
               if (!window.google_tag_manager) window.google_tag_manager = {};
               if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
             } catch(e) {}
-          `).catch(() => {});
+          `).catch(() => { });
           if (adblockEngine.isEnabled()) {
             await contents.insertCSS(adblockEngine.getCosmeticFilterCSS());
             const url = contents.getURL();
@@ -512,8 +614,33 @@ app.whenReady().then(() => {
             }
           }
 
+<<<<<<< HEAD
           await applyDarkMode(contents);
         } catch {}
+=======
+          if (isDarkMode && darkReaderCode) {
+            const url = contents.getURL();
+            if (url && !url.startsWith('neutrino://') && !url.startsWith('about:') && !isAuthOrSecurityUrl(url)) {
+              const alreadyActive = await contents.executeJavaScript(`Boolean(window.__neutrino_darkreader_active)`).catch(() => false);
+              if (!alreadyActive) {
+                const hasLib = await contents.executeJavaScript(`typeof window.DarkReader !== 'undefined'`).catch(() => false);
+                if (!hasLib) {
+                  await contents.executeJavaScript(darkReaderCode).catch(() => { });
+                }
+                await contents.executeJavaScript(`
+                  try {
+                    if (window.DarkReader) {
+                      DarkReader.setFetchMethod(window.fetch);
+                      DarkReader.enable({ brightness: 100, contrast: 95, sepia: 0 });
+                      window.__neutrino_darkreader_active = true;
+                    }
+                  } catch(e) {}
+                `).catch(() => { });
+              }
+            }
+          }
+        } catch { }
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
       });
     }
 
@@ -529,6 +656,7 @@ app.whenReady().then(() => {
         if (input.control || input.meta) {
           const key = input.key.toLowerCase();
 
+<<<<<<< HEAD
         // Ctrl+Comma -> Open Settings (also covers focus inside a webview)
         if (key === ',') {
           event.preventDefault();
@@ -544,99 +672,107 @@ app.whenReady().then(() => {
           const active = browserManager.getActiveTab();
           if (active) {
             browserManager.closeTab(active.id);
+=======
+          // Ctrl+W -> Close active tab
+          if (key === 'w') {
+            event.preventDefault();
+            const active = browserManager.getActiveTab();
+            if (active) {
+              browserManager.closeTab(active.id);
+            }
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:close-active-tab');
+            }
+            return;
+>>>>>>> 2f38679bbeb5a2c4a02d317260450f3d27f772f1
           }
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:close-active-tab');
-          }
-          return;
-        }
 
-        // Ctrl+T -> New Tab & Open Command Bar
-        if (key === 't') {
-          event.preventDefault();
-          const space = browserManager.getActiveSpaceId();
-          browserManager.createTab('neutrino://newtab', space);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:open-command-bar');
+          // Ctrl+T -> New Tab & Open Command Bar
+          if (key === 't') {
+            event.preventDefault();
+            const space = browserManager.getActiveSpaceId();
+            browserManager.createTab('neutrino://newtab', space);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:open-command-bar');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+K or Ctrl+L -> Open Command Bar
-        if (key === 'k' || key === 'l') {
-          event.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:open-command-bar');
+          // Ctrl+K or Ctrl+L -> Open Command Bar
+          if (key === 'k' || key === 'l') {
+            event.preventDefault();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:open-command-bar');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+E -> Toggle Notification Tabs
-        if (key === 'e') {
-          event.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('neutrino:toggle-tabs');
+          // Ctrl+E -> Toggle Notification Tabs
+          if (key === 'e') {
+            event.preventDefault();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('neutrino:toggle-tabs');
+            }
+            return;
           }
-          return;
-        }
 
-        // Ctrl+R -> Reload
-        if (key === 'r') {
-          event.preventDefault();
-          if (contents.getType() === 'webview') {
-            contents.reload();
-          } else {
-            const allWcs = webContents.getAllWebContents();
-            for (const wc of allWcs) {
-              if (wc.getType() === 'webview') {
-                wc.reload();
+          // Ctrl+R -> Reload
+          if (key === 'r') {
+            event.preventDefault();
+            if (contents.getType() === 'webview') {
+              contents.reload();
+            } else {
+              const allWcs = webContents.getAllWebContents();
+              for (const wc of allWcs) {
+                if (wc.getType() === 'webview') {
+                  wc.reload();
+                }
               }
             }
+            return;
           }
-          return;
-        }
 
-        // Zoom Controls: Only for guest webviews, NEVER for host UI
-        if (contents.getType() === 'webview') {
-          if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
-            event.preventDefault();
-            const current = contents.getZoomFactor();
-            const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
-            contents.setZoomFactor(next);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: next });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-            }
-          } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
-            event.preventDefault();
-            const current = contents.getZoomFactor();
-            const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
-            contents.setZoomFactor(next);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: next });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-            }
-          } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
-            event.preventDefault();
-            contents.setZoomFactor(1.0);
-            const active = browserManager.getActiveTab();
-            if (active) {
-              browserManager.updateTab(active.id, { zoomFactor: 1.0 });
-            }
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+          // Zoom Controls: Only for guest webviews, NEVER for host UI
+          if (contents.getType() === 'webview') {
+            if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
+              event.preventDefault();
+              const current = contents.getZoomFactor();
+              const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
+              contents.setZoomFactor(next);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: next });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+              }
+            } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
+              event.preventDefault();
+              const current = contents.getZoomFactor();
+              const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
+              contents.setZoomFactor(next);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: next });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+              }
+            } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
+              event.preventDefault();
+              contents.setZoomFactor(1.0);
+              const active = browserManager.getActiveTab();
+              if (active) {
+                browserManager.updateTab(active.id, { zoomFactor: 1.0 });
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+              }
             }
           }
         }
       }
-    }
-  });
+    });
   });
 
   app.on('activate', () => {

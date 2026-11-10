@@ -126,7 +126,76 @@
   font-display: swap;
 }
 
+/* ==========================================================================
+   CSS @PROPERTY COLOR REGISTRATIONS (Smooth Mathematical Interpolation)
+   ========================================================================== */
+@property --glow-c1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f59e0b;
+}
+
+@property --glow-c2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f97316;
+}
+
+@property --glow-c3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ec4899;
+}
+
+@property --glow-c4 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fbbf24;
+}
+
 :root {
+  /* ==========================================================================
+     AMBIENT GLOW CONFIGURATION (Inspired by Gemini Homepage)
+     Tweak these variables to customize color, speed, blur, size, and intensity
+     ========================================================================== */
+  /* Intensity & Visibility */
+  --glow-opacity: 0.42;
+  /* Base glow intensity (0.2 to 0.7) */
+  --glow-blur: 110px;
+  /* Softness / spread of the blur (90px - 130px) */
+  --glow-size: 1040px;
+  /* Horizontal width of the glow area (900px - 1100px) */
+  --glow-height: 580px;
+  /* Vertical height of the glow area */
+
+  /* Animation Speeds (Higher = Slower, gentler motion) */
+  --glow-speed: 24s;
+  /* Color cycle duration across the rainbow spectrum */
+  --glow-drift-speed-1: 22s;
+  /* Drift duration for blob 1 */
+  --glow-drift-speed-2: 28s;
+  /* Drift duration for blob 2 */
+  --glow-drift-speed-3: 17s;
+  /* Drift duration for blob 3 */
+  --glow-drift-speed-4: 25s;
+  /* Drift duration for blob 4 */
+
+  /* Color Palette Stops (Gold -> Orange -> Magenta -> Violet -> Blue -> Teal -> Gold) */
+  --glow-gold: #F59E0B;
+  /* Warm golden-yellow anchor (Gemini inspired) */
+  --glow-amber: #FBBF24;
+  /* Radiant amber highlight */
+  --glow-orange: #F97316;
+  /* Vivid sunrise orange */
+  --glow-magenta: #EC4899;
+  /* Deep glowing magenta */
+  --glow-violet: #8B5CF6;
+  /* Soft neon violet */
+  --glow-blue: #3B82F6;
+  /* Electric sky blue */
+  --glow-teal: #14B8A6;
+  /* Oceanic teal */
+
   /* ==========================================================================
      NEUTRINO PURE OLED PITCH BLACK PALETTE (DEFAULT DARK)
      ========================================================================== */
@@ -3447,24 +3516,51 @@ input:focus-visible {
   color: #FFFFFF;
 }
 
+.notification-card-stack,
+.notification-card-stack.mini-window-deck,
 .notification-card-stack.mini-windows-stack {
   display: flex;
   flex-direction: column;
   gap: 14px;
   position: relative;
   overflow-y: auto;
+  overflow-y: auto !important;
   overflow-x: hidden;
   max-height: calc(100vh - 150px);
   padding: 4px 6px 14px 4px;
+  max-height: calc(100vh - 130px);
+  padding: 4px 8px 32px 4px;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
+.notification-card-stack::-webkit-scrollbar,
+.notification-card-stack.mini-window-deck::-webkit-scrollbar,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar {
   width: 5px;
+  width: 6px;
 }
 
+.notification-card-stack::-webkit-scrollbar-track,
+.notification-card-stack.mini-window-deck::-webkit-scrollbar-track,
+.notification-card-stack.mini-windows-stack::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notification-card-stack::-webkit-scrollbar-thumb,
+.notification-card-stack.mini-window-deck::-webkit-scrollbar-thumb,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+}
+
+.notification-card-stack::-webkit-scrollbar-thumb:hover,
+.notification-card-stack.mini-window-deck::-webkit-scrollbar-thumb:hover,
+.notification-card-stack.mini-windows-stack::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.40);
 }
 
 /* ==========================================================================
@@ -4054,8 +4150,16 @@ input:focus-visible {
   flex-shrink: 0;
 }
 
+.cmd-input-ghost-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .command-bar-raw-input {
   flex: 1;
+  width: 100%;
   background: transparent;
   border: none;
   outline: none;
@@ -4064,6 +4168,31 @@ input:focus-visible {
   font-weight: 400;
   color: #F2F2F3;
   caret-color: #FFFFFF;
+  position: relative;
+  z-index: 2;
+}
+
+.cmd-ghost-autocomplete {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  pointer-events: none;
+  z-index: 1;
+  white-space: pre;
+}
+
+.cmd-ghost-typed {
+  opacity: 0;
+  color: transparent;
+}
+
+.cmd-ghost-fill {
+  color: #71717A;
+  opacity: 0.85;
 }
 
 .command-bar-inline-hints {
@@ -4784,10 +4913,11 @@ input:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  height: 6px;
-  z-index: 130;
-  pointer-events: auto;
+  height: 16px;
+  z-index: 9999;
+  pointer-events: auto !important;
   background: transparent;
+  -webkit-app-region: no-drag !important;
 }
 
 /* Floating Top Chrome Capsule (Auto-hides on web pages so it never interferes with website controls) */
@@ -4797,21 +4927,32 @@ input:focus-visible {
   left: 0;
   right: 0;
   height: 60px;
-  z-index: 140;
+  z-index: 10000;
   pointer-events: none;
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
 }
 
 .floating-top-chrome-capsule.autohidden {
-  transform: translateY(-56px);
+  transform: translateY(-64px);
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .floating-top-chrome-capsule.visible {
   transform: translateY(0);
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: auto !important;
+}
+
+/* Protective background wash when visible over web pages */
+.floating-top-chrome-capsule.visible.on-webpage {
+  background: linear-gradient(180deg, rgba(10, 10, 11, 0.90) 0%, rgba(10, 10, 11, 0.65) 68%, transparent 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .floating-top-chrome-capsule.visible.on-webpage {
+  background: linear-gradient(180deg, rgba(250, 247, 242, 0.92) 0%, rgba(250, 247, 242, 0.70) 68%, transparent 100%);
 }
 
 .minimal-top-right-cluster {
@@ -4821,8 +4962,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  pointer-events: auto;
-  z-index: 100;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+  z-index: 10002 !important;
 }
 
 .minimal-pill-btn {
@@ -5140,14 +5282,201 @@ input:focus-visible {
   margin-top: 10px;
 }
 
+/* ==========================================================================
+   FULL-VIEWPORT AMBIENT GLOW SYSTEM (GEMINI HOMEPAGE INSPIRED)
+   Fixed background layer centered behind the search bar pill
+   ========================================================================== */
+.ambient-glow-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.ambient-glow-color-cycle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  animation: ambientHueRotate var(--glow-speed, 24s) linear infinite;
+}
+
+.ambient-glow-container {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  width: var(--glow-size, 1040px);
+  height: var(--glow-height, 580px);
+  opacity: var(--glow-opacity, 0.42);
+  filter: blur(var(--glow-blur, 110px));
+  pointer-events: none;
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+/* On Search Bar Focus: Smoothly raise glow opacity & scale by ~15% */
+.neutrino-minimal-newtab:focus-within .ambient-glow-container,
+.neutrino-minimal-newtab:has(.newtab-search-reveal-wrapper:focus-within) .ambient-glow-container,
+.neutrino-minimal-newtab:has(.newtab-prompt-trigger:focus) .ambient-glow-container,
+.neutrino-minimal-newtab.search-focused .ambient-glow-container,
+.ambient-glow-layer.glow-focused .ambient-glow-container {
+  opacity: calc(var(--glow-opacity, 0.42) * 1.15);
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+/* 4 Individual drifting blobs with non-looping varied durations & alternate directions */
+.ambient-glow-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+/* Blob 1: Warm Golden-Yellow Anchor (Gemini Inspired) */
+.ambient-glow-blob.blob-1 {
+  width: 530px;
+  height: 390px;
+  top: 10%;
+  left: 14%;
+  background: radial-gradient(circle at 45% 45%, var(--glow-gold, #F59E0B) 0%, rgba(245, 158, 11, 0.55) 35%, rgba(245, 158, 11, 0.15) 60%, transparent 75%);
+  animation: blobDrift1 var(--glow-drift-speed-1, 22s) ease-in-out infinite alternate;
+}
+
+/* Blob 2: Warm Sunrise Orange */
+.ambient-glow-blob.blob-2 {
+  width: 490px;
+  height: 370px;
+  top: 20%;
+  right: 12%;
+  background: radial-gradient(circle at 55% 50%, var(--glow-orange, #F97316) 0%, rgba(249, 115, 22, 0.50) 35%, rgba(249, 115, 22, 0.12) 60%, transparent 75%);
+  animation: blobDrift2 var(--glow-drift-speed-2, 28s) ease-in-out infinite alternate;
+}
+
+/* Blob 3: Glowing Rose & Magenta (Washes right under search pill) */
+.ambient-glow-blob.blob-3 {
+  width: 570px;
+  height: 350px;
+  bottom: 8%;
+  left: 22%;
+  background: radial-gradient(circle at 50% 50%, var(--glow-magenta, #EC4899) 0%, rgba(236, 72, 153, 0.45) 30%, rgba(139, 92, 246, 0.15) 55%, transparent 72%);
+  animation: blobDrift3 var(--glow-drift-speed-3, 17s) ease-in-out infinite alternate;
+}
+
+/* Blob 4: Radiant Amber Heart (Deep central ambient core) */
+.ambient-glow-blob.blob-4 {
+  width: 650px;
+  height: 430px;
+  top: 14%;
+  left: 18%;
+  background: radial-gradient(ellipse at 50% 50%, var(--glow-amber, #FBBF24) 0%, rgba(251, 191, 36, 0.40) 30%, rgba(245, 158, 11, 0.20) 50%, transparent 75%);
+  animation: blobDrift4 var(--glow-drift-speed-4, 25s) ease-in-out infinite alternate;
+}
+
+/* Continuous Asymmetric Drift Keyframes */
+@keyframes blobDrift1 {
+  0% {
+    transform: translate(-30px, -20px) scale(0.95) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(35px, 25px) scale(1.08) rotate(12deg);
+  }
+
+  100% {
+    transform: translate(-10px, 35px) scale(1.02) rotate(-8deg);
+  }
+}
+
+@keyframes blobDrift2 {
+  0% {
+    transform: translate(35px, 20px) scale(1.05) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-25px, -30px) scale(0.92) rotate(-14deg);
+  }
+
+  100% {
+    transform: translate(20px, -15px) scale(1.06) rotate(10deg);
+  }
+}
+
+@keyframes blobDrift3 {
+  0% {
+    transform: translate(-20px, 30px) scale(1.0) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(30px, -25px) scale(1.12) rotate(15deg);
+  }
+
+  100% {
+    transform: translate(-35px, -10px) scale(0.94) rotate(-10deg);
+  }
+}
+
+@keyframes blobDrift4 {
+  0% {
+    transform: translate(15px, -35px) scale(0.96) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-30px, 20px) scale(1.04) rotate(-12deg);
+  }
+
+  100% {
+    transform: translate(25px, 15px) scale(1.10) rotate(8deg);
+  }
+}
+
+/* Continuous Color Spectrum Shift (Gold -> Orange -> Magenta -> Violet -> Blue -> Teal -> Gold) */
+@keyframes ambientHueRotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Accessibility: Respect Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-glow-blob {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .ambient-glow-color-cycle {
+    animation: none !important;
+  }
+
+  .ambient-glow-container {
+    transition: none !important;
+    will-change: auto !important;
+  }
+}
+
+/* Glassy Monochromatic Search Bar Pill (Gemini Ambient Alignment) */
 .newtab-prompt-trigger.monochromatic-pill {
-  width: 440px;
+  width: min(460px, 86vw);
   height: 48px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 22, 0.60) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5155,15 +5484,19 @@ input:focus-visible {
   padding: 0 20px;
   cursor: pointer;
   color: #A1A1AA;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  z-index: 10;
 }
 
-.newtab-prompt-trigger.monochromatic-pill:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.28);
+.newtab-prompt-trigger.monochromatic-pill:hover,
+.newtab-prompt-trigger.monochromatic-pill:focus,
+.newtab-prompt-trigger.monochromatic-pill:focus-within {
+  background: rgba(24, 24, 28, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.20) !important;
   color: #FFFFFF;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.70), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
 }
 
@@ -6136,7 +6469,7 @@ input:focus-visible {
   left: 0;
   right: 0;
   height: 38px;
-  z-index: 138;
+  z-index: 9998;
   -webkit-app-region: drag;
   pointer-events: auto;
 }
@@ -6148,9 +6481,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 100;
-  -webkit-app-region: no-drag;
-  pointer-events: auto;
+  z-index: 10002 !important;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
 }
 
 .macos-traffic-lights {
@@ -6408,6 +6741,7 @@ input:focus-visible {
 .minimal-top-right-cluster,
 .minimal-pill-btn,
 .minimal-icon-btn,
+.top-floating-url-pill,
 .floating-url-pill,
 .floating-url-input-wrap,
 .right-pins-dock,

@@ -7,7 +7,15 @@ import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
-import { BrowserSettings, normalizeSettings, resolveSpaceTheme } from './settings';
+import {
+  BrowserSettings,
+  PerformanceStatus,
+  isSoftwareGpuStatus,
+  normalizeReducedEffectsMode,
+  normalizeSettings,
+  resolveReducedEffectsActive,
+  resolveSpaceTheme,
+} from './settings';
 import { resolveShortcut } from './shortcuts';
 import { HistoryManager, HistoryClearRange, HistoryQueryOptions } from './history';
 import { VpnController } from './vpn';
@@ -24,7 +32,9 @@ import { AuthHandoffController } from './authHandoff';
 // Fallback for a machine whose driver still misrenders: start with NEUTRINO_DISABLE_GPU=1 or
 // --neutrino-disable-gpu to use software rendering.
 const gpuDisabled =
-  process.env.NEUTRINO_DISABLE_GPU === '1' || process.argv.includes('--neutrino-disable-gpu');
+  process.env.NEUTRINO_DISABLE_GPU === '1' ||
+  process.argv.includes('--neutrino-disable-gpu') ||
+  process.argv.includes('--disable-gpu');
 if (gpuDisabled) {
   app.disableHardwareAcceleration();
 }
@@ -125,6 +135,26 @@ function syncShieldsAcrossWebviews(): void {
   }
 }
 
+function getPerformanceStatus(): PerformanceStatus {
+  let rawStatus: Record<string, string> = {};
+  try {
+    const info = app.getGPUFeatureStatus();
+    if (info && typeof info === 'object') {
+      rawStatus = info as unknown as Record<string, string>;
+    }
+  } catch { }
+  const softwareRasterized = isSoftwareGpuStatus(rawStatus);
+  const reducedEffectsMode = normalizeReducedEffectsMode(settings.reducedEffectsMode);
+  return {
+    hardwareAcceleration: !gpuDisabled && !softwareRasterized,
+    gpuDisabledFlag: gpuDisabled,
+    softwareRasterized,
+    reducedEffectsMode,
+    reducedEffectsActive: resolveReducedEffectsActive(reducedEffectsMode, gpuDisabled, rawStatus),
+    gpuFeatureStatus: rawStatus,
+  };
+}
+
 function sameStringArray(a: string[] = [], b: string[] = []): boolean {
   return a.length === b.length && a.every((v, idx) => v === b[idx]);
 }
@@ -146,6 +176,9 @@ function applySettings(prev: BrowserSettings, next: BrowserSettings) {
   }
   if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
     resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
+  }
+  if (prev.reducedEffectsMode !== next.reducedEffectsMode && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
   }
 }
 
@@ -597,6 +630,10 @@ function updateSettings(patch: unknown): BrowserSettings {
               return settings;
             });
 
+            ipcMain.handle('neutrino:get-performance-status', async () => {
+              return getPerformanceStatus();
+            });
+
             ipcMain.handle('neutrino:update-settings', async (_, patch: unknown) => {
               return updateSettings(patch);
             });
@@ -759,6 +796,11 @@ function updateSettings(patch: unknown): BrowserSettings {
 app.whenReady().then(() => {
   // One line per launch so artifact reports from different PCs can be compared.
   console.log('[GPU] hardware acceleration:', gpuDisabled ? 'off (fallback)' : 'on', JSON.stringify(app.getGPUFeatureStatus()));
+  app.on('gpu-info-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
+    }
+  });
   if (process.platform === 'darwin') {
     Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }]));
   } else {
@@ -811,6 +853,7 @@ app.whenReady().then(() => {
     // Enforce VPN WebRTC policy, cosmetic adblock, YouTube skipper, and site context menus.
     vpnController.applyWebRtcPolicy(contents);
     if (contents.getType() === 'webview') {
+      contents.setBackgroundThrottling(true);
       trackedWebviews.add(contents);
       contents.once('destroyed', () => {
         trackedWebviews.delete(contents);

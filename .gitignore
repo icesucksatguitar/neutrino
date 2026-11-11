@@ -36,3 +36,4 @@ Thumbs.db
 *.log
 scratch/
 tests/*.png
+src/main/settings.ts

@@ -21,10 +21,22 @@ export const SEARCH_ENGINES: Readonly<Record<SearchEngineId, { readonly label: s
     brave: Object.freeze({ label: 'Brave Search', prefix: 'https://search.brave.com/search?q=' }),
   });
 
+export type ReducedEffectsMode = 'auto' | 'on' | 'off';
+
+export interface PerformanceStatus {
+  hardwareAcceleration: boolean;
+  gpuDisabledFlag: boolean;
+  softwareRasterized: boolean;
+  reducedEffectsMode: ReducedEffectsMode;
+  reducedEffectsActive: boolean;
+  gpuFeatureStatus: Record<string, string>;
+}
+
 export interface BrowserSettings {
   adblockEnabled: boolean;
   zenSleepEnabled: boolean;
   searchEngine: SearchEngineId;
+  reducedEffectsMode?: ReducedEffectsMode;
   spaceThemes?: SpaceThemesMap;
   shieldWhitelist?: string[];
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
@@ -34,6 +46,7 @@ export const DEFAULT_SETTINGS: Readonly<BrowserSettings> = Object.freeze({
   adblockEnabled: true,
   zenSleepEnabled: true,
   searchEngine: 'google' as SearchEngineId,
+  reducedEffectsMode: 'auto' as ReducedEffectsMode,
 });
 
 function hasOwn(obj: object, key: string): boolean {
@@ -121,6 +134,41 @@ function normalizeShieldWhitelist(raw: unknown): string[] {
   return Array.from(seen).sort();
 }
 
+export function normalizeReducedEffectsMode(value: unknown): ReducedEffectsMode {
+  return value === 'on' || value === 'off' || value === 'auto' ? value : 'auto';
+}
+
+function isStatusSoftwareOrDisabled(val: unknown): boolean {
+  if (typeof val !== 'string') return false;
+  const lower = val.toLowerCase();
+  return (
+    lower.includes('software') ||
+    lower.includes('disabled') ||
+    lower === 'unavailable_off' ||
+    lower === 'off'
+  );
+}
+
+export function isSoftwareGpuStatus(gpuStatus: Record<string, unknown> | null | undefined): boolean {
+  if (!gpuStatus || typeof gpuStatus !== 'object') return false;
+  if (isStatusSoftwareOrDisabled(gpuStatus.gpu_compositing)) return true;
+  if (isStatusSoftwareOrDisabled(gpuStatus.rasterization) && isStatusSoftwareOrDisabled(gpuStatus.webgl)) {
+    return true;
+  }
+  return false;
+}
+
+export function resolveReducedEffectsActive(
+  mode: unknown,
+  gpuDisabledFlag: boolean,
+  gpuStatus?: Record<string, unknown> | null
+): boolean {
+  const normalized = normalizeReducedEffectsMode(mode);
+  if (normalized === 'on') return true;
+  if (normalized === 'off') return false;
+  return Boolean(gpuDisabledFlag) || isSoftwareGpuStatus(gpuStatus);
+}
+
 /** Fills missing or invalid fields with defaults, keeps unknown keys. Idempotent. */
 export function normalizeSettings(raw: unknown): BrowserSettings {
   const source: Record<string, unknown> =
@@ -131,6 +179,7 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
     zenSleepEnabled:
       typeof source.zenSleepEnabled === 'boolean' ? source.zenSleepEnabled : DEFAULT_SETTINGS.zenSleepEnabled,
     searchEngine: normalizeSearchEngine(source.searchEngine),
+    reducedEffectsMode: normalizeReducedEffectsMode(source.reducedEffectsMode),
     spaceThemes: buildSpaceThemes(source.spaceThemes, source),
     shieldWhitelist: normalizeShieldWhitelist(source.shieldWhitelist),
   };

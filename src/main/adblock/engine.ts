@@ -346,57 +346,57 @@ export class BraveShieldEngine {
     }
 
     // High-speed O(1) domain & subdomain suffix lookup
-    const matchedDomain = this.lookupDomainInSet(host, KNOWN_TRACKERS);
-    if (matchedDomain) {
-      const cat = this.categorizeDomain(matchedDomain);
-      this.recordBlock(cat);
-      return {
-        blocked: true,
-        domain: host,
-        category: cat,
-        rule: `Blocklist: ${matchedDomain}`,
-      };
-    }
+      const matchedDomain = this.lookupDomainInSet(host, KNOWN_TRACKERS);
+      if (matchedDomain) {
+        const cat = this.categorizeDomain(matchedDomain);
+        this.recordBlock(cat);
+        return {
+          blocked: true,
+          domain: host,
+          category: cat,
+          rule: `Blocklist: ${matchedDomain}`,
+        };
+      }
 
-    // Allow playback-critical YouTube requests, but NOT YouTube ad requests (/ad_break, ?adformat=)
-    if (isYouTubePlaybackCritical(urlStr)) {
-      return { blocked: false, domain: host };
-    }
+        // Allow playback-critical YouTube requests, but NOT YouTube ad requests (/ad_break, ?adformat=)
+        if (isYouTubePlaybackCritical(urlStr)) {
+          return { blocked: false, domain: host };
+        }
 
-    const lowerUrl = urlStr.toLowerCase();
+        const lowerUrl = urlStr.toLowerCase();
 
-    // Check URL path and query patterns for in-page ad networks, YouTube video ads, and telemetry
-    if (
-      lowerUrl.includes('/pagead/') ||
-      lowerUrl.includes('/api/stats/ads') ||
-      lowerUrl.includes('googleads.g.doubleclick.net') ||
-      lowerUrl.includes('securepubads.g.doubleclick.net') ||
-      lowerUrl.includes('pagead2.googlesyndication.com') ||
-      lowerUrl.includes('/ads/vpaid') ||
-      lowerUrl.includes('/get_midroll_info') ||
-      lowerUrl.includes('/ads?client=') ||
-      lowerUrl.includes('youtubei/v1/player/ad_break') ||
-      lowerUrl.includes('youtube.com/api/stats/qoe?adformat=') ||
-      lowerUrl.includes('adnxs.com') ||
-      lowerUrl.includes('rubiconproject.com') ||
-      lowerUrl.includes('doubleclick.net') ||
-      lowerUrl.includes('adservice.google') ||
-      lowerUrl.includes('taboola.com') ||
-      lowerUrl.includes('outbrain.com') ||
-      lowerUrl.includes('criteo.com') ||
-      lowerUrl.includes('scorecardresearch.com')
-    ) {
-      this.recordBlock('Advertising');
-      return {
-        blocked: true,
-        domain: host,
-        category: 'Advertising',
-        rule: 'Pattern: ad-endpoint',
-      };
-    }
+        // Check URL path and query patterns for in-page ad networks, YouTube video ads, and telemetry
+        if (
+          lowerUrl.includes('/pagead/') ||
+          lowerUrl.includes('/api/stats/ads') ||
+          lowerUrl.includes('googleads.g.doubleclick.net') ||
+          lowerUrl.includes('securepubads.g.doubleclick.net') ||
+          lowerUrl.includes('pagead2.googlesyndication.com') ||
+          lowerUrl.includes('/ads/vpaid') ||
+          lowerUrl.includes('/get_midroll_info') ||
+          lowerUrl.includes('/ads?client=') ||
+          lowerUrl.includes('youtubei/v1/player/ad_break') ||
+          lowerUrl.includes('youtube.com/api/stats/qoe?adformat=') ||
+          lowerUrl.includes('adnxs.com') ||
+          lowerUrl.includes('rubiconproject.com') ||
+          lowerUrl.includes('doubleclick.net') ||
+          lowerUrl.includes('adservice.google') ||
+          lowerUrl.includes('taboola.com') ||
+          lowerUrl.includes('outbrain.com') ||
+          lowerUrl.includes('criteo.com') ||
+          lowerUrl.includes('scorecardresearch.com')
+        ) {
+          this.recordBlock('Advertising');
+          return {
+            blocked: true,
+            domain: host,
+            category: 'Advertising',
+            rule: 'Pattern: ad-endpoint',
+          };
+        }
 
-    return { blocked: false, domain: host };
-  }
+        return { blocked: false, domain: host };
+      }
 
   /**
    * Context-aware network request check used by Electron `onBeforeRequest` and popup blocking.

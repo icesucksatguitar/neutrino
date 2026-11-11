@@ -73,14 +73,21 @@ contextBridge.exposeInMainWorld('neutrino', {
   // Theme Controls
   setThemeMode: (mode: 'dark' | 'light' | 'system') => ipcRenderer.invoke('neutrino:set-theme-mode', mode),
 
-  // Browser Settings
+  // Browser Settings & Performance
   getSettings: () => ipcRenderer.invoke('neutrino:get-settings'),
+  getPerformanceStatus: () => ipcRenderer.invoke('neutrino:get-performance-status'),
   updateSettings: (patch: Record<string, unknown>) => ipcRenderer.invoke('neutrino:update-settings', patch),
 
   onSettingsUpdated: (callback: (settings: any) => void) => {
     const handler = (_: unknown, settings: any) => callback(settings);
     ipcRenderer.on('neutrino:settings-updated', handler);
     return () => ipcRenderer.removeListener('neutrino:settings-updated', handler);
+  },
+
+  onPerformanceStatusUpdated: (callback: (status: any) => void) => {
+    const handler = (_: unknown, status: any) => callback(status);
+    ipcRenderer.on('neutrino:performance-updated', handler);
+    return () => ipcRenderer.removeListener('neutrino:performance-updated', handler);
   },
 
   onOpenSettings: (callback: () => void) => {

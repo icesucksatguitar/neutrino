@@ -287,6 +287,16 @@ export class BrowserManager {
     return this.activeMediaTabs;
   }
 
+  private getSleepExemptTabIds(): Set<string> {
+    const exempt = new Set<string>(this.activeMediaTabs);
+    for (const [id, tab] of this.tabs.entries()) {
+      if (tab.isPinned || !tab.url || tab.url === 'neutrino://newtab' || tab.url === 'about:blank') {
+        exempt.add(id);
+      }
+    }
+    return exempt;
+  }
+
   public getTabs(): TabState[] {
     return Array.from(this.tabs.values());
   }
@@ -410,6 +420,13 @@ export class BrowserManager {
 
   public setActiveTab(tabId: string) {
     if (this.tabs.has(tabId)) {
+      const prevActiveId = this.activeTabId;
+      if (prevActiveId && prevActiveId !== tabId) {
+        const prevTab = this.tabs.get(prevActiveId);
+        if (prevTab && !prevTab.isSleeping) {
+          this.resourceManager.recordActivity?.(prevActiveId);
+        }
+      }
       this.activeTabId = tabId;
       const tab = this.tabs.get(tabId)!;
       tab.isSleeping = false;
@@ -420,6 +437,7 @@ export class BrowserManager {
         this.storage.patchSettings?.({ activeSpaceId: tab.spaceId });
       }
       this.resourceManager.wakeTab(tabId);
+      this.resourceManager.trimExcessBackgroundTabs?.(tabId, this.getSleepExemptTabIds(), 4);
       this.persistSessionTabsNow();
       this.notifyState();
     }

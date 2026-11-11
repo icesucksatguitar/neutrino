@@ -534,37 +534,37 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
     attachedWebviewNodesRef.current.add(webview);
     attachedListenersRef.current.add(tabId);
 
-      const readNavCapabilities = (): Partial<TabState> => {
-        try {
-          return {
-            canGoBack: Boolean(webview.canGoBack?.()),
-            canGoForward: Boolean(webview.canGoForward?.()),
-          };
-        } catch {
-          // WebView throws if queried before guest dom-ready attaches
-          return {};
-        }
-      };
+    const readNavCapabilities = (): Partial<TabState> => {
+      try {
+        return {
+          canGoBack: Boolean(webview.canGoBack?.()),
+          canGoForward: Boolean(webview.canGoForward?.()),
+        };
+      } catch {
+        // WebView throws if queried before guest dom-ready attaches
+        return {};
+      }
+    };
 
-      // Restore zoom and attach guest UX detectors on dom-ready
-      const handleDomReady = () => {
-        try {
-          const factor = tabZoomMap.current[tabId] ?? activeTabRef.current?.zoomFactor ?? 1.0;
-          if (webview.setZoomFactor) webview.setZoomFactor(factor);
-          injectTopHoverDetector();
-          injectTrackpadSwipeDetector();
-          const caps = readNavCapabilities();
-          if (Object.keys(caps).length > 0) {
-            onUpdateTab(tabId, caps);
-          }
-        } catch {
-          // ignore
+    // Restore zoom and attach guest UX detectors on dom-ready
+    const handleDomReady = () => {
+      try {
+        const factor = tabZoomMap.current[tabId] ?? activeTabRef.current?.zoomFactor ?? 1.0;
+        if (webview.setZoomFactor) webview.setZoomFactor(factor);
+        injectTopHoverDetector();
+        injectTrackpadSwipeDetector();
+        const caps = readNavCapabilities();
+        if (Object.keys(caps).length > 0) {
+          onUpdateTab(tabId, caps);
         }
-      };
+      } catch {
+        // ignore
+      }
+    };
 
-      const injectTrackpadSwipeDetector = () => {
-        try {
-          webview.executeJavaScript(`
+    const injectTrackpadSwipeDetector = () => {
+      try {
+        webview.executeJavaScript(`
           (() => {
             if (window.__neutrino_gesture_detector_installed) return;
             window.__neutrino_gesture_detector_installed = true;
@@ -653,12 +653,12 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             window.addEventListener('mouseup', onMouseNav);
           })();
         `).catch(() => { });
-        } catch { }
-      };
+      } catch { }
+    };
 
-      const injectTopHoverDetector = () => {
-        try {
-          webview.executeJavaScript(`
+    const injectTopHoverDetector = () => {
+      try {
+        webview.executeJavaScript(`
           (() => {
             if (window.__neutrino_top_detector_installed) return;
             window.__neutrino_top_detector_installed = true;
@@ -675,322 +675,322 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             }, { passive: true });
           })();
         `).catch(() => { });
-        } catch { }
-      };
+      } catch { }
+    };
 
-      const handleStartLoading = () => onUpdateTab(tabId, { isLoading: true });
-      const handleStopLoading = () => {
-        onUpdateTab(tabId, {
-          isLoading: false,
-          ...readNavCapabilities(),
-        });
-      };
+    const handleStartLoading = () => onUpdateTab(tabId, { isLoading: true });
+    const handleStopLoading = () => {
+      onUpdateTab(tabId, {
+        isLoading: false,
+        ...readNavCapabilities(),
+      });
+    };
 
-      const handleFinishLoad = () => {
-        const caps = readNavCapabilities();
-        if (Object.keys(caps).length > 0) {
-          onUpdateTab(tabId, caps);
+    const handleFinishLoad = () => {
+      const caps = readNavCapabilities();
+      if (Object.keys(caps).length > 0) {
+        onUpdateTab(tabId, caps);
+      }
+    };
+
+    const handleTitle = (e: any) => {
+      if (e.title) onUpdateTab(tabId, { title: e.title });
+    };
+
+    const handleFavicon = (e: any) => {
+      if (e.favicons && e.favicons.length > 0) {
+        onUpdateTab(tabId, { favicon: e.favicons[0] });
+      }
+    };
+
+    const handleNav = (e: any) => {
+      // did-navigate-in-page also fires for iframes; only the main frame is the tab's URL.
+      if (!e.url || e.isMainFrame === false) return;
+      const state = navStatesRef.current[tabId];
+      if (state) recordReportedNavigation(state, e.url);
+      onUpdateTab(tabId, {
+        url: e.url,
+        ...readNavCapabilities(),
+      });
+    };
+
+    const handleMediaPlay = () => checkTabMedia(tabId);
+    const handleMediaPause = () => checkTabMedia(tabId);
+
+    const handleFailLoad = (e: any) => {
+      if (e.errorCode !== -3) {
+        console.warn('Webview failed to load:', e.validatedURL, e.errorDescription);
+      }
+    };
+
+    const handleFoundInPage = (e: any) => {
+      if (tabId !== activeTabRef.current?.id) return;
+      const res = e?.result;
+      if (!res) return;
+      setFindState({
+        activeMatch: res.activeMatchOrdinal ?? 0,
+        totalMatches: res.matches ?? 0,
+      });
+    };
+
+    const handleConsoleMessage = (e: any) => {
+      const msg: string = e?.message || '';
+      if (msg === '__neutrino_top_hover:enter') {
+        onTopHover?.(true);
+      } else if (msg === '__neutrino_top_hover:leave') {
+        onTopHover?.(false);
+      } else if (tabId === activeTabRef.current?.id && msg.startsWith('__neutrino_swipe:')) {
+        const parts = msg.split(':');
+        const kind = parts[1];
+        if (kind === 'cancel') {
+          hideSwipeIndicator();
+        } else if (kind === 'trigger') {
+          const dir = parts[2] === 'forward' ? 'forward' : 'back';
+          hideSwipeIndicator();
+          executeSiteAction(dir, 'guest-wheel');
+        } else if (kind === 'progress') {
+          const dir = parts[2] === 'forward' ? 'forward' : 'back';
+          const ratio = Math.max(0, Math.min(1, Number(parts[3]) || 0));
+          const enabled = dir === 'back' ? Boolean(webview.canGoBack?.()) : Boolean(webview.canGoForward?.());
+          showSwipeProgress(dir, ratio, enabled);
+        }
+      } else if (tabId === activeTabRef.current?.id && msg === '__neutrino_xbutton:back') {
+        executeSiteAction('back', 'guest-xbutton');
+      } else if (tabId === activeTabRef.current?.id && msg === '__neutrino_xbutton:forward') {
+        executeSiteAction('forward', 'guest-xbutton');
+      }
+    };
+
+    webview.addEventListener('dom-ready', handleDomReady);
+    webview.addEventListener('did-start-loading', handleStartLoading);
+    webview.addEventListener('did-finish-load', handleFinishLoad);
+    webview.addEventListener('did-stop-loading', handleStopLoading);
+    webview.addEventListener('page-title-updated', handleTitle);
+    webview.addEventListener('page-favicon-updated', handleFavicon);
+    webview.addEventListener('did-navigate', handleNav);
+    webview.addEventListener('did-navigate-in-page', handleNav);
+    webview.addEventListener('media-started-playing', handleMediaPlay);
+    webview.addEventListener('media-paused', handleMediaPause);
+    webview.addEventListener('did-fail-load', handleFailLoad);
+    webview.addEventListener('found-in-page', handleFoundInPage);
+    webview.addEventListener('console-message', handleConsoleMessage);
+    webview.addEventListener('enter-html-full-screen', () => {
+      onFullscreenChange?.(true);
+    });
+    webview.addEventListener('leave-html-full-screen', () => {
+      onFullscreenChange?.(false);
+    });
+  };
+
+  const getWebviewRef = (tabId: string) => {
+    if (!webviewRefCallbacksRef.current[tabId]) {
+      webviewRefCallbacksRef.current[tabId] = (el: any) => {
+        if (el) {
+          webviewRefs.current[tabId] = el;
+          attachWebviewEvents(tabId, el);
+        } else {
+          delete webviewRefs.current[tabId];
+          attachedListenersRef.current.delete(tabId);
         }
       };
+    }
+    return webviewRefCallbacksRef.current[tabId];
+  };
 
-      const handleTitle = (e: any) => {
-        if (e.title) onUpdateTab(tabId, { title: e.title });
-      };
+  if (!activeTab) {
+    return (
+      <div className="webview-host empty-state">
+        <p className="empty-message">No active tab</p>
+      </div>
+    );
+  }
 
-      const handleFavicon = (e: any) => {
-        if (e.favicons && e.favicons.length > 0) {
-          onUpdateTab(tabId, { favicon: e.favicons[0] });
-        }
-      };
+  const isCurrentTabNewTab =
+    !activeTab.url || activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank';
 
-      const handleNav = (e: any) => {
-        // did-navigate-in-page also fires for iframes; only the main frame is the tab's URL.
-        if (!e.url || e.isMainFrame === false) return;
-        const state = navStatesRef.current[tabId];
-        if (state) recordReportedNavigation(state, e.url);
-        onUpdateTab(tabId, {
-          url: e.url,
-          ...readNavCapabilities(),
-        });
-      };
+  return (
+    <div className="webview-host" ref={hostRef}>
+      <FindBar
+        isOpen={isFindOpen && !isCurrentTabNewTab && !activeTab.isSleeping}
+        query={findQuery}
+        activeMatch={findState.activeMatch}
+        totalMatches={findState.totalMatches}
+        onQueryChange={handleFindQueryChange}
+        onNext={handleFindNext}
+        onPrev={handleFindPrev}
+        onClose={closeFindBar}
+      />
 
-      const handleMediaPlay = () => checkTabMedia(tabId);
-      const handleMediaPause = () => checkTabMedia(tabId);
+      {swipeIndicator.visible && (
+        <div
+          className={`swipe-nav-indicator ${swipeIndicator.direction} ${swipeIndicator.enabled ? 'ready' : 'unavailable'} ${swipeIndicator.progress >= 0.85 ? 'primed' : ''}`}
+          aria-hidden="true"
+          style={{
+            opacity: Math.min(1, 0.35 + swipeIndicator.progress * 0.65),
+            transform:
+              swipeIndicator.direction === 'back'
+                ? `translateY(-50%) translateX(${Math.round(swipeIndicator.progress * 26)}px) scale(${0.86 + swipeIndicator.progress * 0.14})`
+                : `translateY(-50%) translateX(${-Math.round(swipeIndicator.progress * 26)}px) scale(${0.86 + swipeIndicator.progress * 0.14})`,
+          }}
+        >
+          {swipeIndicator.direction === 'back' ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
+        </div>
+      )}
 
-      const handleFailLoad = (e: any) => {
-        if (e.errorCode !== -3) {
-          console.warn('Webview failed to load:', e.validatedURL, e.errorDescription);
-        }
-      };
+      {/* If active tab is Homescreen, render homescreen */}
+      {isCurrentTabNewTab && !activeTab.isSleeping && (
+        <Homescreen
+          isDarkMode={isDarkMode}
+          onNavigate={onNavigate}
+          onOpenCommandBar={onOpenCommandBar}
+          userName={userName}
+        />
+      )}
 
-        const handleFoundInPage = (e: any) => {
-          if (tabId !== activeTabRef.current?.id) return;
-          const res = e?.result;
-          if (!res) return;
-          setFindState({
-            activeMatch: res.activeMatchOrdinal ?? 0,
-            totalMatches: res.matches ?? 0,
-          });
-        };
-
-        const handleConsoleMessage = (e: any) => {
-            const msg: string = e?.message || '';
-            if (msg === '__neutrino_top_hover:enter') {
-              onTopHover?.(true);
-            } else if (msg === '__neutrino_top_hover:leave') {
-              onTopHover?.(false);
-            } else if (tabId === activeTabRef.current?.id && msg.startsWith('__neutrino_swipe:')) {
-              const parts = msg.split(':');
-              const kind = parts[1];
-              if (kind === 'cancel') {
-                hideSwipeIndicator();
-              } else if (kind === 'trigger') {
-                const dir = parts[2] === 'forward' ? 'forward' : 'back';
-                hideSwipeIndicator();
-                executeSiteAction(dir, 'guest-wheel');
-              } else if (kind === 'progress') {
-                const dir = parts[2] === 'forward' ? 'forward' : 'back';
-                const ratio = Math.max(0, Math.min(1, Number(parts[3]) || 0));
-                const enabled = dir === 'back' ? Boolean(webview.canGoBack?.()) : Boolean(webview.canGoForward?.());
-                showSwipeProgress(dir, ratio, enabled);
-              }
-            } else if (tabId === activeTabRef.current?.id && msg === '__neutrino_xbutton:back') {
-              executeSiteAction('back', 'guest-xbutton');
-            } else if (tabId === activeTabRef.current?.id && msg === '__neutrino_xbutton:forward') {
-              executeSiteAction('forward', 'guest-xbutton');
+      {/* If active tab is sleeping (Zen mode), show low-memory placeholder */}
+      {activeTab.isSleeping && (
+        <div
+          className="zen-sleeping-screen"
+          onClick={() => window.neutrino?.toggleSleepTab(activeTab.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              window.neutrino?.toggleSleepTab(activeTab.id);
             }
-          };
+          }}
+          title="Click anywhere to wake tab"
+        >
+          <div className="zen-sleeping-ambient-glow" />
 
-          webview.addEventListener('dom-ready', handleDomReady);
-          webview.addEventListener('did-start-loading', handleStartLoading);
-          webview.addEventListener('did-finish-load', handleFinishLoad);
-          webview.addEventListener('did-stop-loading', handleStopLoading);
-          webview.addEventListener('page-title-updated', handleTitle);
-          webview.addEventListener('page-favicon-updated', handleFavicon);
-          webview.addEventListener('did-navigate', handleNav);
-          webview.addEventListener('did-navigate-in-page', handleNav);
-          webview.addEventListener('media-started-playing', handleMediaPlay);
-          webview.addEventListener('media-paused', handleMediaPause);
-          webview.addEventListener('did-fail-load', handleFailLoad);
-          webview.addEventListener('found-in-page', handleFoundInPage);
-          webview.addEventListener('console-message', handleConsoleMessage);
-          webview.addEventListener('enter-html-full-screen', () => {
-            onFullscreenChange?.(true);
-          });
-          webview.addEventListener('leave-html-full-screen', () => {
-            onFullscreenChange?.(false);
-          });
-        };
-
-        const getWebviewRef = (tabId: string) => {
-          if (!webviewRefCallbacksRef.current[tabId]) {
-            webviewRefCallbacksRef.current[tabId] = (el: any) => {
-              if (el) {
-                webviewRefs.current[tabId] = el;
-                attachWebviewEvents(tabId, el);
-              } else {
-                delete webviewRefs.current[tabId];
-                attachedListenersRef.current.delete(tabId);
-              }
-            };
-          }
-          return webviewRefCallbacksRef.current[tabId];
-        };
-
-        if (!activeTab) {
-          return (
-            <div className="webview-host empty-state">
-              <p className="empty-message">No active tab</p>
+          <div className="zen-sleeping-card" onClick={(e) => e.stopPropagation()}>
+            <div className="zen-sleeping-icon-ring">
+              <Moon className="zen-sleeping-moon" size={26} strokeWidth={1.75} />
+              <span className="zen-sleeping-orbit" />
             </div>
-          );
+
+            <div className="zen-sleeping-badge">
+              <span className="zen-sleeping-dot" />
+              <span>Zen Memory Saver</span>
+            </div>
+
+            <h2 className="zen-sleeping-title">
+              {activeTab.title && activeTab.title !== 'neutrino://newtab' ? activeTab.title : 'Tab is Sleeping'}
+            </h2>
+
+            {activeTab.url && activeTab.url !== 'neutrino://newtab' && activeTab.url !== 'about:blank' && (
+              <div className="zen-sleeping-url-pill">
+                <Globe size={12} className="zen-sleeping-globe" />
+                <span className="zen-sleeping-url-text">
+                  {(() => {
+                    try {
+                      return new URL(activeTab.url).hostname;
+                    } catch {
+                      return activeTab.url;
+                    }
+                  })()}
+                </span>
+              </div>
+            )}
+
+            <p className="zen-sleeping-desc">
+              This tab was placed into deep sleep to free up CPU and system memory. Your exact scroll position and page state are preserved.
+            </p>
+
+            <button
+              type="button"
+              className="zen-sleeping-wake-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.neutrino?.toggleSleepTab(activeTab.id);
+              }}
+            >
+              <Sparkles size={15} />
+              <span>Wake Tab</span>
+            </button>
+
+            <div className="zen-sleeping-hint">
+              Click anywhere to resume instantly
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mount webviews only for non-sleeping web tabs so sleeping genuinely frees renderer RAM */}
+      {tabs.map((tab) => {
+        if (!hasWebview(tab.url) || tab.isSleeping) {
+          if (tab.isSleeping) {
+            delete navStatesRef.current[tab.id];
+            delete webviewRefs.current[tab.id];
+            attachedListenersRef.current.delete(tab.id);
+          }
+          return null;
         }
 
-        const isCurrentTabNewTab =
-          !activeTab.url || activeTab.url === 'neutrino://newtab' || activeTab.url === 'about:blank';
+        if (!navStatesRef.current[tab.id]) {
+          navStatesRef.current[tab.id] = { ...createWebviewNavState(tab.url), initialSrc: tab.url };
+        }
+        const initialSrc = navStatesRef.current[tab.id].initialSrc;
+
+        const isActive = tab.id === activeTab.id && !tab.isSleeping;
 
         return (
-            <div className="webview-host" ref={hostRef}>
-              <FindBar
-                isOpen={isFindOpen && !isCurrentTabNewTab && !activeTab.isSleeping}
-                query={findQuery}
-                activeMatch={findState.activeMatch}
-                totalMatches={findState.totalMatches}
-                onQueryChange={handleFindQueryChange}
-                onNext={handleFindNext}
-                onPrev={handleFindPrev}
-                onClose={closeFindBar}
-              />
-
-              {swipeIndicator.visible && (
-                <div
-                  className={`swipe-nav-indicator ${swipeIndicator.direction} ${swipeIndicator.enabled ? 'ready' : 'unavailable'} ${swipeIndicator.progress >= 0.85 ? 'primed' : ''}`}
-                  aria-hidden="true"
-                  style={{
-                    opacity: Math.min(1, 0.35 + swipeIndicator.progress * 0.65),
-                    transform:
-                      swipeIndicator.direction === 'back'
-                        ? `translateY(-50%) translateX(${Math.round(swipeIndicator.progress * 26)}px) scale(${0.86 + swipeIndicator.progress * 0.14})`
-                        : `translateY(-50%) translateX(${-Math.round(swipeIndicator.progress * 26)}px) scale(${0.86 + swipeIndicator.progress * 0.14})`,
-                  }}
-                >
-                  {swipeIndicator.direction === 'back' ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
-                </div>
-              )}
-
-              {/* If active tab is Homescreen, render homescreen */}
-              {isCurrentTabNewTab && !activeTab.isSleeping && (
-                <Homescreen
-                  isDarkMode={isDarkMode}
-                  onNavigate={onNavigate}
-                  onOpenCommandBar={onOpenCommandBar}
-                  userName={userName}
-                />
-              )}
-
-              {/* If active tab is sleeping (Zen mode), show low-memory placeholder */}
-              {activeTab.isSleeping && (
-                <div
-                  className="zen-sleeping-screen"
-                  onClick={() => window.neutrino?.toggleSleepTab(activeTab.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      window.neutrino?.toggleSleepTab(activeTab.id);
-                    }
-                  }}
-                  title="Click anywhere to wake tab"
-                >
-                  <div className="zen-sleeping-ambient-glow" />
-
-                  <div className="zen-sleeping-card" onClick={(e) => e.stopPropagation()}>
-                    <div className="zen-sleeping-icon-ring">
-                      <Moon className="zen-sleeping-moon" size={26} strokeWidth={1.75} />
-                      <span className="zen-sleeping-orbit" />
-                    </div>
-
-                    <div className="zen-sleeping-badge">
-                      <span className="zen-sleeping-dot" />
-                      <span>Zen Memory Saver</span>
-                    </div>
-
-                    <h2 className="zen-sleeping-title">
-                      {activeTab.title && activeTab.title !== 'neutrino://newtab' ? activeTab.title : 'Tab is Sleeping'}
-                    </h2>
-
-                    {activeTab.url && activeTab.url !== 'neutrino://newtab' && activeTab.url !== 'about:blank' && (
-                      <div className="zen-sleeping-url-pill">
-                        <Globe size={12} className="zen-sleeping-globe" />
-                        <span className="zen-sleeping-url-text">
-                          {(() => {
-                            try {
-                              return new URL(activeTab.url).hostname;
-                            } catch {
-                              return activeTab.url;
-                            }
-                          })()}
-                        </span>
-                      </div>
-                    )}
-
-                    <p className="zen-sleeping-desc">
-                      This tab was placed into deep sleep to free up CPU and system memory. Your exact scroll position and page state are preserved.
-                    </p>
-
-                    <button
-                      type="button"
-                      className="zen-sleeping-wake-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.neutrino?.toggleSleepTab(activeTab.id);
-                      }}
-                    >
-                      <Sparkles size={15} />
-                      <span>Wake Tab</span>
-                    </button>
-
-                    <div className="zen-sleeping-hint">
-                      Click anywhere to resume instantly
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Mount webviews only for non-sleeping web tabs so sleeping genuinely frees renderer RAM */}
-              {tabs.map((tab) => {
-                if (!hasWebview(tab.url) || tab.isSleeping) {
-                  if (tab.isSleeping) {
-                    delete navStatesRef.current[tab.id];
-                    delete webviewRefs.current[tab.id];
-                    attachedListenersRef.current.delete(tab.id);
-                  }
-                  return null;
+          <div
+            key={tab.id}
+            className={`tab-webview-wrapper ${isActive ? 'active' : 'inactive'}`}
+            style={
+              isActive
+                ? {
+                  display: 'flex',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
+                  minWidth: '100%',
+                  minHeight: '100%',
+                  zIndex: 1,
                 }
-
-                if (!navStatesRef.current[tab.id]) {
-                  navStatesRef.current[tab.id] = { ...createWebviewNavState(tab.url), initialSrc: tab.url };
+                : {
+                  display: 'none',
+                  position: 'absolute',
+                  left: '-9999px',
+                  width: '1px',
+                  height: '1px',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  zIndex: 0,
                 }
-                const initialSrc = navStatesRef.current[tab.id].initialSrc;
-
-                const isActive = tab.id === activeTab.id && !tab.isSleeping;
-
-                return (
-                  <div
-                    key={tab.id}
-                    className={`tab-webview-wrapper ${isActive ? 'active' : 'inactive'}`}
-                    style={
-                      isActive
-                        ? {
-                          display: 'flex',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          width: '100%',
-                          height: '100%',
-                          minWidth: '100%',
-                          minHeight: '100%',
-                          zIndex: 1,
-                        }
-                        : {
-                          display: 'none',
-                          position: 'absolute',
-                          left: '-9999px',
-                          width: '1px',
-                          height: '1px',
-                          opacity: 0,
-                          pointerEvents: 'none',
-                          zIndex: 0,
-                        }
-                    }
-                  >
-                    {React.createElement('webview', {
-                      ref: getWebviewRef(tab.id),
-                      src: initialSrc,
-                      className: 'chromium-webview',
-                      partition: 'persist:neutrino',
-                      allowpopups: 'true',
-                      webpreferences: 'contextIsolation=yes,nodeIntegration=no,spellcheck=no,backgroundThrottling=yes',
-                      style: {
-                        display: 'inline-flex',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        width: '100%',
-                        height: '100%',
-                        minWidth: '100%',
-                        minHeight: '100%',
-                        border: 'none',
-                        outline: 'none',
-                        backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
-                      },
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-            );
+            }
+          >
+            {React.createElement('webview', {
+              ref: getWebviewRef(tab.id),
+              src: initialSrc,
+              className: 'chromium-webview',
+              partition: 'persist:neutrino',
+              allowpopups: 'true',
+              webpreferences: 'contextIsolation=yes,nodeIntegration=no,spellcheck=no,backgroundThrottling=yes',
+              style: {
+                display: 'inline-flex',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100%',
+                height: '100%',
+                minWidth: '100%',
+                minHeight: '100%',
+                border: 'none',
+                outline: 'none',
+                backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
+              },
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
 };

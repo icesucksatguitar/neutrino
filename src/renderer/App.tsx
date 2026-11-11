@@ -7,7 +7,7 @@ import { RightPinsDock, type PinnedSite } from './components/RightPinsDock';
 import { AuthHandoffNotice } from './components/AuthHandoffNotice';
 import type { UserProfile } from './components/WelcomeModal';
 import { useSettings } from './hooks/useSettings';
-import { resolveSpaceTheme } from '../main/settings';
+import { resolveSpaceTheme, resolveReducedEffectsActive } from '../main/settings';
 import { type SpaceTheme, getDefaultSpaceTheme } from '../main/spaceTheme';
 import { applySpaceThemeToRoot, getOsPrefersDark } from './utils/applySpaceTheme';
 import {
@@ -33,6 +33,7 @@ import {
   VpnConfig,
   VpnStatus,
   SiteAction,
+  PerformanceStatus,
 } from './types';
 import './styles/theme.css';
 
@@ -103,6 +104,7 @@ export function App() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [isVpnModalOpen, setIsVpnModalOpen] = useState(false);
   const [vpnStatus, setVpnStatus] = useState<VpnStatus | null>(null);
+  const [performanceStatus, setPerformanceStatus] = useState<PerformanceStatus | null>(null);
   const [isCheckingVpnIp, setIsCheckingVpnIp] = useState(false);
   const [vpnIpError, setVpnIpError] = useState<string | null>(null);
 
@@ -184,6 +186,34 @@ export function App() {
     }, 180000);
     return () => clearInterval(interval);
   }, [zenOptimize, zenSleepEnabled]);
+
+  useEffect(() => {
+    void window.neutrino?.getPerformanceStatus?.().then((status) => {
+      if (status) setPerformanceStatus(status);
+    });
+    const unsubPerf = window.neutrino?.onPerformanceStatusUpdated?.((status) => {
+      if (status) setPerformanceStatus(status);
+    });
+    const syncHidden = () => {
+      document.documentElement.setAttribute('data-window-hidden', document.hidden ? 'true' : 'false');
+    };
+    syncHidden();
+    document.addEventListener('visibilitychange', syncHidden);
+    return () => {
+      unsubPerf?.();
+      document.removeEventListener('visibilitychange', syncHidden);
+    };
+  }, []);
+
+  const isReducedEffects = resolveReducedEffectsActive(
+    settings.reducedEffectsMode,
+    Boolean(performanceStatus?.gpuDisabledFlag),
+    performanceStatus?.gpuFeatureStatus ?? null
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-reduced-effects', isReducedEffects ? 'on' : 'off');
+  }, [isReducedEffects]);
 
   // Active webpage detection: on web pages, the viewport is pulled down below the 44px top header
   // so window controls, tabs, and site navigation controls never collide.
@@ -743,7 +773,7 @@ const shouldShowMiniPlayer =
 
 return (
   <div className="arc-app-shell radical-minimalism-shell">
-    <div className="space-grain-overlay" aria-hidden="true" />
+    {!isWebpage && !isReducedEffects && <div className="space-grain-overlay" aria-hidden="true" />}
     {/* Frameless Top Drag Bar */}
     {!isHtmlFullscreen && (
       <div className={`macos-window-drag-bar ${isWebpage ? 'on-webpage' : ''}`} />
@@ -1157,6 +1187,7 @@ return (
           onOpenThemeStudio={() => setIsThemeModalOpen(true)}
           userName={userProfile?.name ?? ''}
           onUserNameChange={handleUserNameChange}
+          performanceStatus={performanceStatus}
         />
       </Suspense>
     )}

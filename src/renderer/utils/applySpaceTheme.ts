@@ -84,7 +84,8 @@ export function applySpaceThemeToRoot(rawTheme: SpaceTheme, osDark: boolean): Th
       : 0.06 + palette.glowIntensity * 0.36;
   const glowWidthPx = Math.round(620 + palette.glowSize * 640);
   const glowHeightPx = Math.round(360 + palette.glowSize * 340);
-  const glowBlurPx = Math.round(40 + palette.glowSize * 44);
+  // Radial gradients are already multi-stop feathered; capping CSS blur avoids huge offscreen GPU buffers.
+  const glowBlurPx = Math.round(12 + palette.glowSize * 20);
   const isPaused = isOff || palette.glowSpeed <= 0.01;
   // Higher speed slider -> faster duration (1.75x slower at min speed, 0.45x faster at max speed)
   const durationFactor = 1.75 - palette.glowSpeed * 1.3;

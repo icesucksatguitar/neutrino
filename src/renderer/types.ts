@@ -1,7 +1,23 @@
-import type { BrowserSettings, SpaceTheme, SpaceThemesMap } from '../main/settings';
+import type {
+  BrowserSettings,
+  PerformanceStatus,
+  ReducedEffectsMode,
+  SpaceTheme,
+  SpaceThemesMap,
+} from '../main/settings';
 import type { SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette } from '../main/spaceTheme';
 
-export type { BrowserSettings, SpaceTheme, SpaceThemesMap, SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette };
+export type {
+  BrowserSettings,
+  PerformanceStatus,
+  ReducedEffectsMode,
+  SpaceTheme,
+  SpaceThemesMap,
+  SpaceThemeMode,
+  SpaceThemePoint,
+  SpaceThemePreset,
+  ThemePalette,
+};
 
 export interface Space {
   id: string;
@@ -151,8 +167,10 @@ declare global {
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
       setThemeMode?: (mode: 'dark' | 'light' | 'system') => Promise<{ success: boolean; isDark?: boolean }>;
       getSettings?: () => Promise<BrowserSettings>;
+      getPerformanceStatus?: () => Promise<PerformanceStatus>;
       updateSettings?: (patch: Partial<BrowserSettings>) => Promise<BrowserSettings>;
       onSettingsUpdated?: (cb: (settings: BrowserSettings) => void) => () => void;
+      onPerformanceStatusUpdated?: (cb: (status: PerformanceStatus) => void) => () => void;
       onOpenSettings?: (cb: () => void) => () => void;
       onStateUpdate: (cb: (state: BrowserAppState) => void) => () => void;
       onTrackerBlocked: (cb: (item: BlockedTrackerItem) => void) => () => void;

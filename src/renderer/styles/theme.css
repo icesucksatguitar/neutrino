@@ -246,8 +246,8 @@
   /* Intensity & Visibility */
   --glow-opacity: 0.42;
   /* Base glow intensity (0.2 to 0.7) */
-  --glow-blur: 110px;
-  /* Softness / spread of the blur (90px - 130px) */
+  --glow-blur: 24px;
+  /* Softness / spread of the blur */
   --glow-size: 1040px;
   /* Horizontal width of the glow area (900px - 1100px) */
   --glow-height: 580px;
@@ -5774,42 +5774,30 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
 
 .ambient-glow-container {
   position: absolute;
-  top: 55%;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(1);
-  width: var(--glow-size, 1040px);
-  height: var(--glow-height, 580px);
-  opacity: var(--theme-ambient-opacity, 0.21);
   transform: translate3d(-50%, -50%, 0) scale(1);
   width: var(--glow-size, 990px);
   height: var(--glow-height, 560px);
   opacity: var(--glow-opacity, 0.40);
-  filter: blur(var(--glow-blur, 66px));
-  contain: layout style;
+  contain: layout style paint;
   pointer-events: none;
-  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
   transition:
     transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    filter 0.35s ease;
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* On Search Bar Focus: Smoothly raise glow opacity & scale by ~15% */
 /* On Search Bar Focus: Smoothly raise glow opacity & scale */
 .neutrino-minimal-newtab:focus-within .ambient-glow-container,
 .neutrino-minimal-newtab:has(.newtab-search-reveal-wrapper:focus-within) .ambient-glow-container,
 .neutrino-minimal-newtab:has(.newtab-prompt-trigger:focus) .ambient-glow-container,
 .neutrino-minimal-newtab.search-focused .ambient-glow-container,
 .ambient-glow-layer.glow-focused .ambient-glow-container {
-  opacity: calc(var(--glow-opacity, 0.42) * 1.15);
-  transform: translate(-50%, -50%) scale(1.15);
   opacity: min(0.88, calc(var(--glow-opacity, 0.40) * 1.25));
   transform: translate3d(-50%, -50%, 0) scale(1.12);
 }
 
-/* Pre-softened radial gradients replace heavy blur(110px) GPU render targets */
+/* Pre-softened radial gradients keep GPU render targets lightweight */
 .ambient-glow-blob {
   position: absolute;
   border-radius: 50%;
@@ -5819,156 +5807,123 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   animation-play-state: var(--glow-play-state, running);
 }
 
-/* Blob 1: Warm Golden-Yellow Anchor */
 /* Blob 1: Primary theme/custom color orb */
 .ambient-glow-blob.blob-1 {
-  width: 680px;
-  height: 520px;
-  width: 58%;
-  height: 74%;
-  top: 2%;
-  left: 8%;
-  background: radial-gradient(ellipse at 45% 45%, rgba(245, 158, 11, 0.34) 0%, rgba(245, 158, 11, 0.14) 36%, transparent 72%);
-  background: radial-gradient(ellipse at 45% 45%,
+  width: 68%;
+  height: 82%;
+  top: -2%;
+  left: 4%;
+  background: radial-gradient(ellipse closest-side at 50% 50%,
       color-mix(in srgb, var(--glow-c1, #F59E0B) 72%, transparent) 0%,
-      color-mix(in srgb, var(--glow-c1, #F59E0B) 48%, transparent) 22%,
-      color-mix(in srgb, var(--glow-c1, #F59E0B) 22%, transparent) 45%,
-      color-mix(in srgb, var(--glow-c1, #F59E0B) 6%, transparent) 66%,
-      transparent 80%);
+      color-mix(in srgb, var(--glow-c1, #F59E0B) 46%, transparent) 28%,
+      color-mix(in srgb, var(--glow-c1, #F59E0B) 18%, transparent) 58%,
+      color-mix(in srgb, var(--glow-c1, #F59E0B) 4%, transparent) 82%,
+      transparent 100%);
   animation: blobDrift1 var(--glow-drift-speed-1, 14s) ease-in-out infinite alternate;
   animation-play-state: var(--glow-play-state, running);
 }
 
-/* Blob 2: Warm Sunrise Orange */
 /* Blob 2: Secondary theme/harmonic orb */
 .ambient-glow-blob.blob-2 {
-  width: 640px;
-  height: 490px;
-  top: 10%;
-  width: 54%;
-  height: 70%;
-  top: 12%;
-  right: 6%;
-  background: radial-gradient(ellipse at 55% 50%, rgba(249, 115, 22, 0.30) 0%, rgba(249, 115, 22, 0.12) 38%, transparent 72%);
-  background: radial-gradient(ellipse at 55% 50%,
+  width: 64%;
+  height: 78%;
+  top: 8%;
+  right: 2%;
+  background: radial-gradient(ellipse closest-side at 50% 50%,
       color-mix(in srgb, var(--glow-c2, #F97316) 70%, transparent) 0%,
-      color-mix(in srgb, var(--glow-c2, #F97316) 44%, transparent) 24%,
-      color-mix(in srgb, var(--glow-c2, #F97316) 18%, transparent) 48%,
-      color-mix(in srgb, var(--glow-c2, #F97316) 5%, transparent) 68%,
-      transparent 80%);
+      color-mix(in srgb, var(--glow-c2, #F97316) 44%, transparent) 28%,
+      color-mix(in srgb, var(--glow-c2, #F97316) 16%, transparent) 58%,
+      color-mix(in srgb, var(--glow-c2, #F97316) 4%, transparent) 82%,
+      transparent 100%);
   animation: blobDrift2 var(--glow-drift-speed-2, 18s) ease-in-out infinite alternate;
   animation-play-state: var(--glow-play-state, running);
 }
 
-/* Blob 3: Soft Rose & Violet */
 /* Blob 3: Soft sweep lower aura */
 .ambient-glow-blob.blob-3 {
-  width: 720px;
-  height: 470px;
-  width: 62%;
-  height: 66%;
-  bottom: 0%;
-  left: 16%;
-  background: radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.28) 0%, rgba(139, 92, 246, 0.10) 42%, transparent 72%);
-  left: 18%;
-  background: radial-gradient(ellipse at 50% 50%,
+  width: 72%;
+  height: 76%;
+  bottom: -4%;
+  left: 14%;
+  background: radial-gradient(ellipse closest-side at 50% 50%,
       color-mix(in srgb, var(--glow-c3, #EC4899) 66%, transparent) 0%,
-      color-mix(in srgb, var(--glow-c3, #EC4899) 40%, transparent) 25%,
-      color-mix(in srgb, var(--glow-c3, #EC4899) 16%, transparent) 48%,
-      color-mix(in srgb, var(--glow-c3, #EC4899) 4%, transparent) 68%,
-      transparent 80%);
+      color-mix(in srgb, var(--glow-c3, #EC4899) 40%, transparent) 28%,
+      color-mix(in srgb, var(--glow-c3, #EC4899) 14%, transparent) 58%,
+      color-mix(in srgb, var(--glow-c3, #EC4899) 3%, transparent) 82%,
+      transparent 100%);
   animation: blobDrift3 var(--glow-drift-speed-3, 12s) ease-in-out infinite alternate;
   animation-play-state: var(--glow-play-state, running);
 }
 
-/* Blob 4: Radiant Amber Heart */
 /* Blob 4: Radiant breathing central core */
 .ambient-glow-blob.blob-4 {
-  width: 780px;
-  height: 540px;
+  width: 74%;
+  height: 82%;
   top: 8%;
-  left: 12%;
-  background: radial-gradient(ellipse at 50% 50%, rgba(251, 191, 36, 0.24) 0%, rgba(245, 158, 11, 0.10) 40%, transparent 74%);
-  width: 64%;
-  height: 72%;
-  top: 12%;
-  left: 18%;
-  background: radial-gradient(ellipse at 50% 50%,
+  left: 13%;
+  background: radial-gradient(ellipse closest-side at 50% 50%,
       color-mix(in srgb, var(--glow-c4, #FBBF24) 64%, transparent) 0%,
-      color-mix(in srgb, var(--glow-c4, #FBBF24) 38%, transparent) 24%,
-      color-mix(in srgb, var(--glow-c4, #FBBF24) 14%, transparent) 48%,
-      color-mix(in srgb, var(--glow-c4, #FBBF24) 4%, transparent) 68%,
-      transparent 82%);
+      color-mix(in srgb, var(--glow-c4, #FBBF24) 38%, transparent) 28%,
+      color-mix(in srgb, var(--glow-c4, #FBBF24) 14%, transparent) 58%,
+      color-mix(in srgb, var(--glow-c4, #FBBF24) 3%, transparent) 82%,
+      transparent 100%);
   animation: blobDrift4 var(--glow-drift-speed-4, 16s) ease-in-out infinite alternate;
   animation-play-state: var(--glow-play-state, running);
 }
 
-/* Continuous Asymmetric Drift Keyframes */
 /* Continuous Asymmetric Drift & Breathing Keyframes */
 @keyframes blobDrift1 {
   0% {
-    transform: translate(-30px, -20px) scale(0.95) rotate(0deg);
     transform: translate3d(-56px, -36px, 0) scale(0.92) rotate(0deg);
   }
 
   50% {
-    transform: translate(35px, 25px) scale(1.08) rotate(12deg);
     transform: translate3d(68px, 38px, 0) scale(1.12) rotate(14deg);
   }
 
   100% {
-    transform: translate(-10px, 35px) scale(1.02) rotate(-8deg);
     transform: translate3d(-24px, 52px, 0) scale(1.03) rotate(-10deg);
   }
 }
 
 @keyframes blobDrift2 {
   0% {
-    transform: translate(35px, 20px) scale(1.05) rotate(0deg);
     transform: translate3d(64px, 34px, 0) scale(1.06) rotate(0deg);
   }
 
   50% {
-    transform: translate(-25px, -30px) scale(0.92) rotate(-14deg);
     transform: translate3d(-48px, -50px, 0) scale(0.90) rotate(-16deg);
   }
 
   100% {
-    transform: translate(20px, -15px) scale(1.06) rotate(10deg);
     transform: translate3d(42px, -24px, 0) scale(1.10) rotate(12deg);
   }
 }
 
 @keyframes blobDrift3 {
   0% {
-    transform: translate(-20px, 30px) scale(1.0) rotate(0deg);
     transform: translate3d(-38px, 46px, 0) scale(0.98) rotate(0deg);
   }
 
   50% {
-    transform: translate(30px, -25px) scale(1.12) rotate(15deg);
     transform: translate3d(58px, -42px, 0) scale(1.14) rotate(18deg);
   }
 
   100% {
-    transform: translate(-35px, -10px) scale(0.94) rotate(-10deg);
     transform: translate3d(-62px, -18px, 0) scale(0.92) rotate(-12deg);
   }
 }
 
 @keyframes blobDrift4 {
   0% {
-    transform: translate(15px, -35px) scale(0.96) rotate(0deg);
     transform: translate3d(26px, -54px, 0) scale(0.90) rotate(0deg);
   }
 
   50% {
-    transform: translate(-30px, 20px) scale(1.04) rotate(-12deg);
     transform: translate3d(-52px, 34px, 0) scale(1.08) rotate(-14deg);
   }
 
   100% {
-    transform: translate(25px, 15px) scale(1.10) rotate(8deg);
     transform: translate3d(44px, 24px, 0) scale(1.15) rotate(10deg);
   }
 }
@@ -9552,4 +9507,58 @@ body.light .zen-sleeping-hint {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Pause continuous UI animations while the window is hidden/minimized */
+html[data-window-hidden="true"] .ambient-glow-blob,
+html[data-window-hidden="true"] .ambient-glow-color-cycle,
+html[data-window-hidden="true"] .spin-icon {
+  animation-play-state: paused !important;
+}
+
+/* Reduced Effects Mode: eliminates costly backdrop-filter readbacks, Gaussian blurs, grain, and continuous glow motion */
+html[data-reduced-effects="on"] *,
+html[data-reduced-effects="on"] *::before,
+html[data-reduced-effects="on"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-reduced-effects="on"] .space-grain-overlay {
+  display: none !important;
+}
+
+html[data-reduced-effects="on"] .ambient-glow-container {
+  filter: none !important;
+  transition: none !important;
+  will-change: auto !important;
+  opacity: calc(var(--glow-opacity, 0.35) * 0.72);
+}
+
+html[data-reduced-effects="on"] .ambient-glow-color-cycle {
+  animation: none !important;
+  filter: none !important;
+}
+
+html[data-reduced-effects="on"] .ambient-glow-blob {
+  animation: none !important;
+  mix-blend-mode: normal !important;
+  will-change: auto !important;
+  transition: none !important;
+}
+
+html[data-reduced-effects="on"] .floating-top-chrome-capsule.on-webpage,
+html[data-reduced-effects="on"] .modal-content-card,
+html[data-reduced-effects="on"] .command-bar-card-wrapper,
+html[data-reduced-effects="on"] .mcp-drawer,
+html[data-reduced-effects="on"] .floating-media-player,
+html[data-reduced-effects="on"] .pin-add-modal-dialog,
+html[data-reduced-effects="on"] .zen-sleeping-card,
+html[data-reduced-effects="on"] .welcome-modal-dialog,
+html[data-reduced-effects="on"] .proper-space-slider-wrap,
+html[data-reduced-effects="on"] .spaces-smooth-slider,
+html[data-reduced-effects="on"] .mini-window-card,
+html[data-reduced-effects="on"] .mini-window-tab-card,
+html[data-reduced-effects="on"] .pinned-notification-card {
+  background-color: var(--theme-surface-elevated, var(--theme-bg-canvas)) !important;
 }

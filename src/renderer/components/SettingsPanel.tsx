@@ -2,9 +2,11 @@ import React, { useEffect, useId, useState } from 'react';
 import { X, Moon, Sun, Palette } from 'lucide-react';
 import {
   SEARCH_ENGINES,
+  normalizeReducedEffectsMode,
+  type ReducedEffectsMode,
   type SearchEngineId,
 } from '../../main/settings';
-import type { BrowserSettings } from '../types';
+import type { BrowserSettings, PerformanceStatus } from '../types';
 
 export interface SettingsPanelProps {
   isOpen: boolean;
@@ -18,11 +20,18 @@ export interface SettingsPanelProps {
   onOpenThemeStudio: () => void;
   userName: string;
   onUserNameChange: (name: string) => void;
+  performanceStatus?: PerformanceStatus | null;
 }
 
 export const ZEN_SLEEP_HINT = 'Sleeps tabs after 10 minutes of inactivity';
 
 const ENGINE_IDS = Object.keys(SEARCH_ENGINES) as SearchEngineId[];
+
+const REDUCED_EFFECTS_OPTIONS: ReadonlyArray<{ id: ReducedEffectsMode; label: string }> = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'on', label: 'On' },
+  { id: 'off', label: 'Off' },
+];
 
 interface SwitchProps {
   checked: boolean;
@@ -53,6 +62,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onOpenThemeStudio,
   userName,
   onUserNameChange,
+  performanceStatus,
 }) => {
   const idBase = useId();
   const titleId = `${idBase}-title`;
@@ -233,6 +243,40 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               label="Zen auto-sleep"
               onChange={(next) => onUpdateSettings({ zenSleepEnabled: next })}
             />
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Reduced effects</span>
+              <span className="settings-hint">
+                {performanceStatus
+                  ? performanceStatus.hardwareAcceleration
+                    ? 'Skips blurs & glow motion (HW accel: On)'
+                    : 'Software GPU detected — Auto reduces effects'
+                  : 'Disables blurs, grain & ambient animations'}
+              </span>
+            </div>
+            <div className="settings-segmented" role="radiogroup" aria-label="Reduced effects">
+              {REDUCED_EFFECTS_OPTIONS.map((opt) => {
+                const current = normalizeReducedEffectsMode(settings.reducedEffectsMode);
+                const selected = current === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={opt.label}
+                    className={`settings-segment${selected ? ' active' : ''}`}
+                    onClick={() => {
+                      if (!selected) onUpdateSettings({ reducedEffectsMode: opt.id });
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
       </div>

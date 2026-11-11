@@ -1,12 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
-import { X, Moon, Sun, Palette, Plus } from 'lucide-react';
+import { X, Moon, Sun, Palette } from 'lucide-react';
 import {
   SEARCH_ENGINES,
-  addExclusion,
-  hostForExclusion,
-  isHostExcluded,
-  removeExclusion,
-  toggleSiteExclusion,
   type SearchEngineId,
 } from '../../main/settings';
 import type { BrowserSettings } from '../types';
@@ -21,12 +16,10 @@ export interface SettingsPanelProps {
   onSetDarkMode: (dark: boolean) => void;
   /** Opens the Theme & Appearance modal. The panel closes itself first. */
   onOpenThemeStudio: () => void;
-  activeTabUrl?: string | null;
   userName: string;
   onUserNameChange: (name: string) => void;
 }
 
-export const INVALID_SITE_MESSAGE = 'Enter a site like example.com';
 export const ZEN_SLEEP_HINT = 'Sleeps tabs after 10 minutes of inactivity';
 
 const ENGINE_IDS = Object.keys(SEARCH_ENGINES) as SearchEngineId[];
@@ -58,30 +51,19 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   isDarkMode,
   onSetDarkMode,
   onOpenThemeStudio,
-  activeTabUrl,
   userName,
   onUserNameChange,
 }) => {
   const idBase = useId();
   const titleId = `${idBase}-title`;
   const nameId = `${idBase}-name`;
-  const siteErrorId = `${idBase}-site-error`;
 
   const [nameDraft, setNameDraft] = useState(userName);
-  const [siteDraft, setSiteDraft] = useState('');
-  const [siteError, setSiteError] = useState<string | null>(null);
 
   // Fresh form state each time the panel opens, and follow name changes made elsewhere.
   useEffect(() => {
     if (isOpen) setNameDraft(userName);
   }, [isOpen, userName]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setSiteDraft('');
-      setSiteError(null);
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,11 +79,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   if (!isOpen) return null;
 
-  const exclusions = settings.darkModeExclusions;
-  const currentUrl = activeTabUrl ?? '';
-  const currentHost = hostForExclusion(currentUrl);
-  const currentExcluded = currentHost !== null && isHostExcluded(currentUrl, exclusions);
-
   const commitName = () => {
     const trimmed = nameDraft.trim();
     if (!trimmed) {
@@ -110,18 +87,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
     setNameDraft(trimmed);
     if (trimmed !== userName.trim()) onUserNameChange(trimmed);
-  };
-
-  const submitSite = (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = addExclusion(exclusions, siteDraft);
-    if (result.error) {
-      setSiteError(INVALID_SITE_MESSAGE);
-      return;
-    }
-    setSiteError(null);
-    setSiteDraft('');
-    if (result.list.length !== exclusions.length) onUpdateSettings({ darkModeExclusions: result.list });
   };
 
   const openThemeStudio = () => {
@@ -214,78 +179,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
         </section>
 
-        {/* 2. Dark mode exclusions */}
-        <section className="settings-section" aria-label="Dark mode exclusions">
-          <h3 className="settings-section-title">Dark mode exclusions</h3>
-          <p className="settings-hint">These sites keep their own look when dark mode is on.</p>
-
-          {currentHost !== null && (
-            <div className="settings-row settings-current-site">
-              <div className="settings-current-site-info">
-                <span className="settings-row-label">This site</span>
-                <span className="settings-host">{currentHost}</span>
-              </div>
-              <button
-                type="button"
-                className="settings-button"
-                aria-label={currentExcluded ? 'Use dark mode on this site' : 'Exclude this site'}
-                onClick={() => onUpdateSettings({ darkModeExclusions: toggleSiteExclusion(exclusions, currentUrl) })}
-              >
-                {currentExcluded ? 'Use dark mode on this site' : 'Exclude this site'}
-              </button>
-            </div>
-          )}
-
-          <form className="settings-add-form" onSubmit={submitSite} noValidate>
-            <input
-              className={`settings-input${siteError ? ' invalid' : ''}`}
-              type="text"
-              placeholder="example.com"
-              aria-label="Site to exclude from dark mode"
-              aria-invalid={siteError ? true : undefined}
-              aria-describedby={siteError ? siteErrorId : undefined}
-              value={siteDraft}
-              spellCheck={false}
-              autoCapitalize="off"
-              onChange={(e) => {
-                setSiteDraft(e.target.value);
-                if (siteError) setSiteError(null);
-              }}
-            />
-            <button type="submit" className="settings-button" aria-label="Add site">
-              <Plus size={13} aria-hidden="true" />
-              Add
-            </button>
-          </form>
-          {siteError && (
-            <div id={siteErrorId} className="settings-error" role="alert">
-              {siteError}
-            </div>
-          )}
-
-          {exclusions.length === 0 ? (
-            <p className="settings-hint">No sites excluded.</p>
-          ) : (
-            <ul className="settings-chip-list" aria-label="Excluded sites">
-              {exclusions.map((host) => (
-                <li key={host} className="settings-chip">
-                  <span className="settings-chip-label">{host}</span>
-                  <button
-                    type="button"
-                    className="settings-chip-remove"
-                    aria-label={`Remove ${host}`}
-                    title={`Remove ${host}`}
-                    onClick={() => onUpdateSettings({ darkModeExclusions: removeExclusion(exclusions, host) })}
-                  >
-                    <X size={11} aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* 3. Privacy */}
+        {/* 2. Privacy */}
         <section className="settings-section" aria-label="Privacy">
           <h3 className="settings-section-title">Privacy</h3>
           <div className="settings-row">

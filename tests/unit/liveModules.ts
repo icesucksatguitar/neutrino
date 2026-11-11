@@ -25,8 +25,6 @@ import {
   type WindowOpenDecision,
   type WindowOpenDetails,
 } from '../../src/main/windowOpen';
-import { DARK_READER_SETTINGS, shouldInjectDarkReader } from '../../src/main/darkMode';
-import { DEFAULT_SETTINGS } from '../../src/main/settings';
 import {
   originalDomReadyAdInjection,
   originalRequestDecision,
@@ -55,12 +53,6 @@ export function liveWindowOpenDecision<W>(
 ): WindowOpenDecision<W> {
   return decideWindowOpen(details, { ...ctx, isAuthOrSecurityUrl: liveIsAuthOrSecurityUrl });
 }
-
-export function liveShouldInjectDarkReader(url: string): boolean {
-  return shouldInjectDarkReader(url, DEFAULT_SETTINGS.darkModeExclusions);
-}
-
-export const liveDarkReaderSettings: { brightness: number; contrast: number; sepia: number } = DARK_READER_SETTINGS;
 
 /** The `onBeforeRequest` body is not being rewritten by the fix; it runs on the live engine and classifier. */
 export function liveRequestDecision(url: string, engine: ShieldEngineLike): RequestDecision {

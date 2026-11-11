@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_SPACE_GLOW,
   DEFAULT_SPACE_THEME,
   SPACE_THEME_PRESETS,
   clampWheelPos,
+  computeGlowStops,
   computeThemePalette,
   contrastRatio,
   getDefaultSpaceTheme,
@@ -11,6 +13,7 @@ import {
   migrateLegacyThemeSettings,
   normalizeHex,
   normalizeSpaceThemesMap,
+  validateAndClampSpaceGlow,
   validateAndClampSpaceTheme,
   wheelPosToHueSat,
 } from '../../src/main/spaceTheme';
@@ -229,6 +232,85 @@ describe('spaceTheme: per-Space isolation', () => {
     const validatedMap = normalizeSpaceThemesMap(updated.spaceThemes);
     expect(validatedMap['space-study']).toEqual(editedStudy);
     expect(validatedMap['space-work']).toEqual(workBefore);
+  });
+});
+
+describe('spaceTheme: ambient glow customization', () => {
+  it('validates and clamps glow settings including style, hex color, intensity, speed, and size', () => {
+    const clamped = validateAndClampSpaceGlow({
+      style: 'invalid-style',
+      color: '#3af',
+      intensity: 2.5,
+      speed: -0.4,
+      size: 1.9,
+    });
+
+    expect(clamped.style).toBe(DEFAULT_SPACE_GLOW.style);
+    expect(clamped.color).toBe('#33AAFF');
+    expect(clamped.intensity).toBe(1);
+    expect(clamped.speed).toBe(0);
+    expect(clamped.size).toBe(1);
+
+    const offGlow = validateAndClampSpaceGlow({
+      style: 'off',
+      color: 'not-a-hex',
+      intensity: 0.3,
+      speed: 0.7,
+      size: 0.4,
+    });
+    expect(offGlow.style).toBe('off');
+    expect(offGlow.color).toBe(DEFAULT_SPACE_GLOW.color);
+    expect(offGlow.intensity).toBe(0.3);
+    expect(offGlow.speed).toBe(0.7);
+    expect(offGlow.size).toBe(0.4);
+  });
+
+  it('derives distinct harmonious glow stops for theme, prism, and custom styles', () => {
+    const baseTheme = getDefaultSpaceTheme('space-study');
+    const themeGlow = computeGlowStops({ ...baseTheme, glow: { ...DEFAULT_SPACE_GLOW, style: 'theme' } }, 'dark');
+    const prismGlow = computeGlowStops({ ...baseTheme, glow: { ...DEFAULT_SPACE_GLOW, style: 'prism' } }, 'dark');
+    const customGlow = computeGlowStops(
+      { ...baseTheme, glow: { ...DEFAULT_SPACE_GLOW, style: 'custom', color: '#38BDF8' } },
+      'dark'
+    );
+
+    expect(themeGlow.glowC1).not.toBe(prismGlow.glowC1);
+    expect(prismGlow.glowC1).toBe('#F59E0B');
+    expect(customGlow.glowC1).not.toBe(themeGlow.glowC1);
+    expect(customGlow.glowC2).toMatch(/^#[0-9A-F]{6}$/);
+    expect(customGlow.glowC3).toMatch(/^#[0-9A-F]{6}$/);
+    expect(customGlow.glowC4).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
+  it('preserves per-Space glow customization through normalizeSettings', () => {
+    const customStudy = validateAndClampSpaceTheme({
+      points: [
+        { color: '#10B981', x: 0.8, y: 0.5 },
+        { color: '#06B6D4', x: 0.6, y: 0.8 },
+      ],
+      intensity: 0.7,
+      grain: 0.25,
+      mode: 'dark',
+      glow: {
+        style: 'custom',
+        color: '#EC4899',
+        intensity: 0.85,
+        speed: 0.75,
+        size: 0.9,
+      },
+    });
+
+    const initial = normalizeSettings({});
+    const saved = normalizeSettings({
+      ...initial,
+      spaceThemes: {
+        ...(initial.spaceThemes || {}),
+        'space-study': customStudy,
+      },
+    });
+
+    expect(resolveSpaceTheme(saved, 'space-study').glow).toEqual(customStudy.glow);
+    expect(resolveSpaceTheme(saved, 'space-work').glow?.style).toBe('prism');
   });
 });
 

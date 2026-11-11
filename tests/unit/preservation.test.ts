@@ -20,11 +20,6 @@ import {
 import { isAuthOrSecurityUrl as originalIsAuthOrSecurityUrl } from './fixtures/original/authUrl';
 import { originalWindowOpenDecision } from './fixtures/original/windowOpen';
 import {
-  DARK_READER_SETTINGS,
-  PDF_DARK_FILTER,
-  originalIsDarkReaderEligible,
-} from './fixtures/original/darkReaderEligibility';
-import {
   originalFormatGreeting,
   originalHomescreenGreeting,
   originalMcpGreeting,
@@ -33,12 +28,10 @@ import { SAFE_PERMISSIONS } from './fixtures/original/permissions';
 import {
   createLivePermissionHandlers,
   createLiveShieldEngine,
-  liveDarkReaderSettings,
   liveDomReadyAdInjection,
   liveFormatGreeting,
   liveIsAuthOrSecurityUrl,
   liveRequestDecision,
-  liveShouldInjectDarkReader,
   liveStoredUserName,
   liveWindowOpenDecision,
 } from './liveModules';
@@ -47,7 +40,6 @@ import { McpServer } from '../../src/main/mcp/server';
 import { BrowserManager } from '../../src/main/browserManager';
 import { ZenResourceManager } from '../../src/main/resourceManager';
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const NUM_RUNS = 300;
 
 // ---------------------------------------------------------------------------
@@ -282,22 +274,6 @@ const activeTabArb = fc.option(
   { nil: null },
 );
 
-const darkModeUrlArb = fc
-  .oneof(
-    fc.tuple(schemeArb, benignHostArb, pathArb, queryArb).map(([s, h, p, q]) => `${s}://${h}${p}${q}`),
-    fc.tuple(benignHostArb, pathSeg).map(([h, f]) => `https://${h}/files/${f}.pdf`),
-    fc.tuple(benignHostArb, pathSeg).map(([h, f]) => `https://${h}/files/${f}.pdf?dl=1`),
-    identityProviderUrlArb,
-    captchaUrlArb,
-    keywordPathUrlArb,
-    fc.constantFrom('neutrino://newtab', 'neutrino://settings', 'about:blank', 'about:srcdoc'),
-    label.map((l) => `neutrino://${l}`),
-    label.map((l) => `about:${l}`),
-    fc.webUrl({ withQueryParameters: true }),
-  )
-  // Empty URLs never reach dom-ready injection, and native-dark hosts are the intended change.
-  .filter((u) => u !== '' && !isNativeDarkForTest(u));
-
 const hourDateArb = fc
   .tuple(fc.integer({ min: 0, max: 23 }), fc.integer({ min: 0, max: 59 }), fc.integer({ min: 1, max: 28 }))
   .map(([h, m, d]) => new Date(2024, 0, d, h, m, 0));
@@ -504,68 +480,6 @@ describe('Property 11 (Preservation): auth, popup and tab routing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Property 12: dark mode on other sites and pages (3.5, 3.6, 3.17)
-// ---------------------------------------------------------------------------
-
-function walkSourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walkSourceFiles(full, out);
-    else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
-  }
-  return out;
-}
-
-describe('Property 12 (Preservation): dark mode on sites without a native dark theme', () => {
-  /** **Validates: Requirements 3.5, 3.6** */
-  it('the inject-or-skip decision is unchanged for ordinary, auth, neutrino:// and about: URLs', () => {
-    fc.assert(
-      fc.property(darkModeUrlArb, (url) => {
-        expect(liveShouldInjectDarkReader(url)).toBe(originalIsDarkReaderEligible(url));
-      }),
-      { numRuns: NUM_RUNS * 2 },
-    );
-  });
-
-  /** **Validates: Requirements 3.5** */
-  it('DarkReader settings stay brightness 100, contrast 95, sepia 0 everywhere they are enabled', () => {
-    expect(liveDarkReaderSettings).toEqual(DARK_READER_SETTINGS);
-    expect({ ...liveDarkReaderSettings }).toEqual({ brightness: 100, contrast: 95, sepia: 0 });
-
-    // Every inline `DarkReader.enable({...})` literal in the app source must use the same settings.
-    const files = [...walkSourceFiles(path.join(REPO_ROOT, 'src', 'main')), ...walkSourceFiles(path.join(REPO_ROOT, 'src', 'renderer'))];
-    const literals: string[] = [];
-    for (const f of files) {
-      const src = fs.readFileSync(f, 'utf8');
-      for (const m of src.matchAll(/DarkReader\.enable\(\s*\{([^}]*)\}/g)) {
-        literals.push(m[1].replace(/\s+/g, '').replace(/,$/, ''));
-      }
-    }
-    for (const lit of literals) {
-      expect(lit).toBe('brightness:100,contrast:95,sepia:0');
-    }
-  });
-
-  /** **Validates: Requirements 3.17** */
-  it('the PDF viewer dark style is still applied by the renderer', () => {
-    const files = walkSourceFiles(path.join(REPO_ROOT, 'src', 'renderer'));
-    const all = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
-    expect(all).toContain(PDF_DARK_FILTER);
-    expect(all).toContain("includes('.pdf?')");
-    expect(all).toContain("includes('application/pdf')");
-  });
-
-  it('observed baseline examples (unfixed code)', () => {
-    expect(liveShouldInjectDarkReader('https://example.com/')).toBe(true);
-    expect(liveShouldInjectDarkReader('https://news.ycombinator.com/item?id=1')).toBe(true);
-    expect(liveShouldInjectDarkReader('https://accounts.google.com/v3/signin/identifier')).toBe(false);
-    expect(liveShouldInjectDarkReader('https://example.com/login')).toBe(false);
-    expect(liveShouldInjectDarkReader('neutrino://newtab')).toBe(false);
-    expect(liveShouldInjectDarkReader('about:blank')).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Property 13: named greetings, MCP tools, safe permissions (3.12, 3.13, 3.15)
 // ---------------------------------------------------------------------------
 
@@ -629,7 +543,7 @@ describe('Property 13 (Preservation): MCP tools', () => {
         bookmarks: [],
         settings: {},
       }),
-      saveState: () => {},
+      saveState: () => { },
     };
     const sent: Sent[] = [];
     const mainWindow = { isDestroyed: () => false, webContents: { send: (channel: string, payload: any) => sent.push({ channel, payload }) } };

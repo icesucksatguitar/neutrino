@@ -74,6 +74,37 @@ export function applySpaceThemeToRoot(rawTheme: SpaceTheme, osDark: boolean): Th
   );
   style.setProperty('--theme-grain-opacity', (theme.grain * 0.14).toFixed(4));
   style.setProperty('--theme-ambient-opacity', (0.06 + theme.intensity * 0.24).toFixed(3));
+
+  // Customizable animated Homescreen ambient glow tokens
+  const isOff = palette.glowStyle === 'off' || palette.glowIntensity <= 0.005;
+  const glowOpacity = isOff
+    ? 0
+    : palette.effectiveMode === 'dark'
+      ? 0.08 + palette.glowIntensity * 0.58
+      : 0.06 + palette.glowIntensity * 0.36;
+  const glowWidthPx = Math.round(620 + palette.glowSize * 640);
+  const glowHeightPx = Math.round(360 + palette.glowSize * 340);
+  const glowBlurPx = Math.round(40 + palette.glowSize * 44);
+  const isPaused = isOff || palette.glowSpeed <= 0.01;
+  // Higher speed slider -> faster duration (1.75x slower at min speed, 0.45x faster at max speed)
+  const durationFactor = 1.75 - palette.glowSpeed * 1.3;
+
+  style.setProperty('--glow-c1', palette.glowC1);
+  style.setProperty('--glow-c2', palette.glowC2);
+  style.setProperty('--glow-c3', palette.glowC3);
+  style.setProperty('--glow-c4', palette.glowC4);
+  style.setProperty('--glow-opacity', glowOpacity.toFixed(3));
+  style.setProperty('--glow-blend-mode', palette.effectiveMode === 'dark' ? 'screen' : 'normal');
+  style.setProperty('--glow-size', `${glowWidthPx}px`);
+  style.setProperty('--glow-height', `${glowHeightPx}px`);
+  style.setProperty('--glow-blur', `${glowBlurPx}px`);
+  style.setProperty('--glow-play-state', isPaused ? 'paused' : 'running');
+  style.setProperty('--glow-speed', `${(20 * durationFactor).toFixed(1)}s`);
+  style.setProperty('--glow-drift-speed-1', `${(13 * durationFactor).toFixed(1)}s`);
+  style.setProperty('--glow-drift-speed-2', `${(17 * durationFactor).toFixed(1)}s`);
+  style.setProperty('--glow-drift-speed-3', `${(11 * durationFactor).toFixed(1)}s`);
+  style.setProperty('--glow-drift-speed-4', `${(15 * durationFactor).toFixed(1)}s`);
+
   style.setProperty('--theme-border', palette.border);
   style.setProperty('--theme-border-strong', palette.borderStrong);
   style.setProperty('--theme-border-subtle', palette.borderSubtle);
@@ -109,6 +140,7 @@ export function applySpaceThemeToRoot(rawTheme: SpaceTheme, osDark: boolean): Th
   style.setProperty('--workspace-accent', palette.accent);
 
   root.setAttribute('data-theme', palette.effectiveMode);
+  root.setAttribute('data-glow-style', isOff ? 'off' : palette.glowStyle);
   if (document.body) {
     document.body.classList.toggle('dark-mode', palette.effectiveMode === 'dark');
   }

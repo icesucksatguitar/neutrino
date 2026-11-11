@@ -75,20 +75,6 @@ export function useBrowser() {
       });
     });
 
-    const unregCloseActiveTab = window.neutrino.onCloseActiveTab?.(() => {
-      setState((prev) => {
-        if (!prev.activeTabId) return prev;
-        const curTabId = prev.activeTabId;
-        const remaining = prev.tabs.filter((t) => t.id !== curTabId);
-        const nextActive = remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-        return {
-          ...prev,
-          tabs: remaining,
-          activeTabId: nextActive,
-        };
-      });
-    });
-
     // High-performance batched tracker updates (prevents UI thread hitching on heavy pages)
     const trackerQueue: BlockedTrackerItem[] = [];
     let trackerFlushTimer: any = null;
@@ -151,31 +137,30 @@ export function useBrowser() {
     return () => {
       if (trackerFlushTimer) clearTimeout(trackerFlushTimer);
       unregState?.();
-      unregCloseActiveTab?.();
       unregTracker?.();
       window.removeEventListener('neutrino:mock-tabs', handleMockTabs);
     };
   }, []);
 
   const navigate = useCallback((url: string) => {
-      if (typeof url === 'string') {
-        const normalized = url.trim().toLowerCase();
-        // neutrino://settings, neutrino://history, neutrino://vpn open panels without changing Active_Tab URL.
-        if (normalized === 'neutrino://settings') {
-          window.dispatchEvent(new CustomEvent('neutrino:open-settings'));
-          return;
-        }
-        if (normalized === 'neutrino://history') {
-          window.dispatchEvent(new CustomEvent('neutrino:open-history'));
-          return;
-        }
-        if (normalized === 'neutrino://vpn') {
-          window.dispatchEvent(new CustomEvent('neutrino:open-vpn'));
-          return;
-        }
+    if (typeof url === 'string') {
+      const normalized = url.trim().toLowerCase();
+      // neutrino://settings, neutrino://history, neutrino://vpn open panels without changing Active_Tab URL.
+      if (normalized === 'neutrino://settings') {
+        window.dispatchEvent(new CustomEvent('neutrino:open-settings'));
+        return;
       }
-      window.neutrino?.navigate(url);
-    }, []);
+      if (normalized === 'neutrino://history') {
+        window.dispatchEvent(new CustomEvent('neutrino:open-history'));
+        return;
+      }
+      if (normalized === 'neutrino://vpn') {
+        window.dispatchEvent(new CustomEvent('neutrino:open-vpn'));
+        return;
+      }
+    }
+    window.neutrino?.navigate(url);
+  }, []);
 
   const createTab = useCallback((url?: string, spaceId?: string) => {
     return window.neutrino?.createTab(url, spaceId);
@@ -183,6 +168,14 @@ export function useBrowser() {
 
   const closeTab = useCallback((tabId: string) => {
     window.neutrino?.closeTab(tabId);
+  }, []);
+
+  const reopenClosedTab = useCallback(() => {
+    return window.neutrino?.reopenClosedTab?.();
+  }, []);
+
+  const cycleTab = useCallback((direction: 1 | -1) => {
+    return window.neutrino?.cycleTab?.(direction);
   }, []);
 
   const selectTab = useCallback((tabId: string) => {
@@ -252,6 +245,8 @@ export function useBrowser() {
     navigate,
     createTab,
     closeTab,
+    reopenClosedTab,
+    cycleTab,
     selectTab,
     togglePinTab,
     toggleSleepTab,

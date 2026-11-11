@@ -1,4 +1,21 @@
 export type SpaceThemeMode = 'light' | 'dark' | 'auto';
+export type SpaceGlowStyle = 'theme' | 'prism' | 'custom' | 'off';
+
+export interface SpaceGlowSettings {
+  style: SpaceGlowStyle;
+  color: string;
+  intensity: number;
+  speed: number;
+  size: number;
+}
+
+export const DEFAULT_SPACE_GLOW: Readonly<SpaceGlowSettings> = Object.freeze({
+  style: 'theme',
+  color: '#F59E0B',
+  intensity: 0.56,
+  speed: 0.55,
+  size: 0.58,
+});
 
 export interface SpaceThemePoint {
   color: string;
@@ -11,6 +28,7 @@ export interface SpaceTheme {
   intensity: number;
   grain: number;
   mode: SpaceThemeMode;
+  glow?: SpaceGlowSettings;
 }
 
 export type SpaceThemesMap = Record<string, SpaceTheme>;
@@ -28,6 +46,14 @@ export interface ThemePalette {
   c2: string;
   c3: string;
   hasThirdPoint: boolean;
+  glowC1: string;
+  glowC2: string;
+  glowC3: string;
+  glowC4: string;
+  glowStyle: SpaceGlowStyle;
+  glowIntensity: number;
+  glowSpeed: number;
+  glowSize: number;
   fg: string;
   fgMuted: string;
   fgFaint: string;
@@ -266,12 +292,19 @@ export const SPACE_THEME_PRESETS: SpaceThemePreset[] = [
   {
     id: 'obsidian-mono',
     name: 'Obsidian Mono',
-    description: 'Quiet charcoal & silver slate',
+    description: 'Quiet charcoal & prism aura glow',
     theme: {
       points: [makePoint('#1F242D'), makePoint('#334155'), makePoint('#111827')],
       intensity: 0.5,
       grain: 0.22,
       mode: 'dark',
+      glow: {
+        style: 'prism',
+        color: '#F59E0B',
+        intensity: 0.52,
+        speed: 0.55,
+        size: 0.58,
+      },
     },
   },
   {
@@ -372,12 +405,50 @@ const SPACE_DEFAULT_PRESET_MAP: Record<string, string> = {
   'space-leisure': 'aurora-violet',
 };
 
+export function validateAndClampSpaceGlow(
+  raw: unknown,
+  fallback: SpaceGlowSettings = DEFAULT_SPACE_GLOW
+): SpaceGlowSettings {
+  const safeFallback: SpaceGlowSettings = {
+    style:
+      fallback.style === 'theme' ||
+        fallback.style === 'prism' ||
+        fallback.style === 'custom' ||
+        fallback.style === 'off'
+        ? fallback.style
+        : DEFAULT_SPACE_GLOW.style,
+    color: normalizeHex(fallback.color, DEFAULT_SPACE_GLOW.color),
+    intensity: clamp01(fallback.intensity, DEFAULT_SPACE_GLOW.intensity),
+    speed: clamp01(fallback.speed, DEFAULT_SPACE_GLOW.speed),
+    size: clamp01(fallback.size, DEFAULT_SPACE_GLOW.size),
+  };
+
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return safeFallback;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const style: SpaceGlowStyle =
+    obj.style === 'theme' || obj.style === 'prism' || obj.style === 'custom' || obj.style === 'off'
+      ? obj.style
+      : safeFallback.style;
+
+  return {
+    style,
+    color: normalizeHex(obj.color, safeFallback.color),
+    intensity: clamp01(obj.intensity, safeFallback.intensity),
+    speed: clamp01(obj.speed, safeFallback.speed),
+    size: clamp01(obj.size, safeFallback.size),
+  };
+}
+
 export function cloneSpaceTheme(theme: SpaceTheme): SpaceTheme {
   return {
     points: theme.points.map((p) => ({ color: p.color, x: p.x, y: p.y })),
     intensity: theme.intensity,
     grain: theme.grain,
     mode: theme.mode,
+    glow: validateAndClampSpaceGlow(theme.glow, DEFAULT_SPACE_GLOW),
   };
 }
 
@@ -392,6 +463,7 @@ export function validateAndClampSpaceTheme(raw: unknown, fallback: SpaceTheme = 
     obj.mode === 'light' || obj.mode === 'dark' || obj.mode === 'auto' ? obj.mode : safeFallback.mode;
   const intensity = clamp01(obj.intensity, safeFallback.intensity);
   const grain = clamp01(obj.grain, safeFallback.grain);
+  const glow = validateAndClampSpaceGlow(obj.glow, safeFallback.glow || DEFAULT_SPACE_GLOW);
 
   const rawPoints = Array.isArray(obj.points) ? obj.points : [];
   const validPoints: SpaceThemePoint[] = [];
@@ -428,6 +500,7 @@ export function validateAndClampSpaceTheme(raw: unknown, fallback: SpaceTheme = 
     intensity,
     grain,
     mode,
+    glow,
   };
 }
 
@@ -435,8 +508,8 @@ export function migrateLegacyThemeSettings(rawSettings: Record<string, unknown>)
   const legacyTheme = rawSettings.theme === 'light' ? 'light' : 'dark';
   const custom =
     rawSettings.customTheme !== null &&
-    typeof rawSettings.customTheme === 'object' &&
-    !Array.isArray(rawSettings.customTheme)
+      typeof rawSettings.customTheme === 'object' &&
+      !Array.isArray(rawSettings.customTheme)
       ? (rawSettings.customTheme as Record<string, unknown>)
       : null;
 
@@ -454,6 +527,7 @@ export function migrateLegacyThemeSettings(rawSettings: Record<string, unknown>)
         intensity: mode === 'light' ? 0.6 : 0.56,
         grain: 0.22,
         mode,
+        glow: validateAndClampSpaceGlow(undefined),
       };
     }
 
@@ -506,9 +580,67 @@ export function resolveEffectiveMode(mode: SpaceThemeMode, osDark: boolean): 'li
   return mode;
 }
 
+function liftGlowColor(hex: string, effectiveMode: 'light' | 'dark'): string {
+  const { h, s, l } = hexToHsl(hex);
+  const targetMinL = effectiveMode === 'dark' ? 48 : 52;
+  const targetMaxL = effectiveMode === 'dark' ? 68 : 74;
+  const clampedL = Math.max(targetMinL, Math.min(targetMaxL, l));
+  // Preserve subtle gray when monochrome, otherwise boost saturation cleanly so glow reads luminously
+  const nextS = s < 10 ? Math.max(12, s) : Math.max(54, Math.min(92, s));
+  return hslToHex(h, nextS, clampedL);
+}
+
+export function computeGlowStops(
+  rawTheme: SpaceTheme,
+  effectiveMode: 'light' | 'dark'
+): { glowC1: string; glowC2: string; glowC3: string; glowC4: string; glow: SpaceGlowSettings } {
+  const theme = validateAndClampSpaceTheme(rawTheme);
+  const glow = validateAndClampSpaceGlow(theme.glow, DEFAULT_SPACE_GLOW);
+
+  if (glow.style === 'prism') {
+    return {
+      glowC1: '#F59E0B',
+      glowC2: '#F97316',
+      glowC3: '#EC4899',
+      glowC4: '#8B5CF6',
+      glow,
+    };
+  }
+
+  if (glow.style === 'custom') {
+    const base = liftGlowColor(glow.color, effectiveMode);
+    const { h, s, l } = hexToHsl(base);
+    return {
+      glowC1: base,
+      glowC2: hslToHex((h + 24) % 360, Math.min(92, s + 4), Math.max(46, l - 4)),
+      glowC3: hslToHex((h + 334) % 360, Math.min(90, Math.max(46, s)), Math.min(72, l + 4)),
+      glowC4: hslToHex((h + 12) % 360, Math.min(95, s + 8), Math.min(76, l + 10)),
+      glow,
+    };
+  }
+
+  // 'theme' (and safe fallback when 'off') derives 4 luminous stops directly from Space points
+  const g1 = liftGlowColor(theme.points[0].color, effectiveMode);
+  const g2 = liftGlowColor(theme.points[1].color, effectiveMode);
+  const g3 = theme.points[2]
+    ? liftGlowColor(theme.points[2].color, effectiveMode)
+    : liftGlowColor(hslToHex((hexToHsl(g1).h + 26) % 360, 68, 56), effectiveMode);
+  const coreHsl = hexToHsl(mixHex(g1, g2, 0.5));
+  const g4 = hslToHex(coreHsl.h, Math.min(94, coreHsl.s + 10), Math.min(76, Math.max(54, coreHsl.l + 10)));
+
+  return {
+    glowC1: g1,
+    glowC2: g2,
+    glowC3: g3,
+    glowC4: g4,
+    glow,
+  };
+}
+
 export function computeThemePalette(rawTheme: SpaceTheme, osDark: boolean): ThemePalette {
   const theme = validateAndClampSpaceTheme(rawTheme);
   const effectiveMode = resolveEffectiveMode(theme.mode, osDark);
+  const { glowC1, glowC2, glowC3, glowC4, glow } = computeGlowStops(theme, effectiveMode);
 
   const c1 = theme.points[0].color;
   const c2 = theme.points[1].color;
@@ -592,6 +724,14 @@ export function computeThemePalette(rawTheme: SpaceTheme, osDark: boolean): Them
     c2,
     c3,
     hasThirdPoint,
+    glowC1,
+    glowC2,
+    glowC3,
+    glowC4,
+    glowStyle: glow.style,
+    glowIntensity: glow.intensity,
+    glowSpeed: glow.speed,
+    glowSize: glow.size,
     fg,
     fgMuted,
     fgFaint,

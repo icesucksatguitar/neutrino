@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TabState, Space } from '../types';
-import { SEARCH_ENGINES, SearchEngineId, buildSearchUrl, hostForExclusion } from '../../main/settings';
+import { SEARCH_ENGINES, SearchEngineId, buildSearchUrl } from '../../main/settings';
 
 interface CommandBarProps {
   isOpen: boolean;
@@ -21,9 +21,12 @@ interface CommandBarProps {
   onOpenSettings?: () => void;
   onOpenHistory?: () => void;
   onOpenVpn?: () => void;
-  activeTabUrl?: string;
-  isActiveSiteExcluded?: boolean;
-  onToggleSiteDarkMode?: () => void;
+  onGoBack?: () => void;
+  onGoForward?: () => void;
+  onReload?: () => void;
+  onCloseActiveTab?: () => void;
+  onReopenClosedTab?: () => void;
+  onOpenFind?: () => void;
 }
 
 // Top global and productivity web domains for instant autocompletion
@@ -102,9 +105,12 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onOpenSettings,
   onOpenHistory,
   onOpenVpn,
-  activeTabUrl,
-  isActiveSiteExcluded,
-  onToggleSiteDarkMode,
+  onGoBack,
+  onGoForward,
+  onReload,
+  onCloseActiveTab,
+  onReopenClosedTab,
+  onOpenFind,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -181,11 +187,62 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       (t.url && t.url.toLowerCase().includes(query.toLowerCase()))
   );
 
-  // Only http(s) tabs have a host that can go on the dark-mode exclusion list.
-  const activeSiteHost = activeTabUrl ? hostForExclusion(activeTabUrl) : null;
-
   // Command items prefixed with ">"
   const allCommands: Array<{ id: string; title: string; hint: string; action: () => void }> = [
+    {
+      id: 'cmd-back',
+      title: '> Go Back',
+      hint: 'Alt+Left',
+      action: () => {
+        onGoBack?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-forward',
+      title: '> Go Forward',
+      hint: 'Alt+Right',
+      action: () => {
+        onGoForward?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-reload',
+      title: '> Reload Current Page',
+      hint: 'Ctrl+R',
+      action: () => {
+        onReload?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-find',
+      title: '> Find in Page',
+      hint: 'Ctrl+F',
+      action: () => {
+        onOpenFind?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-close-tab',
+      title: '> Close Current Tab',
+      hint: 'Ctrl+W',
+      action: () => {
+        onCloseActiveTab?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-reopen-tab',
+      title: '> Reopen Closed Tab',
+      hint: 'Ctrl+Shift+T',
+      action: () => {
+        onReopenClosedTab?.();
+        onClose();
+      },
+    },
     {
       id: 'cmd-open-settings',
       title: '> Open Settings',
@@ -198,7 +255,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     {
       id: 'cmd-theme',
       title: '> Toggle Dark / Light Theme',
-      hint: 'Ctrl+Shift+D',
+      hint: 'Chrome',
       action: () => onToggleTheme?.(),
     },
     {
@@ -210,7 +267,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     {
       id: 'cmd-sleep-tabs',
       title: '> Put Inactive Tabs to Sleep (Zen Memory Mode)',
-      hint: 'Ctrl+Shift+Z',
+      hint: 'Zen',
       action: () => onZenOptimize(),
     },
     {
@@ -265,15 +322,6 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       },
     },
   ];
-
-  if (activeSiteHost) {
-    allCommands.push({
-      id: 'cmd-toggle-site-dark-mode',
-      title: '> Toggle Dark Mode for This Site',
-      hint: isActiveSiteExcluded ? `Use dark mode on ${activeSiteHost}` : `Exclude ${activeSiteHost}`,
-      action: () => onToggleSiteDarkMode?.(),
-    });
-  }
 
   const commands = allCommands.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()));
 

@@ -33,6 +33,7 @@ export class BrowserManager {
   private historyManager?: HistoryManager;
   private mainWindow: BrowserWindow | null = null;
   private activeMediaTabs: Set<string> = new Set();
+  private closedTabs: Array<{ url: string; title: string; spaceId: string; isPinned: boolean }> = [];
 
   constructor(
     adblockEngine: BraveShieldEngine,
@@ -200,6 +201,21 @@ export class BrowserManager {
     this.resourceManager.unregisterTab(tabId);
     const closingTab = this.tabs.get(tabId)!;
     const currentSpaceId = closingTab.spaceId;
+    if (
+      closingTab.url &&
+      closingTab.url !== 'neutrino://newtab' &&
+      closingTab.url !== 'about:blank'
+    ) {
+      this.closedTabs.push({
+        url: closingTab.url,
+        title: closingTab.title,
+        spaceId: closingTab.spaceId,
+        isPinned: closingTab.isPinned,
+      });
+      if (this.closedTabs.length > 20) {
+        this.closedTabs.shift();
+      }
+    }
     this.tabs.delete(tabId);
 
     // If closing active tab, activate next available tab in this space
@@ -216,6 +232,34 @@ export class BrowserManager {
     }
 
     this.notifyState();
+  }
+
+  public reopenLastClosedTab(): TabState | null {
+    const entry = this.closedTabs.pop();
+    if (!entry) return null;
+    const targetSpace = this.spaces.some((s) => s.id === entry.spaceId) ? entry.spaceId : this.activeSpaceId;
+    const reopened = this.createTab(entry.url, targetSpace, entry.isPinned);
+    if (entry.title && entry.title !== 'New Tab') {
+      this.updateTab(reopened.id, { title: entry.title });
+    }
+    return reopened;
+  }
+
+  public cycleTab(direction: 1 | -1): TabState | null {
+    const spaceTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === this.activeSpaceId);
+    if (spaceTabs.length <= 1) return this.getActiveTab();
+    const curIndex = spaceTabs.findIndex((t) => t.id === this.activeTabId);
+    const startIndex = curIndex >= 0 ? curIndex : 0;
+    const nextIndex = (startIndex + direction + spaceTabs.length) % spaceTabs.length;
+    const nextTab = spaceTabs[nextIndex];
+    this.setActiveTab(nextTab.id);
+    return nextTab;
+  }
+
+  public selectSpaceByIndex(index: number): boolean {
+    if (index < 0 || index >= this.spaces.length) return false;
+    this.setActiveSpace(this.spaces[index].id);
+    return true;
   }
 
   public setActiveTab(tabId: string) {

@@ -29,7 +29,6 @@ describe('LocalStorageManager.saveSettings', () => {
     storage.saveState({ spaces, bookmarks, settings: { theme: 'dark' } });
 
     const settings = {
-      darkModeExclusions: ['youtube.com'],
       adblockEnabled: false,
       zenSleepEnabled: true,
       searchEngine: 'duckduckgo',
@@ -57,7 +56,7 @@ describe('LocalStorageManager.saveSettings', () => {
     const storage = new LocalStorageManager();
     const stateFile = path.join(tmp.dir, 'neutrino-data', 'browser-state.json');
     fs.mkdirSync(stateFile); // a directory where the file should be makes the write fail
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     try {
       expect(() => storage.saveSettings({ adblockEnabled: false })).not.toThrow();
       expect(errSpy).toHaveBeenCalled();
@@ -73,7 +72,6 @@ describe('LocalStorageManager.saveSettings', () => {
       zenSleepEnabled: true,
       searchEngine: 'brave',
       theme: 'light',
-      darkModeExclusions: ['example.com'],
     });
 
     const readSpy = vi.spyOn(fs, 'readFileSync');
@@ -90,17 +88,14 @@ describe('LocalStorageManager.saveSettings', () => {
   it('deep-clones cached state so caller mutations never corrupt the cache', () => {
     const storage = new LocalStorageManager();
     storage.saveSettings({
-      darkModeExclusions: ['youtube.com'],
       windowBounds: { width: 1200, height: 800, x: 50, y: 60, isMaximized: false },
     });
 
     const state = storage.loadState();
-    (state.settings.darkModeExclusions as string[]).push('evil.example');
     (state.settings.windowBounds as { width: number }).width = 9999;
     state.spaces[0].name = 'Mutated';
 
     const clean = storage.loadState();
-    expect(clean.settings.darkModeExclusions).toEqual(['youtube.com']);
     expect((clean.settings.windowBounds as { width: number }).width).toBe(1200);
     expect(clean.spaces[0].name).toBe('Study');
   });
@@ -112,7 +107,7 @@ describe('LocalStorageManager.saveSettings', () => {
     const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
       throw new Error('disk full');
     });
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     try {
       storage.saveSettings({ searchEngine: 'bing', theme: 'dark' });
     } finally {
@@ -130,7 +125,6 @@ describe('LocalStorageManager.saveSettings', () => {
       adblockEnabled: true,
       zenSleepEnabled: false,
       searchEngine: 'brave',
-      darkModeExclusions: ['github.com'],
     });
     firstLaunch.patchSettings({
       theme: 'light',
@@ -151,7 +145,6 @@ describe('LocalStorageManager.saveSettings', () => {
       adblockEnabled: true,
       zenSleepEnabled: true,
       searchEngine: 'brave',
-      darkModeExclusions: ['github.com'],
       theme: 'light',
       activeSpaceId: 'space-work',
       windowBounds: { width: 1280, height: 760, x: 40, y: 30, isMaximized: false },

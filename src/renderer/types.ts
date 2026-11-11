@@ -107,6 +107,8 @@ import type { VpnConfig, VpnStatus, VpnIpCheckResult } from '../main/vpnCore';
 
 export type AuthHandoffResult = { ok: true; siteHost: string } | { ok: false; error: string };
 
+export type SiteAction = 'back' | 'forward' | 'reload' | 'hard-reload' | 'stop' | 'home' | 'open-find';
+
 declare global {
   interface Window {
     neutrino?: {
@@ -115,6 +117,13 @@ declare global {
       goBack: () => Promise<void>;
       goForward: () => Promise<void>;
       reload: () => Promise<void>;
+      hardReload?: () => Promise<void>;
+      stopLoading?: () => Promise<void>;
+      reopenClosedTab?: () => Promise<TabState | null>;
+      cycleTab?: (direction: 1 | -1) => Promise<TabState | null>;
+      openExternalUrl?: (url: string) => Promise<boolean>;
+      onSiteAction?: (cb: (payload: { action: SiteAction; source?: string }) => void) => () => void;
+      onSpaceSwitched?: (cb: (payload: { spaceId: string; spaceName: string }) => void) => () => void;
       createTab: (url?: string, spaceId?: string) => Promise<TabState>;
       updateTab?: (tabId: string, partial: Partial<TabState>) => Promise<void>;
       closeTab: (tabId: string) => Promise<void>;

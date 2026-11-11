@@ -10,11 +10,26 @@ ipcRenderer.on('neutrino:trim-memory', () => {
 contextBridge.exposeInMainWorld('neutrino', {
   isElectron: true,
 
-  // Navigation
+  // Navigation & Site Controls
   navigate: (url: string) => ipcRenderer.invoke('neutrino:navigate', url),
   goBack: () => ipcRenderer.invoke('neutrino:go-back'),
   goForward: () => ipcRenderer.invoke('neutrino:go-forward'),
   reload: () => ipcRenderer.invoke('neutrino:reload'),
+  hardReload: () => ipcRenderer.invoke('neutrino:hard-reload'),
+  stopLoading: () => ipcRenderer.invoke('neutrino:stop-loading'),
+  reopenClosedTab: () => ipcRenderer.invoke('neutrino:reopen-closed-tab'),
+  cycleTab: (direction: 1 | -1) => ipcRenderer.invoke('neutrino:cycle-tab', direction),
+  openExternalUrl: (url: string) => ipcRenderer.invoke('neutrino:open-external-url', url),
+  onSiteAction: (callback: (payload: { action: string; source?: string }) => void) => {
+    const handler = (_: unknown, payload: any) => callback(payload);
+    ipcRenderer.on('neutrino:site-action', handler);
+    return () => ipcRenderer.removeListener('neutrino:site-action', handler);
+  },
+  onSpaceSwitched: (callback: (payload: { spaceId: string; spaceName: string }) => void) => {
+    const handler = (_: unknown, payload: any) => callback(payload);
+    ipcRenderer.on('neutrino:space-switched', handler);
+    return () => ipcRenderer.removeListener('neutrino:space-switched', handler);
+  },
 
   // Tabs & Spaces
   createTab: (url?: string, spaceId?: string) => ipcRenderer.invoke('neutrino:create-tab', { url, spaceId }),

@@ -12,7 +12,11 @@ export interface WindowOpenContext<W = unknown> {
   isAuthOrSecurityUrl: (url: string) => boolean;
   mainWindow: W | null;
   activeTab: { spaceId: string } | null;
+  /** Session partition of the opener tab's profile. Popups open in it; defaults to `persist:neutrino`. */
+  partition?: string;
 }
+
+const DEFAULT_PARTITION = 'persist:neutrino';
 
 export interface PopupWindowOptions<W = unknown> {
   width: number;
@@ -46,7 +50,11 @@ export function popupTitle(url: string): string {
   return 'Neutrino';
 }
 
-export function buildPopupWindowOptions<W>(url: string, mainWindow: W | null | undefined): PopupWindowOptions<W> {
+export function buildPopupWindowOptions<W>(
+  url: string,
+  mainWindow: W | null | undefined,
+  partition?: string,
+): PopupWindowOptions<W> {
   return {
     width: 540,
     height: 700,
@@ -57,9 +65,9 @@ export function buildPopupWindowOptions<W>(url: string, mainWindow: W | null | u
     parent: mainWindow || undefined,
     modal: false,
     webPreferences: {
-      // Same partition as every tab and the assistant drawer, so the popup shares the opener's
-      // cookies and the site sees the sign-in result.
-      partition: 'persist:neutrino',
+      // The opener's profile partition, so the popup shares the opener's cookies and the site
+      // sees the sign-in result. Default profile: persist:neutrino.
+      partition: partition ?? DEFAULT_PARTITION,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -77,9 +85,10 @@ export function decideWindowOpen<W>(details: WindowOpenDetails, ctx: WindowOpenC
     details.disposition === 'new-window' || hasWindowFeatures || ctx.isAuthOrSecurityUrl(url) || url === 'about:blank' || !url;
 
   if (isPopup) {
-    return { action: 'allow', overrideBrowserWindowOptions: buildPopupWindowOptions(url, ctx.mainWindow) };
+    return { action: 'allow', overrideBrowserWindowOptions: buildPopupWindowOptions(url, ctx.mainWindow, ctx.partition) };
   }
 
+  // The new tab joins the opener's space (and so its profile).
   const spaceId = ctx.activeTab ? ctx.activeTab.spaceId : 'space-study';
   return { action: 'deny', createTab: { url: details.url, spaceId } };
 }

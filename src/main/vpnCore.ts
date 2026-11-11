@@ -159,6 +159,22 @@ export interface ElectronProxySpec {
 }
 
 /** Translates a VpnConfig into an Electron session.setProxy specification. */
+/**
+ * Resolves the partition list the VPN must target: every registered partition
+ * exactly once, in first-seen order, skipping empty or non-string entries.
+ * The default session is always targeted separately by the controller.
+ */
+export function resolveVpnTargetPartitions(partitions: readonly unknown[] | null | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of partitions ?? []) {
+    if (typeof p !== 'string' || p.length === 0 || seen.has(p)) continue;
+    seen.add(p);
+    out.push(p);
+  }
+  return out;
+}
+
 export function buildElectronProxySpec(config: VpnConfig, torPort = 9050): ElectronProxySpec {
   if (!config.enabled || config.mode === 'doh-only' || config.mode === 'system-vpn') {
     return { mode: 'system' };

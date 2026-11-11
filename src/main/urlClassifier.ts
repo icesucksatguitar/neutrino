@@ -44,3 +44,32 @@ export function isAuthOrSecurityUrl(url: string): boolean {
     lower.includes('/token')
   );
 }
+
+/**
+ * YouTube ad endpoints that share a prefix with playback endpoints (`youtubei/v1/player/ad_break`,
+ * `api/stats/qoe?adformat=`). The original shield engine blocked these as `Pattern: ad-endpoint`,
+ * so the playback allowlists below must not let them through (bugfix 3.3).
+ */
+export function isYoutubeAdEndpointUrl(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  return lower.includes('youtubei/v1/player/ad_break') || lower.includes('youtube.com/api/stats/qoe?adformat=');
+}
+
+/** YouTube video streams and playback feeds that are never blocked. Moved from src/main/index.ts. */
+export function isMediaStreamingUrl(url: string): boolean {
+  if (!url) return false;
+  if (isYoutubeAdEndpointUrl(url)) return false;
+  const lower = url.toLowerCase();
+  return (
+    lower.includes('googlevideo.com') ||
+    lower.includes('videoplayback') ||
+    lower.includes('youtubei/v1/player') ||
+    lower.includes('youtube.com/api/stats/playback') ||
+    lower.includes('youtube.com/api/stats/watchtime') ||
+    lower.includes('youtube.com/api/stats/delayplay') ||
+    lower.includes('youtube.com/api/stats/atr') ||
+    lower.includes('youtube.com/api/stats/qoe') ||
+    lower.includes('youtube.com/ptracking')
+  );
+}

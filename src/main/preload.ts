@@ -39,8 +39,51 @@ contextBridge.exposeInMainWorld('neutrino', {
   togglePinTab: (tabId: string) => ipcRenderer.invoke('neutrino:toggle-pin-tab', tabId),
   toggleSleepTab: (tabId: string) => ipcRenderer.invoke('neutrino:toggle-sleep-tab', tabId),
   selectSpace: (spaceId: string) => ipcRenderer.invoke('neutrino:select-space', spaceId),
-  createSpace: (name: string, color?: string) => ipcRenderer.invoke('neutrino:create-space', { name, color }),
+  createSpace: (name: string, color?: string, profileId?: string) =>
+    ipcRenderer.invoke('neutrino:create-space', profileId === undefined ? { name, color } : { name, color, profileId }),
   deleteSpace: (spaceId: string) => ipcRenderer.invoke('neutrino:delete-space', spaceId),
+  updateSpace: (spaceId: string, patch: { name?: string; color?: string; icon?: string }) =>
+    ipcRenderer.invoke('neutrino:update-space', { spaceId, patch }),
+  reorderSpace: (spaceId: string, toIndex: number) => ipcRenderer.invoke('neutrino:reorder-space', { spaceId, toIndex }),
+
+  // Profiles. Each profile owns its spaces and one session partition; main validates every payload.
+  listProfiles: () => ipcRenderer.invoke('neutrino:list-profiles'),
+  createProfile: (name?: string) => ipcRenderer.invoke('neutrino:create-profile', name),
+  renameProfile: (profileId: string, name: string) => ipcRenderer.invoke('neutrino:rename-profile', { profileId, name }),
+  deleteProfile: (profileId: string) => ipcRenderer.invoke('neutrino:delete-profile', profileId),
+  onTabPartitionChanged: (callback: (change: { tabId: string; partition: string; url: string }) => void) => {
+    const handler = (_: unknown, change: any) => callback(change);
+    ipcRenderer.on('neutrino:tab-partition-changed', handler);
+    return () => ipcRenderer.removeListener('neutrino:tab-partition-changed', handler);
+  },
+
+  // Sidebar layout (favorites / pinned / Today)
+  moveTab: (op: unknown) => ipcRenderer.invoke('neutrino:move-tab', op),
+  pinTab: (tabId: string) => ipcRenderer.invoke('neutrino:pin-tab', tabId),
+  unpinTab: (tabId: string) => ipcRenderer.invoke('neutrino:unpin-tab', tabId),
+  addFavorite: (tabId: string) => ipcRenderer.invoke('neutrino:add-favorite', tabId),
+  removeFavorite: (favoriteId: string) => ipcRenderer.invoke('neutrino:remove-favorite', favoriteId),
+  duplicateTab: (id: string, spaceId?: string) =>
+    ipcRenderer.invoke('neutrino:duplicate-tab', spaceId === undefined ? { id } : { id, spaceId }),
+
+  // Archive of auto-archived Today tabs (R16.7, R16.8)
+  listArchive: () => ipcRenderer.invoke('neutrino:list-archive'),
+  restoreArchivedTab: (archivedId: string) => ipcRenderer.invoke('neutrino:restore-archived-tab', archivedId),
+  onArchiveUpdated: (callback: (entries: unknown[]) => void) => {
+    const handler = (_: unknown, entries: unknown[]) => callback(entries);
+    ipcRenderer.on('neutrino:archive-updated', handler);
+    return () => ipcRenderer.removeListener('neutrino:archive-updated', handler);
+  },
+
+  // Sidebar state lives in settings; only the sidebar keys are forwarded.
+  updateSidebarState: (patch: Record<string, unknown>) => {
+    const keys = ['sidebarExpanded', 'sidebarAutoHide', 'rightPinsDockVisible', 'archiveIntervalHours'];
+    const picked: Record<string, unknown> = {};
+    if (patch && typeof patch === 'object') {
+      for (const key of keys) if (key in patch) picked[key] = patch[key];
+    }
+    return ipcRenderer.invoke('neutrino:update-settings', picked);
+  },
   reorderTabs: (draggedTabId: string, targetTabId: string) => ipcRenderer.invoke('neutrino:reorder-tabs', { draggedTabId, targetTabId }),
   setZoomFactor: (factor: number) => ipcRenderer.invoke('neutrino:set-zoom-factor', factor),
 
@@ -62,6 +105,16 @@ contextBridge.exposeInMainWorld('neutrino', {
 
   // Media Control & Picture-in-Picture
   mediaControl: (action: string, params?: unknown) => ipcRenderer.invoke('neutrino:media-control', { action, params }),
+
+  // Hover previews, keyed by tab id (R18.3-R18.7)
+  captureTabPreviewById: (tabId: string) => ipcRenderer.invoke('neutrino:capture-tab-preview-by-id', tabId),
+  getTabPreview: (tabId: string) => ipcRenderer.invoke('neutrino:get-tab-preview', tabId),
+  /** Tells main which guest webContents hosts the tab's webview (needed for capture by id). */
+  registerTabWebview: (tabId: string, webContentsId: number) =>
+    ipcRenderer.invoke('neutrino:register-tab-webview', { tabId, webContentsId }),
+  /** Top bar tint fallback (R20.2): dominant color of the tab page's top strip, or null. */
+  sampleTabTopColor: (tabId: string) => ipcRenderer.invoke('neutrino:sample-tab-top-color', tabId),
+  /** Compatibility shim: the old URL-based call, resolved to a tab id in main. */
   captureTabPreview: (tabUrl: string) => ipcRenderer.invoke('neutrino:capture-tab-preview', tabUrl),
 
   // Window Controls
@@ -105,8 +158,10 @@ contextBridge.exposeInMainWorld('neutrino', {
     return () => ipcRenderer.removeListener('neutrino:close-active-tab', handler);
   },
 
-  onOpenCommandBar: (callback: () => void) => {
-    const handler = () => callback();
+  // `{ newTab: true }` for Ctrl+T: the submission creates a Today tab in the active space (R12.8).
+  onOpenCommandBar: (callback: (opts?: { newTab?: boolean }) => void) => {
+    const handler = (_: unknown, opts?: { newTab?: boolean }) =>
+      callback(opts && typeof opts === 'object' ? { newTab: opts.newTab === true } : undefined);
     ipcRenderer.on('neutrino:open-command-bar', handler);
     return () => ipcRenderer.removeListener('neutrino:open-command-bar', handler);
   },
@@ -151,6 +206,47 @@ contextBridge.exposeInMainWorld('neutrino', {
     ipcRenderer.on('neutrino:open-history', handler);
     return () => ipcRenderer.removeListener('neutrino:open-history', handler);
   },
+
+  // Password manager (Active_Profile). No call returns a password except revealPassword after
+  // verification; copyPassword writes the clipboard in main. Prompt events carry origin and
+  // username only.
+  onPasswordPrompt: (
+    callback: (prompt: {
+      promptId: string;
+      kind: 'save' | 'update';
+      profileId: string;
+      webContentsId: number;
+      origin: string;
+      username: string;
+    }) => void,
+  ) => {
+    const handler = (_: unknown, prompt: any) => callback(prompt);
+    ipcRenderer.on('neutrino:password-prompt', handler);
+    return () => ipcRenderer.removeListener('neutrino:password-prompt', handler);
+  },
+  onPasswordPromptClosed: (callback: (payload: { promptId: string }) => void) => {
+    const handler = (_: unknown, payload: any) => callback(payload);
+    ipcRenderer.on('neutrino:password-prompt-closed', handler);
+    return () => ipcRenderer.removeListener('neutrino:password-prompt-closed', handler);
+  },
+  respondToPasswordPrompt: (promptId: string, action: 'save' | 'update' | 'never' | 'not-now' | 'dismiss') =>
+    ipcRenderer.invoke('neutrino:password-prompt-respond', { promptId, action }),
+  getPasswordStatus: () => ipcRenderer.invoke('neutrino:passwords-status'),
+  listPasswords: () => ipcRenderer.invoke('neutrino:passwords-list'),
+  editPassword: (credentialId: string, patch: { username?: string; password?: string }) =>
+    ipcRenderer.invoke('neutrino:passwords-edit', { credentialId, username: patch?.username, password: patch?.password }),
+  deletePassword: (credentialId: string) => ipcRenderer.invoke('neutrino:passwords-delete', credentialId),
+  revealPassword: (credentialId: string) => ipcRenderer.invoke('neutrino:passwords-reveal', credentialId),
+  copyPassword: (credentialId: string) => ipcRenderer.invoke('neutrino:passwords-copy', credentialId),
+  confirmPasswordAction: (confirmId: string, accepted: boolean) =>
+    ipcRenderer.invoke('neutrino:passwords-confirm', { confirmId, accepted }),
+  getPasswordNeverList: () => ipcRenderer.invoke('neutrino:passwords-never-list'),
+  removeFromPasswordNeverList: (origin: string) => ipcRenderer.invoke('neutrino:passwords-never-list-remove', origin),
+  importPasswordsCsv: () => ipcRenderer.invoke('neutrino:passwords-import-csv'),
+  importPasswordsFromBrowser: () => ipcRenderer.invoke('neutrino:passwords-import-browser'),
+  commitPasswordImport: (importId: string, choices?: Record<number, 'keep' | 'replace'>) =>
+    ipcRenderer.invoke('neutrino:passwords-import-commit', { importId, choices }),
+  cancelPasswordImport: (importId: string) => ipcRenderer.invoke('neutrino:passwords-import-cancel', importId),
 
   // Built-in VPN / Privacy Tunnel
   getVpnStatus: () => ipcRenderer.invoke('neutrino:get-vpn-status'),

@@ -1,3 +1,5 @@
+import { isYoutubeAdEndpointUrl } from '../urlClassifier';
+
 export interface AdblockDecision {
   blocked: boolean;
   domain: string;
@@ -194,9 +196,11 @@ export class BraveShieldEngine {
 
     const lowerUrl = urlStr.toLowerCase();
 
-    // Whitelist YouTube video streaming & playback endpoints so playback never breaks
+    // Whitelist YouTube video streaming & playback endpoints so playback never breaks.
+    // Ad endpoints under the same prefixes (player/ad_break, qoe?adformat=) skip this and stay blocked.
     if (
-      host.includes('googlevideo.com') ||
+      !isYoutubeAdEndpointUrl(lowerUrl) &&
+      (host.includes('googlevideo.com') ||
       lowerUrl.includes('videoplayback') ||
       lowerUrl.includes('youtubei/v1/player') ||
       lowerUrl.includes('/api/stats/playback') ||
@@ -204,7 +208,7 @@ export class BraveShieldEngine {
       lowerUrl.includes('/api/stats/delayplay') ||
       lowerUrl.includes('/api/stats/atr') ||
       lowerUrl.includes('/api/stats/qoe') ||
-      lowerUrl.includes('/ptracking')
+      lowerUrl.includes('/ptracking'))
     ) {
       return { blocked: false, domain: host };
     }
@@ -219,6 +223,8 @@ export class BraveShieldEngine {
       lowerUrl.includes('/ads/vpaid') ||
       lowerUrl.includes('/get_midroll_info') ||
       lowerUrl.includes('/ads?client=') ||
+      lowerUrl.includes('youtubei/v1/player/ad_break') ||
+      lowerUrl.includes('youtube.com/api/stats/qoe?adformat=') ||
       lowerUrl.includes('adnxs.com') ||
       lowerUrl.includes('rubiconproject.com') ||
       lowerUrl.includes('doubleclick.net') ||

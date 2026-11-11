@@ -27,6 +27,8 @@ interface CommandBarProps {
   onCloseActiveTab?: () => void;
   onReopenClosedTab?: () => void;
   onOpenFind?: () => void;
+  /** Opens the archive list of the Active_Profile (R16.7). */
+  onOpenArchive?: () => void;
 }
 
 // Top global and productivity web domains for instant autocompletion
@@ -111,6 +113,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onCloseActiveTab,
   onReopenClosedTab,
   onOpenFind,
+  onOpenArchive,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -312,6 +315,19 @@ export const CommandBar: React.FC<CommandBarProps> = ({
         onClose();
       },
     },
+    ...(onOpenArchive
+      ? [
+          {
+            id: 'cmd-archive',
+            title: '> View Archived Tabs',
+            hint: 'Archive',
+            action: () => {
+              onOpenArchive();
+              onClose();
+            },
+          },
+        ]
+      : []),
     {
       id: 'cmd-vpn',
       title: '> Open Built-in VPN & Privacy Tunnel',

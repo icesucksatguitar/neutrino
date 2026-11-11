@@ -1,10 +1,14 @@
 import React, { useEffect, useId, useState } from 'react';
 import { X, Moon, Sun, Palette } from 'lucide-react';
 import {
+  ARCHIVE_INTERVAL_OPTIONS,
   SEARCH_ENGINES,
+  type ArchiveIntervalHours,
   type SearchEngineId,
 } from '../../main/settings';
-import type { BrowserSettings } from '../types';
+import type { BrowserSettings, TabState } from '../types';
+import { ProfilesSettings } from './ProfilesSettings';
+import { PasswordsSettings } from './PasswordsSettings';
 
 export interface SettingsPanelProps {
   isOpen: boolean;
@@ -18,11 +22,27 @@ export interface SettingsPanelProps {
   onOpenThemeStudio: () => void;
   userName: string;
   onUserNameChange: (name: string) => void;
+  /** Open tabs, so profile/space deletion can say what it closes (R1.7, R13.8). Optional. */
+  tabs?: TabState[];
 }
 
 export const ZEN_SLEEP_HINT = 'Sleeps tabs after 10 minutes of inactivity';
 
 const ENGINE_IDS = Object.keys(SEARCH_ENGINES) as SearchEngineId[];
+
+export const ARCHIVE_INTERVAL_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  '12': '12 hours',
+  '24': '24 hours',
+  '168': '7 days',
+  '720': '30 days',
+  never: 'Never',
+});
+
+export const ARCHIVE_INTERVAL_HINT = 'Closes inactive Today tabs and keeps them in the archive';
+export const SIDEBAR_AUTO_HIDE_HINT = 'Hides the sidebar until the pointer reaches the left edge';
+export const RIGHT_PINS_DOCK_HINT = 'Shows the pinned sites dock on the right edge';
+
+const archiveIntervalLabel = (value: ArchiveIntervalHours): string => ARCHIVE_INTERVAL_LABELS[String(value)];
 
 interface SwitchProps {
   checked: boolean;
@@ -53,6 +73,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onOpenThemeStudio,
   userName,
   onUserNameChange,
+  tabs,
 }) => {
   const idBase = useId();
   const titleId = `${idBase}-title`;
@@ -177,6 +198,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               }}
             />
           </div>
+
+          {/* Layout (R12.4/12.5, R19.1/19.4): persisted through onUpdateSettings -> settings IPC. */}
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Auto-hide sidebar</span>
+              <span className="settings-hint">{SIDEBAR_AUTO_HIDE_HINT}</span>
+            </div>
+            <SettingsSwitch
+              checked={settings.sidebarAutoHide}
+              label="Auto-hide sidebar"
+              onChange={(next) => onUpdateSettings({ sidebarAutoHide: next })}
+            />
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Right pins dock</span>
+              <span className="settings-hint">{RIGHT_PINS_DOCK_HINT}</span>
+            </div>
+            <SettingsSwitch
+              checked={settings.rightPinsDockVisible}
+              label="Show right pins dock"
+              onChange={(next) => onUpdateSettings({ rightPinsDockVisible: next })}
+            />
+          </div>
         </section>
 
         {/* 2. Privacy */}
@@ -234,7 +280,45 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               onChange={(next) => onUpdateSettings({ zenSleepEnabled: next })}
             />
           </div>
+
+          {/* Archive_Interval (R16.2): 12h / 24h / 7d / 30d / never. */}
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Archive tabs after</span>
+              <span className="settings-hint">{ARCHIVE_INTERVAL_HINT}</span>
+            </div>
+          </div>
+          <div className="settings-segmented settings-segmented-full" role="radiogroup" aria-label="Archive interval">
+            {ARCHIVE_INTERVAL_OPTIONS.map((value) => {
+              const selected = settings.archiveIntervalHours === value;
+              const label = archiveIntervalLabel(value);
+              return (
+                <button
+                  key={String(value)}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={`Archive after ${label}`}
+                  className={`settings-segment${selected ? ' active' : ''}`}
+                  onClick={() => {
+                    if (!selected) onUpdateSettings({ archiveIntervalHours: value });
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </section>
+
+        {/*
+          Further sections (profiles & spaces, passwords) go here, after the core four.
+          tests/unit/settingsPanel.test.ts pins the `settings-section-title` headings to exactly
+          Appearance / Privacy / Search / Performance, and the design requires that suite unchanged,
+          so these sections use the `settings-group-title` heading class instead.
+        */}
+        <ProfilesSettings tabs={tabs} />
+        <PasswordsSettings />
       </div>
     </div>
   );

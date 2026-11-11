@@ -26,14 +26,35 @@ export interface BrowserSettings {
   zenSleepEnabled: boolean;
   searchEngine: SearchEngineId;
   spaceThemes?: SpaceThemesMap;
+  archiveIntervalHours: ArchiveIntervalHours;
+  rightPinsDockVisible: boolean;
+  sidebarExpanded: boolean;
+  sidebarAutoHide: boolean;
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
 }
+
+/** How long an unused Today tab lives before it is archived. */
+export type ArchiveIntervalHours = 12 | 24 | 168 | 720 | 'never';
+
+export const ARCHIVE_INTERVAL_OPTIONS: readonly ArchiveIntervalHours[] = Object.freeze([12, 24, 168, 720, 'never']);
 
 export const DEFAULT_SETTINGS: Readonly<BrowserSettings> = Object.freeze({
   adblockEnabled: true,
   zenSleepEnabled: true,
   searchEngine: 'google' as SearchEngineId,
+  archiveIntervalHours: 12 as ArchiveIntervalHours,
+  rightPinsDockVisible: true,
+  sidebarExpanded: true,
+  sidebarAutoHide: false,
 });
+
+function isArchiveIntervalHours(value: unknown): value is ArchiveIntervalHours {
+  return (ARCHIVE_INTERVAL_OPTIONS as readonly unknown[]).includes(value);
+}
+
+function boolOr(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
 
 function hasOwn(obj: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
@@ -109,5 +130,11 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
       typeof source.zenSleepEnabled === 'boolean' ? source.zenSleepEnabled : DEFAULT_SETTINGS.zenSleepEnabled,
     searchEngine: normalizeSearchEngine(source.searchEngine),
     spaceThemes: buildSpaceThemes(source.spaceThemes, source),
+    archiveIntervalHours: isArchiveIntervalHours(source.archiveIntervalHours)
+      ? source.archiveIntervalHours
+      : DEFAULT_SETTINGS.archiveIntervalHours,
+    rightPinsDockVisible: boolOr(source.rightPinsDockVisible, DEFAULT_SETTINGS.rightPinsDockVisible),
+    sidebarExpanded: boolOr(source.sidebarExpanded, DEFAULT_SETTINGS.sidebarExpanded),
+    sidebarAutoHide: boolOr(source.sidebarAutoHide, DEFAULT_SETTINGS.sidebarAutoHide),
   };
 }

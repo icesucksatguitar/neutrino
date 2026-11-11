@@ -121,7 +121,8 @@ export function resolveShortcut(
     if (lower === 'e') return { type: 'toggle-tabs' };
     if (lower === 'h') return { type: 'open-history' };
     if (lower === ',') return { type: 'open-settings' };
-    if (key === '1' || key === '2' || key === '3' || key === '4') {
+    // Ctrl/Cmd+1..9 select the Nth space in Space_Switcher order (R13.4, bugfix 2.15).
+    if (key.length === 1 && key >= '1' && key <= '9') {
       return { type: 'select-space', index: Number(key) - 1 };
     }
   }

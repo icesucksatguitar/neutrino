@@ -1,0 +1,1061 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create profile data types and partition mapping": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714545
+      },
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414734031
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414816518
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414832849
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415048370
+      }
+    ],
+    "1.3 Implement ProfileStore over injected I/O": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714636
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414816679
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415649356
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415993522
+      }
+    ],
+    "2.1 Implement pure migration and one-shot runner": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714743
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414816943
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415650540
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415996435
+      }
+    ],
+    "3.1 Extend settings normalization with new keys": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714816
+      },
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414734126
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414817069
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414833040
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415048800
+      }
+    ],
+    "3.3 Extend space shortcuts to Ctrl+1..9": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714874
+      },
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414735482
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414817189
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414833543
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415048992
+      }
+    ],
+    "4.1 Implement password model": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414714940
+      },
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414735898
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414817347
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414834476
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415049384
+      }
+    ],
+    "4.6 Implement per-profile encrypted vault": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715002
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414817755
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415651785
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415994437
+      }
+    ],
+    "4.11 Implement CSV parse/serialize and import classification": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715076
+      },
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414736770
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414818247
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414835369
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415049653
+      }
+    ],
+    "4.13 Implement Chrome blob classification and v10 decryption": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715156
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414818379
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415066614
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415631336
+      }
+    ],
+    "5.1 Implement layout operations": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715213
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414818588
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415652554
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415997491
+      }
+    ],
+    "6.1 Implement archiver core": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715270
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414818719
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415653280
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415995238
+      }
+    ],
+    "6.4 Implement preview throttle and in-memory store": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715337
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819008
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415066998
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415632336
+      }
+    ],
+    "6.6 Implement top bar color utilities": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715404
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819131
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415067264
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415633096
+      }
+    ],
+    "7. Checkpoint - pure modules": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715465
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819257
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423712970
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423932069
+      }
+    ],
+    "8.1 Create SessionConfigurator": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715528
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819373
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416030697
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416296850
+      }
+    ],
+    "8.2 Create SessionRegistry": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715594
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819484
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416321488
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416905683
+      }
+    ],
+    "8.3 Make VPN target all profile sessions": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715658
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819601
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416031028
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416297427
+      }
+    ],
+    "8.5 Pass opener partition through window-open decisions": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715717
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819761
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416032232
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416297907
+      }
+    ],
+    "8.7 Create per-profile HistoryRegistry": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715786
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414819995
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416033156
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416298702
+      }
+    ],
+    "8.9 Make BrowserManager profile-aware": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715848
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820097
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416322222
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416906821
+      }
+    ],
+    "8.10 Wire profiles and sessions into index.ts": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715909
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820206
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416922723
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794417699264
+      }
+    ],
+    "8.11 Expose profile APIs to the renderer": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414715969
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820316
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794417714146
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418108571
+      }
+    ],
+    "9. Checkpoint - main-process wiring": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716039
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820426
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423943556
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794424027170
+      }
+    ],
+    "10.1 Add Windows Hello verification and DPAPI unwrap to the native crate": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716103
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820537
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415068097
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415634096
+      }
+    ],
+    "10.2 Implement OS authenticator bridge": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716166
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820648
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416033966
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416299510
+      }
+    ],
+    "10.3 Implement PasswordManager": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716228
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820811
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416322765
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416908160
+      }
+    ],
+    "10.8 Implement the page password preload": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716292
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414820968
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416923342
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794417700038
+      }
+    ],
+    "10.9 Implement Chrome/Edge direct import reader": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716357
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821076
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794416923571
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794417701328
+      }
+    ],
+    "10.11 Wire the password manager into main and preload": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716420
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821199
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418131230
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418746492
+      }
+    ],
+    "11. Checkpoint - password manager": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716478
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821321
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794424036438
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794424206905
+      }
+    ],
+    "12.1 Replace URL-based preview capture with tab-id previews in main": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716545
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821469
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418754003
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419253984
+      }
+    ],
+    "12.2 Add archive scheduler, IPC and archive list component": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716613
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821656
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419263308
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420339083
+      }
+    ],
+    "12.3 Rewrite Sidebar.tsx as the Arc sidebar": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716674
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414821793
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419264629
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420341105
+      }
+    ],
+    "12.4 Add drag and drop to the sidebar": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716738
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822025
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420354830
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420885212
+      }
+    ],
+    "12.5 Add hover previews to the sidebar": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716800
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822167
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420895875
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794421510284
+      }
+    ],
+    "12.6 Integrate the sidebar into App.tsx and remove NotificationTabs": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716885
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822294
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794421520458
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794422636209
+      }
+    ],
+    "12.7 Use the tab's partition in BrowserViewport": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414716989
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822419
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419265416
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420341987
+      }
+    ],
+    "12.8 Use the active profile's partition in McpModal": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717045
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822530
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419265962
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420343050
+      }
+    ],
+    "12.9 Add layout settings to SettingsPanel": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717108
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822655
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794419266511
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420344027
+      }
+    ],
+    "12.10 Add profile and space management to SettingsPanel": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717166
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822795
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420355422
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420886706
+      }
+    ],
+    "12.11 Add the passwords section to SettingsPanel": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717233
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414822945
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794420898798
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794421507980
+      }
+    ],
+    "12.12 Add save/update password prompts": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717289
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414823098
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794422645776
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423015524
+      }
+    ],
+    "12.13 Implement the Dia-style top bar tint": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717353
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414823370
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423024232
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423646114
+      }
+    ],
+    "13. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "efb179a8-70cb-452f-944d-2543faa11a9d",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414717419
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794414823492
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794424215464
+      },
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794424501552
+      }
+    ],
+    "3. Settings keys and keyboard shortcuts": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415049144
+      }
+    ],
+    "1. Profile model, partition mapping and ProfileStore": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415993650
+      }
+    ],
+    "4. Password manager pure modules": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415994517
+      }
+    ],
+    "6. Archiver, preview throttle and top bar color (pure)": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415995320
+      }
+    ],
+    "2. Migration to the profile model": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415996516
+      }
+    ],
+    "5. Sidebar layout model (pure)": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794415997707
+      }
+    ],
+    "8. Session registry and main-process partition wiring": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418108985
+      }
+    ],
+    "10. Password capture, autofill, reveal/copy and import": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794418747006
+      }
+    ],
+    "12. Renderer: sidebar, previews, archive, settings and top bar": [
+      {
+        "executionId": "b4f4034a-e1b4-4cee-939d-d1c43dcb04bf",
+        "chatSessionId": "sess_e9fd71b3-cbbc-4571-9408-21a7f0250873",
+        "timestamp": 1794423646736
+      }
+    ]
+  }
+}

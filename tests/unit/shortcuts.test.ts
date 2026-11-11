@@ -40,6 +40,11 @@ describe('resolveShortcut (Windows / Linux & macOS)', () => {
     expect(resolveShortcut({ key: 'h', control: true }, { platform: 'win32' })).toEqual({ type: 'open-history' });
     expect(resolveShortcut({ key: ',', control: true }, { platform: 'win32' })).toEqual({ type: 'open-settings' });
     expect(resolveShortcut({ key: '2', control: true }, { platform: 'win32' })).toEqual({ type: 'select-space', index: 1 });
+    for (let n = 1; n <= 9; n++) {
+      expect(resolveShortcut({ key: String(n), control: true }, { platform: 'win32' })).toEqual({ type: 'select-space', index: n - 1 });
+      expect(resolveShortcut({ key: String(n), meta: true }, { platform: 'darwin' })).toEqual({ type: 'select-space', index: n - 1 });
+    }
+    expect(resolveShortcut({ key: '0', control: true }, { platform: 'win32' })).toBeNull();
     expect(resolveShortcut({ key: 'Escape' }, { platform: 'win32' })).toEqual({ type: 'escape' });
 
     expect(resolveShortcut({ key: '+', control: true, shift: true }, { platform: 'win32', isWebview: true })).toEqual({ type: 'zoom-in' });

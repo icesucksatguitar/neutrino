@@ -11,6 +11,7 @@ import {
   normalizeVpnConfig,
   parseCloudflareTrace,
   probeTcpEndpoint,
+  resolveVpnTargetPartitions,
   shouldKillSwitchBlockRequest,
   VpnConfig,
   VpnConfigStore,
@@ -36,25 +37,67 @@ export class VpnController {
   private killSwitchBlockedCount = 0;
   private resolvedTorPort = 9050;
   private listeners = new Set<(status: VpnStatus) => void>();
-  private partitions: readonly string[];
+  private readonly getPartitions: () => readonly string[];
+  /** Proxy spec currently applied to every target session while connected. */
+  private appliedProxySpec: ReturnType<typeof buildElectronProxySpec> | null = null;
   private cachedAdapters: ReturnType<typeof detectOsVpnAdapters> | null = null;
   private adaptersCachedAt = 0;
 
-  constructor(filePath: string | null, partitions: readonly string[]) {
+  /**
+   * @param getPartitions live set of profile session partitions (e.g. the session
+   *   registry's partitions). Read on every apply, so sessions registered later are
+   *   covered by subsequent config changes; call `applyToPartition` when a new one
+   *   is registered to bring it in line with the current state immediately.
+   */
+  constructor(filePath: string | null, getPartitions: () => readonly string[]) {
     this.store = new VpnConfigStore(filePath);
     const loaded = this.store.load();
     this.config = loaded;
-    this.partitions = partitions;
+    this.getPartitions = getPartitions;
   }
 
+  private readPartitions(): string[] {
+    try {
+      return resolveVpnTargetPartitions(this.getPartitions());
+    } catch {
+      return [];
+    }
+  }
+
+  /** Default session plus every registered partition, each exactly once. */
   private getTargetSessions(): Electron.Session[] {
     const out: Electron.Session[] = [session.defaultSession];
-    for (const p of this.partitions) {
+    for (const p of this.readPartitions()) {
       try {
-        out.push(session.fromPartition(p));
+        const sess = session.fromPartition(p);
+        if (!out.includes(sess)) out.push(sess);
       } catch { }
     }
     return out;
+  }
+
+  /**
+   * Brings a newly registered profile session in line with the current VPN state.
+   * DoH is process-wide (configureHostResolver) and the kill switch is enforced via
+   * `shouldBlockForKillSwitch` in each session's request interception, so only the
+   * session proxy needs per-session application.
+   */
+  public async applyToPartition(partition: string): Promise<void> {
+    if (typeof partition !== 'string' || partition.length === 0) return;
+    let sess: Electron.Session;
+    try {
+      sess = session.fromPartition(partition);
+    } catch {
+      return;
+    }
+    const spec =
+      this.config.enabled && this.state === 'connected' && this.appliedProxySpec
+        ? this.appliedProxySpec
+        : { mode: 'system' as const };
+    try {
+      await sess.setProxy(spec);
+      await sess.closeAllConnections();
+    } catch { }
   }
 
   private emitStatus(): void {
@@ -183,6 +226,7 @@ export class VpnController {
       });
     } catch { }
     this.state = 'disconnected';
+    this.appliedProxySpec = null;
     this.activeProxyRule = null;
     this.activeDnsUrl = null;
     this.webrtcProtected = false;
@@ -271,6 +315,7 @@ export class VpnController {
     } catch { }
 
     this.state = 'connected';
+    this.appliedProxySpec = proxySpec;
     this.activeProxyRule =
       proxySpec.mode === 'fixed_servers' && proxySpec.proxyRules ? proxySpec.proxyRules : null;
     this.activeDnsUrl = doh.serverUrl;
@@ -290,10 +335,17 @@ export class VpnController {
     return this.applyConfig({ enabled: false });
   }
 
-  /** Queries the current public exit IP through Neutrino's primary webview session. */
-  public async verifyPublicIp(): Promise<VpnIpCheckResult | { error: string }> {
+  /**
+   * Queries the current public exit IP through the given profile session
+   * (the active profile's partition; defaults to Neutrino's primary session).
+   */
+  public async verifyPublicIp(
+    partition: string = 'persist:neutrino',
+  ): Promise<VpnIpCheckResult | { error: string }> {
     const start = Date.now();
-    const neutrinoSess = session.fromPartition('persist:neutrino');
+    const target =
+      typeof partition === 'string' && partition.length > 0 ? partition : 'persist:neutrino';
+    const neutrinoSess = session.fromPartition(target);
     try {
       const resp = await neutrinoSess.fetch('https://1.1.1.1/cdn-cgi/trace', {
         cache: 'no-store',

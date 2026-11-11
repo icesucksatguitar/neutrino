@@ -1,15 +1,21 @@
-import React, { Suspense, lazy, useEffect, useState, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useBrowser } from './hooks/useBrowser';
+import { useProfiles } from './hooks/useProfiles';
+import { Sidebar } from './components/Sidebar';
+import { buildSidebarView } from './utils/sidebarModel';
+import { selectSpaceByIndex } from '../main/sidebar/layout';
 import { FloatingUrlPill } from './components/FloatingUrlPill';
 import { BrowserViewport } from './components/BrowserViewport';
 import { StartupSplash } from './components/StartupSplash';
 import { RightPinsDock, type PinnedSite } from './components/RightPinsDock';
 import { AuthHandoffNotice } from './components/AuthHandoffNotice';
+import { PasswordPrompt } from './components/PasswordPrompt';
 import type { UserProfile } from './components/WelcomeModal';
 import { useSettings } from './hooks/useSettings';
 import { resolveSpaceTheme } from '../main/settings';
 import { type SpaceTheme, getDefaultSpaceTheme } from '../main/spaceTheme';
 import { applySpaceThemeToRoot, getOsPrefersDark } from './utils/applySpaceTheme';
+import { computeTopBarTint, type PageColorReport, type TabPageColor } from './utils/topBarTint';
 import {
   ArrowLeft,
   ArrowRight,
@@ -36,8 +42,8 @@ import {
 } from './types';
 import './styles/theme.css';
 
-const NotificationTabs = lazy(() =>
-  import('./components/NotificationTabs').then((m) => ({ default: m.NotificationTabs }))
+const ArchiveList = lazy(() =>
+  import('./components/ArchiveList').then((m) => ({ default: m.ArchiveList }))
 );
 const CommandBar = lazy(() =>
   import('./components/CommandBar').then((m) => ({ default: m.CommandBar }))
@@ -68,6 +74,7 @@ const VpnModal = lazy(() =>
 );
 
 export function App() {
+  const browser = useBrowser();
   const {
     state,
     activeTab,
@@ -84,7 +91,6 @@ export function App() {
     closeTab,
     reopenClosedTab,
     selectTab,
-    togglePinTab,
     toggleSleepTab,
     selectSpace,
     createSpace,
@@ -92,7 +98,8 @@ export function App() {
     reorderTabs,
     toggleShields,
     zenOptimize,
-  } = useBrowser();
+  } = browser;
+  const { activeProfile } = useProfiles();
 
   const { settings, updateSettings, isLoaded: settingsLoaded } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -106,17 +113,39 @@ export function App() {
   const [vpnIpError, setVpnIpError] = useState<string | null>(null);
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [isNotificationTabsOpen, setIsNotificationTabsOpen] = useState(false);
-  const [isTabsDrawerMounted, setIsTabsDrawerMounted] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+
+  // Sidebar (R12): expanded/collapsed and auto-hide persist through the settings IPC (R12.5).
+  // Ctrl+E (`toggle-tabs`) toggles expanded/collapsed (R12.3, decision A2).
+  const sidebarExpanded = settings.sidebarExpanded;
+  const sidebarExpandedRef = useRef(sidebarExpanded);
+  sidebarExpandedRef.current = sidebarExpanded;
+  const setSidebarExpanded = useCallback(
+    (next: boolean) => {
+      if (next === sidebarExpandedRef.current) return;
+      sidebarExpandedRef.current = next;
+      void updateSettings({ sidebarExpanded: next });
+    },
+    [updateSettings]
+  );
+  const toggleSidebar = useCallback(() => {
+    setSidebarExpanded(!sidebarExpandedRef.current);
+  }, [setSidebarExpanded]);
+
+  // New tab control / Ctrl+T (R12.8): the Command_Bar opens in "new tab" mode and its
+  // submission creates a Today tab in the Active_Space instead of navigating the current tab.
+  const [isCommandBarNewTab, setIsCommandBarNewTab] = useState(false);
+  const openCommandBar = useCallback(() => {
+    setIsCommandBarNewTab(false);
+    setIsCommandBarOpen(true);
+  }, [setIsCommandBarOpen]);
+  const openNewTabCommandBar = useCallback(() => {
+    setIsCommandBarNewTab(true);
+    setIsCommandBarOpen(true);
+  }, [setIsCommandBarOpen]);
   useEffect(() => {
-    if (isNotificationTabsOpen) {
-      setIsTabsDrawerMounted(true);
-      return;
-    }
-    if (!isTabsDrawerMounted) return;
-    const t = setTimeout(() => setIsTabsDrawerMounted(false), 300);
-    return () => clearTimeout(t);
-  }, [isNotificationTabsOpen, isTabsDrawerMounted]);
+    if (!isCommandBarOpen) setIsCommandBarNewTab(false);
+  }, [isCommandBarOpen]);
   const [isStartingUp, setIsStartingUp] = useState(true);
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
@@ -195,6 +224,25 @@ export function App() {
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState(false);
 
   const shouldShowTopBar = !isHtmlFullscreen;
+
+  // Dia-style top bar tint (R20). BrowserViewport reports the active page's theme-color and
+  // sampled top color; reports for a tab that is no longer active are ignored. Internal pages,
+  // HTML fullscreen and undeterminable colors keep the default theme (R20.5, R20.6, R21.12).
+  const [pageColor, setPageColor] = useState<TabPageColor | null>(null);
+  const activeTabIdRef = useRef<string | undefined>(activeTab?.id);
+  activeTabIdRef.current = activeTab?.id;
+  const handlePageColor = useCallback((tabId: string, report: PageColorReport) => {
+    if (tabId !== activeTabIdRef.current) return;
+    setPageColor({ tabId, ...report });
+  }, []);
+  const topBarTint = computeTopBarTint({
+    activeTabId: activeTab?.id,
+    activeTabUrl: activeTab?.url,
+    activeTabIsSleeping: activeTab?.isSleeping,
+    report: pageColor,
+    suppressed: isHtmlFullscreen,
+  });
+  const isTopBarTinted = Boolean(topBarTint) && isWebpage;
 
   // Track OS dark/light preference for Spaces configured in 'auto' mode
   const [osPrefersDark, setOsPrefersDark] = useState<boolean>(() => getOsPrefersDark());
@@ -405,6 +453,9 @@ export function App() {
     setActiveMediaState(newState);
   }, []);
 
+  // Space_Switcher order (profiles in creation order, then each profile's spaces), used by Ctrl+1..9.
+  const spaceSwitcherOrder = useMemo(() => buildSidebarView(state).spaceOrder, [state]);
+
   // Fluid space switching animation
   const handleSelectSpace = (spaceId: string) => {
     if (spaceId === state.activeSpaceId) return;
@@ -435,11 +486,12 @@ export function App() {
 
   // Keyboard shortcuts & events
   useEffect(() => {
-    const handleOpenCommandBar = () => setIsCommandBarOpen(true);
+    const handleOpenCommandBar = () => openCommandBar();
     const handleCloseCommandBar = () => setIsCommandBarOpen(false);
     const handleToggleTabs = (e: any) => {
       const open = e?.detail?.open;
-      setIsNotificationTabsOpen(prev => typeof open === 'boolean' ? open : !prev);
+      if (typeof open === 'boolean') setSidebarExpanded(open);
+      else toggleSidebar();
     };
     const handleCloseActiveTab = () => {
       if (state.activeTabId) {
@@ -449,14 +501,16 @@ export function App() {
 
     // Native Electron IPC listeners (authoritative single-dispatch from main process)
     const unsubIpcToggle = window.neutrino?.onToggleTabs?.(() => {
-      setIsNotificationTabsOpen((prev) => !prev);
+      toggleSidebar();
     });
-    const unsubIpcCmd = window.neutrino?.onOpenCommandBar?.(() => {
-      setIsCommandBarOpen(true);
+    // Ctrl+T arrives as `{ newTab: true }` (R12.8); Ctrl+K/L/F6 open the bar normally.
+    const unsubIpcCmd = window.neutrino?.onOpenCommandBar?.((opts) => {
+      if (opts?.newTab) openNewTabCommandBar();
+      else openCommandBar();
     });
     const unsubIpcEsc = window.neutrino?.onEscapePressed?.(() => {
-      setIsNotificationTabsOpen(false);
       setIsCommandBarOpen(false);
+      setIsArchiveOpen(false);
       setIsSettingsOpen(false);
       setIsThemeModalOpen(false);
       setIsHistoryModalOpen(false);
@@ -488,11 +542,12 @@ export function App() {
     // Fallback when running renderer standalone outside Electron (main process owns shortcuts in Electron)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (window.neutrino?.isElectron) return;
-      if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
+      // Ctrl+1..9: the Nth space in Space_Switcher order; fewer than N keeps the current one (R13.4/13.5).
+      if ((e.ctrlKey || e.metaKey) && e.key.length === 1 && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
-        const idx = parseInt(e.key, 10) - 1;
-        if (state.spaces[idx]) {
-          handleSelectSpace(state.spaces[idx].id);
+        const nextId = selectSpaceByIndex(spaceSwitcherOrder, Number(e.key), state.activeSpaceId);
+        if (nextId !== state.activeSpaceId) {
+          handleSelectSpace(nextId);
         }
       }
     };
@@ -514,7 +569,7 @@ export function App() {
       window.removeEventListener('neutrino:toggle-tabs', handleToggleTabs);
       window.removeEventListener('neutrino:close-active-tab', handleCloseActiveTab);
     };
-}, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen, triggerThemeCrossFade]);
+}, [state.activeTabId, state.activeSpaceId, spaceSwitcherOrder, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen, triggerThemeCrossFade, toggleSidebar, setSidebarExpanded, openCommandBar, openNewTabCommandBar]);
 
 // Built-in VPN state hydration & lazy History hydration (only fetch 500 history entries when open)
 useEffect(() => {
@@ -620,8 +675,7 @@ useEffect(() => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        createTab('neutrino://newtab', state.activeSpaceId);
-        setIsCommandBarOpen(true);
+        openNewTabCommandBar();
       } else if (key === 'k' || key === 'l') {
         e.preventDefault();
         e.stopPropagation();
@@ -631,7 +685,7 @@ useEffect(() => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        setIsNotificationTabsOpen((prev) => !prev);
+        toggleSidebar();
       } else if (key === 'r') {
         e.preventDefault();
         e.stopPropagation();
@@ -655,7 +709,7 @@ useEffect(() => {
 
   window.addEventListener('keydown', handleGlobalKeyDown, true);
   return () => window.removeEventListener('keydown', handleGlobalKeyDown, true);
-}, [state.activeTabId, state.activeSpaceId, closeTab, createTab]);
+}, [state.activeTabId, closeTab, openNewTabCommandBar, toggleSidebar]);
 
 const dispatchSiteAction = useCallback((action: SiteAction) => {
   window.dispatchEvent(new CustomEvent('neutrino:site-action', { detail: { action, source: 'ui' } }));
@@ -720,19 +774,49 @@ const shouldShowMiniPlayer =
   activeMediaState.isPlaying &&
   activeMediaState.tabId !== state.activeTabId;
 
+// Command_Bar submission: in new-tab mode (Ctrl+T / sidebar new tab control) a URL or search
+// opens a Today tab in the Active_Space (R12.8); neutrino:// panel URLs still open their panel.
+const handleCommandBarNavigate = (url: string) => {
+  if (isCommandBarNewTab && !/^neutrino:\/\/(settings|history|vpn)$/i.test(url.trim())) {
+    void createTab(url, state.activeSpaceId);
+    return;
+  }
+  navigate(url);
+};
+
+// Assistant drawer webviews follow the Active_Profile's session (R3.3, A3). The active tab's
+// partition comes with every state-update; listProfiles covers a space with no tab yet.
+const activeTabInSpace = activeTab && activeTab.spaceId === state.activeSpaceId ? activeTab : undefined;
+const activeProfilePartition = activeTabInSpace?.partition ?? activeProfile?.partition;
+
+// Sidebar placement: docked (not auto-hide) pushes the web canvas right; hidden in HTML fullscreen.
+const showSidebar = !isHtmlFullscreen;
+const sidebarAutoHide = settings.sidebarAutoHide;
+const isSidebarDocked = showSidebar && !sidebarAutoHide;
+const shellStyle = {
+  '--app-sidebar-width': isSidebarDocked ? (sidebarExpanded ? '240px' : '56px') : '0px',
+  '--app-top-offset': isWebpage ? '44px' : '60px',
+} as React.CSSProperties;
+
 return (
-  <div className="arc-app-shell radical-minimalism-shell">
+  <div className="arc-app-shell radical-minimalism-shell" style={shellStyle}>
     <div className="space-grain-overlay" aria-hidden="true" />
     {/* Frameless Top Drag Bar */}
     {!isHtmlFullscreen && (
       <div className={`macos-window-drag-bar ${isWebpage ? 'on-webpage' : ''}`} />
     )}
 
-    {/* Left Edge Hover Trigger (Opens tab panel from any site or blank page) */}
-    <div
-      className="left-edge-hover-zone"
-      onMouseEnter={() => setIsNotificationTabsOpen(true)}
-    />
+    {/* Arc-style Sidebar: favorites, pinned, Today and Space_Switcher (R12.1) */}
+    {showSidebar && (
+      <Sidebar
+        className="app-sidebar"
+        state={state}
+        actions={{ ...browser, selectSpace: handleSelectSpace, openCommandBar: openNewTabCommandBar }}
+        expanded={sidebarExpanded}
+        autoHide={sidebarAutoHide}
+        onUpdateSidebarState={(patch) => void updateSettings(patch)}
+      />
+    )}
 
     {/* Space Name Animation Overlay */}
     {spaceOverlay && (
@@ -743,7 +827,9 @@ return (
 
     {/* Top Chrome Header Bar (Solid dedicated header on web pages, floating on newtab) */}
     <div
-      className={`floating-top-chrome-capsule ${isWebpage ? 'on-webpage' : ''} ${shouldShowTopBar ? 'visible' : 'autohidden'}`}
+      className={`floating-top-chrome-capsule ${isWebpage ? 'on-webpage' : ''} ${isTopBarTinted ? 'topbar-tinted' : ''} ${shouldShowTopBar ? 'visible' : 'autohidden'}`}
+      style={isTopBarTinted && topBarTint ? (topBarTint.vars as React.CSSProperties) : undefined}
+      data-topbar-tint={isTopBarTinted && topBarTint ? topBarTint.source : 'default'}
     >
       {/* Top Left: macOS Frameless Window Controls & Tabs Switcher (Opaque) */}
       <aside className="macos-window-controls-cluster" aria-label="Window Controls">
@@ -776,10 +862,11 @@ return (
 
         {/* Dedicated Spaces & Tabs Toggle Pill (Opaque) */}
         <button
-          className={`macos-tabs-toggle-pill ${isNotificationTabsOpen ? 'active' : ''}`}
-          onClick={() => setIsNotificationTabsOpen((prev) => !prev)}
-          title="Spaces & Tabs (Ctrl+E)"
-          aria-label="Spaces & Tabs"
+          className={`macos-tabs-toggle-pill ${sidebarExpanded ? 'active' : ''}`}
+          onClick={toggleSidebar}
+          title={sidebarExpanded ? 'Collapse sidebar (Ctrl+E)' : 'Expand sidebar (Ctrl+E)'}
+          aria-label="Toggle sidebar"
+          aria-pressed={sidebarExpanded}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -932,29 +1019,9 @@ return (
       </div>
     </div>
 
-    {/* Notification-Style Tab Stack System (Mounted on demand, unmounts after exit anim) */}
-    {isTabsDrawerMounted && (
-      <Suspense fallback={null}>
-        <NotificationTabs
-          tabs={state.tabs}
-          activeTabId={state.activeTabId}
-          spaces={state.spaces}
-          activeSpaceId={state.activeSpaceId}
-          isOpen={isNotificationTabsOpen}
-          onToggle={(open) => setIsNotificationTabsOpen(typeof open === 'boolean' ? open : !isNotificationTabsOpen)}
-          onSelectTab={selectTab}
-          onCloseTab={closeTab}
-          onCreateTab={createTab}
-          onTogglePinTab={togglePinTab}
-          onSelectSpace={handleSelectSpace}
-          onUndoClose={reopenClosedTab}
-          isOnWebpage={isWebpage}
-        />
-      </Suspense>
-    )}
-
-    {/* Edge-to-Edge Web Canvas Viewport (pulled down on web pages so site controls never collide) */}
-    <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${spaceTransitionClass}`}>
+    {/* Edge-to-Edge Web Canvas Viewport (pulled down on web pages so site controls never collide;
+        pushed right of a docked sidebar) */}
+    <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${isSidebarDocked ? 'with-docked-sidebar' : ''} ${spaceTransitionClass}`}>
       <div className="arc-web-canvas-frame seamless">
         <BrowserViewport
           activeTab={activeTab}
@@ -971,6 +1038,7 @@ return (
           mediaCommand={mediaCommand}
           userName={userProfile?.name}
           onFullscreenChange={setIsHtmlFullscreen}
+          onPageColor={handlePageColor}
         />
       </div>
     </main>
@@ -978,13 +1046,19 @@ return (
     {/* Google sign-in refused in-app: offer to continue in the default browser */}
     <AuthHandoffNotice />
 
+    {/* Save/update password prompts from login form submissions (R6.2, R6.3, R7.2) */}
+    <PasswordPrompt />
+
     {/* Vertical Pinned Websites Dock (Right Side with macOS Magnification) */}
-    <RightPinsDock
-      onNavigate={navigate}
-      isOnWebpage={isWebpage}
-      persistedPins={Array.isArray(settings.pinnedSites) ? (settings.pinnedSites as PinnedSite[]) : undefined}
-      onPersistPins={(pins) => void updateSettings({ pinnedSites: pins })}
-    />
+    {/* Hidden by the Settings toggle; stored pinnedSites stay untouched (R19.2, R19.3) */}
+    {settings.rightPinsDockVisible && (
+      <RightPinsDock
+        onNavigate={navigate}
+        isOnWebpage={isWebpage}
+        persistedPins={Array.isArray(settings.pinnedSites) ? (settings.pinnedSites as PinnedSite[]) : undefined}
+        onPersistPins={(pins) => void updateSettings({ pinnedSites: pins })}
+      />
+    )}
 
     {/* Floating Media Player (PiP) */}
     {shouldShowMiniPlayer && (
@@ -1008,9 +1082,9 @@ return (
           tabs={state.tabs}
           spaces={state.spaces}
           onClose={() => setIsCommandBarOpen(false)}
-          onNavigate={navigate}
+          onNavigate={handleCommandBarNavigate}
           onSelectTab={selectTab}
-          onCreateTab={createTab}
+          onCreateTab={(url) => void createTab(url, state.activeSpaceId)}
           onZenOptimize={zenOptimize}
           onToggleShields={toggleShields}
           onSelectSpace={handleSelectSpace}
@@ -1030,7 +1104,15 @@ return (
           }}
           onReopenClosedTab={() => void reopenClosedTab()}
           onOpenFind={() => dispatchSiteAction('open-find')}
+          onOpenArchive={() => setIsArchiveOpen(true)}
         />
+      </Suspense>
+    )}
+
+    {/* Archived Today tabs of the Active_Profile (R16.7, R16.8); opened from the Command_Bar */}
+    {isArchiveOpen && (
+      <Suspense fallback={null}>
+        <ArchiveList isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} />
       </Suspense>
     )}
 
@@ -1092,6 +1174,7 @@ return (
           onOpenThemeStudio={() => setIsThemeModalOpen(true)}
           userName={userProfile?.name ?? ''}
           onUserNameChange={handleUserNameChange}
+          tabs={state.tabs}
         />
       </Suspense>
     )}
@@ -1105,6 +1188,7 @@ return (
           activeTab={activeTab}
           onNavigate={navigate}
           initialTab={mcpInitialTab}
+          partition={activeProfilePartition}
         />
       </Suspense>
     )}

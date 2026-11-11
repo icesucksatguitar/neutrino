@@ -1,0 +1,669 @@
+/* Arc-style sidebar (src/renderer/components/Sidebar.tsx).
+   Classes use the `nsb-` prefix so the legacy `.arc-sidebar` rules in theme.css do not apply. */
+
+.nsb {
+  --nsb-width-expanded: 240px;
+  --nsb-width-collapsed: 56px;
+  --nsb-fg: var(--theme-fg, #f8faf9);
+  --nsb-fg-muted: var(--theme-fg-muted, #c7d0cc);
+  --nsb-fg-faint: var(--theme-fg-faint, #8fa39b);
+  --nsb-hover: var(--bg-sidebar-hover, rgba(255, 255, 255, 0.08));
+  --nsb-border: var(--theme-border-subtle, rgba(255, 255, 255, 0.08));
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: var(--nsb-width-expanded);
+  height: 100%;
+  min-height: 0;
+  padding: 10px 8px 8px;
+  gap: 6px;
+  box-sizing: border-box;
+  color: var(--nsb-fg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--nsb-space-color) 10%, transparent), transparent 220px),
+    var(--bg-sidebar, #050507);
+  border-right: 1px solid var(--nsb-border);
+  font-size: 13px;
+  user-select: none;
+  transition: width 180ms ease, transform 180ms ease, opacity 180ms ease;
+  z-index: 40;
+}
+
+.nsb.collapsed {
+  width: var(--nsb-width-collapsed);
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Auto-hide: the sidebar floats over the page and slides in from the left edge. */
+.nsb.autohide {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.35);
+  z-index: 1200;
+}
+
+.nsb.autohide.hidden {
+  transform: translateX(calc(-100% - 2px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nsb-edge-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px; /* SIDEBAR_EDGE_PX */
+  z-index: 1199;
+  background: transparent;
+}
+
+/* Header: active space name, icon and color */
+.nsb-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  -webkit-app-region: no-drag;
+}
+
+.nsb-space-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  font-weight: 600;
+}
+
+.nsb-space-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-profile-chip {
+  flex-shrink: 0;
+  max-width: 72px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--nsb-border);
+  color: var(--nsb-fg-faint);
+  font-size: 10px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-header-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.nsb-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--nsb-fg-muted);
+  cursor: pointer;
+}
+
+.nsb-icon-btn:hover,
+.nsb-icon-btn:focus-visible {
+  background: var(--nsb-hover);
+  color: var(--nsb-fg);
+}
+
+.nsb.collapsed .nsb-header {
+  flex-direction: column;
+}
+
+.nsb.collapsed .nsb-space-name,
+.nsb.collapsed .nsb-profile-chip,
+.nsb.collapsed .nsb-header-actions > :first-child {
+  display: none;
+}
+
+.nsb-space-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nsb-space-letter {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Body: static favorites, then the three-pane track (previous, current, next space) */
+.nsb-panes {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.nsb-track {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  transform: translateX(-100%); /* current pane; useSpaceSwipe overrides it while sliding */
+  will-change: transform;
+}
+.nsb-pane {
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+.nsb-pane.inert {
+  pointer-events: none;
+  overflow-y: hidden;
+}
+.nsb-favorites {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 2px 0 6px;
+  flex: none;
+}
+/* Empty sections take no space until a drag makes them a drop zone. */
+.nsb-favorites:empty,
+.nsb-list:empty {
+  padding: 0;
+  min-height: 0;
+}
+.nsb.collapsed .nsb-favorites {
+  grid-template-columns: 1fr;
+}
+.nsb-fav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface, rgba(255, 255, 255, 0.06));
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.nsb-fav:hover,
+.nsb-fav:focus-visible {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.1));
+}
+
+.nsb-fav.active {
+  border-color: var(--nsb-space-color);
+  background: color-mix(in srgb, var(--nsb-space-color) 18%, transparent);
+}
+
+.nsb-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--nsb-border);
+}
+
+.nsb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nsb-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 6px 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nsb-fg-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.nsb-tab:hover,
+.nsb-tab:focus-visible {
+  background: var(--nsb-hover);
+  color: var(--nsb-fg);
+}
+
+.nsb-tab.active {
+  background: color-mix(in srgb, var(--nsb-space-color) 16%, var(--surface-hover, rgba(255, 255, 255, 0.1)));
+  color: var(--nsb-fg);
+  font-weight: 500;
+}
+
+.nsb-tab.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--nsb-space-color);
+}
+
+.nsb-tab.sleeping .nsb-tab-favicon,
+.nsb-tab.sleeping .nsb-tab-title {
+  opacity: 0.55;
+}
+
+.nsb-tab-favicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.nsb-favicon {
+  display: block;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+.nsb-favicon-fallback {
+  color: var(--nsb-fg-faint);
+}
+
+.nsb-tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-tab-mark {
+  display: inline-flex;
+  color: var(--nsb-fg-faint);
+}
+
+.nsb-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--nsb-fg-faint);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.nsb-tab:hover .nsb-tab-close,
+.nsb-tab:focus-within .nsb-tab-close,
+.nsb-tab.active .nsb-tab-close {
+  opacity: 1;
+}
+
+.nsb-tab-close:hover {
+  background: var(--nsb-hover);
+  color: var(--nsb-fg);
+}
+
+.nsb.collapsed .nsb-tab {
+  justify-content: center;
+  padding: 0;
+}
+
+.nsb.collapsed .nsb-tab-title,
+.nsb.collapsed .nsb-tab-mark,
+.nsb.collapsed .nsb-tab-close {
+  display: none;
+}
+
+/* Space_Switcher: one scrollable row of icons; profile groups split by a thin divider */
+.nsb-switcher {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: none;
+  gap: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--nsb-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.nsb-switcher::-webkit-scrollbar {
+  display: none;
+}
+.nsb-switcher-group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+.nsb-switcher-group + .nsb-switcher-group {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--nsb-border);
+}
+/* Collapsed (56px): icons stack vertically and scroll. */
+.nsb.collapsed .nsb-switcher {
+  flex-direction: column;
+  max-height: 40%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.nsb.collapsed .nsb-switcher-group {
+  flex-direction: column;
+}
+.nsb.collapsed .nsb-switcher-group + .nsb-switcher-group {
+  margin: 6px 0 0;
+  padding: 6px 0 0;
+  border-left: none;
+  border-top: 1px solid var(--nsb-border);
+}
+.nsb-space-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: background 150ms ease, opacity 150ms ease;
+}
+.nsb-space-btn:hover,
+.nsb-space-btn:focus-visible {
+  background: var(--nsb-hover);
+  opacity: 1;
+}
+/* Active space: filled pill in the space colour. */
+.nsb-space-btn.active {
+  opacity: 1;
+  background: color-mix(in srgb, var(--nsb-btn-color) 30%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nsb-btn-color) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nsb-space-btn {
+    transition: none;
+  }
+}
+/* Context menu */
+.nsb-menu {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.13));
+  background: var(--theme-surface-solid, #101513);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  color: var(--theme-fg, #f8faf9);
+  font-size: 13px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.nsb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nsb-menu-item:hover:not(:disabled),
+.nsb-menu-item:focus-visible {
+  background: var(--bg-sidebar-hover, rgba(255, 255, 255, 0.08));
+}
+
+.nsb-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nsb-menu-item.danger {
+  color: #f87171;
+}
+
+.nsb-menu-item > span:not(.nsb-space-icon) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-menu-more,
+.nsb-menu-hint {
+  flex: 0 0 auto !important;
+  color: var(--theme-fg-faint, #8fa39b);
+  font-size: 11px;
+}
+
+.nsb-menu-back {
+  color: var(--theme-fg-muted, #c7d0cc);
+}
+
+/* Drag and drop (R17) ------------------------------------------------------ */
+.nsb.dragging,
+.nsb.dragging .nsb-tab,
+.nsb.dragging .nsb-fav,
+.nsb.dragging .nsb-space-btn {
+  cursor: grabbing;
+}
+
+/* Empty sections grow into a visible drop zone while a drag is active. */
+.nsb.dragging .nsb-list,
+.nsb.dragging .nsb-favorites {
+  min-height: 28px;
+}
+
+/* The dragged item at its original position (no target yet). */
+.nsb-dragging-item {
+  opacity: 0.45;
+}
+
+/* The dragged item at the current drop position (R17.6). */
+.nsb-tab.nsb-drop-indicator,
+.nsb-fav.nsb-drop-indicator {
+  opacity: 1;
+  background: color-mix(in srgb, var(--nsb-space-color) 14%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--nsb-space-color) 70%, transparent);
+  outline-offset: -1px;
+}
+
+.nsb-tab.nsb-drop-indicator::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--nsb-space-color);
+  pointer-events: none;
+}
+
+.nsb-fav.nsb-drop-indicator {
+  position: relative;
+}
+
+.nsb-fav.nsb-drop-indicator::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: -4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--nsb-space-color);
+  pointer-events: none;
+}
+
+/* Space icon under the pointer: drop moves the tab into that space. */
+.nsb-space-btn.nsb-drop-space {
+  outline: 2px solid var(--nsb-btn-color, var(--nsb-space-color));
+  outline-offset: 1px;
+  transform: scale(1.08);
+}
+
+.nsb-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border-radius: 8px;
+  background: var(--bg-sidebar, #050507);
+  border: 1px solid var(--nsb-border, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: var(--theme-fg, #f8faf9);
+  font-size: 12px;
+  opacity: 0.92;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.nsb-drag-ghost.tile {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+.nsb-drag-ghost .nsb-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover page preview (R18.1, R18.6). Above the auto-hide sidebar, below the context menu. */
+.nsb-preview {
+  position: fixed;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.13));
+  background: var(--theme-surface-solid, #101513);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--theme-fg, #f8faf9);
+  font-size: 12px;
+  animation: nsb-preview-in 120ms ease-out;
+}
+
+@keyframes nsb-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nsb-preview-image {
+  height: 146px;
+  flex: none;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--theme-border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.nsb-preview-image > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.nsb-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px;
+  color: var(--theme-fg-muted, #c7d0cc);
+}
+
+.nsb-preview-placeholder.loading {
+  opacity: 0.7;
+}
+
+.nsb-preview-placeholder-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.nsb-preview-meta {
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.nsb-preview-title,
+.nsb-preview-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-preview-title {
+  font-weight: 500;
+}
+
+.nsb-preview-url {
+  margin-top: 2px;
+  color: var(--theme-fg-faint, #8fa39b);
+  font-size: 11px;
+}

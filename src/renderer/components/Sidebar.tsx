@@ -1,691 +1,689 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  PixelBack,
-  PixelForward,
-  PixelReload,
-  PixelPlus,
-  PixelClose,
-  PixelPin,
-  PixelMoon,
-  PixelVolume,
-  PixelLock,
-  PixelSearch,
-  PixelGlobe,
-  PixelSidebar,
-  PixelMcp,
-  PixelPalette,
-  PixelShield,
-  PixelZen,
-  PixelChevronDown,
-  PixelChevronUp,
-  PixelLayers,
-} from './PixelIcons';
-import { Space, TabState, ShieldStats, ResourceStats } from '../types';
+  ArrowRightLeft,
+  BookOpen,
+  Briefcase,
+  Code,
+  Coffee,
+  Copy,
+  Eye,
+  EyeOff,
+  Folder,
+  Globe,
+  Heart,
+  Home,
+  Moon,
+  Music,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
+  PinOff,
+  Sparkles,
+  Star,
+  StarOff,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { sidebarVisibility } from '../../main/sidebar/layout';
+import { useSpaceSwipe } from '../hooks/useSpaceSwipe';
+import { useSidebarDrag } from '../hooks/useSidebarDrag';
+import { useHoverPreview } from '../hooks/useHoverPreview';
+import { TabPreviewCard } from './TabPreviewCard';
+import {
+  buildSidebarView,
+  contextMenuActions,
+  favoriteActivation,
+  moveToSpaceOp,
+  type SidebarItemKind,
+  type SidebarItemRef,
+  type SidebarMenuAction,
+  type SidebarSource,
+  type SidebarView,
+} from '../utils/sidebarModel';
+import type { MoveOp, Profile, SidebarState, Space } from '../types';
+import '../styles/sidebar.css';
 
-interface SidebarProps {
-  spaces: Space[];
-  activeSpaceId: string;
-  tabs: TabState[];
-  activeTabId: string | null;
-  isOpen: boolean;
-  onToggleSidebar: () => void;
-  onOpenCommandBar: () => void;
-  onOpenThemeStudio?: () => void;
-  onToggleShieldModal?: () => void;
-  onToggleMcpModal?: () => void;
-  onZenOptimize?: () => void;
-  shieldStats?: ShieldStats;
-  resourceStats?: ResourceStats;
-  activeTab?: TabState;
-  onNavigate: (url: string) => void;
-  onGoBack: () => void;
-  onGoForward: () => void;
-  onReload: () => void;
-  onSelectTab: (id: string) => void;
-  onCloseTab: (id: string) => void;
-  onTogglePinTab: (id: string) => void;
-  onToggleSleepTab: (id: string) => void;
-  onSelectSpace: (id: string) => void;
-  onCreateTab: (url?: string, spaceId?: string) => void;
-  onCreateSpace?: (name: string, color: string) => void;
-  onDeleteSpace?: (spaceId: string) => void;
-  onReorderTabs?: (draggedTabId: string, targetTabId: string) => void;
+export type { SidebarItemKind, SidebarItemRef } from '../utils/sidebarModel';
+
+/**
+ * Commands the sidebar issues. The names match `useBrowser()` so App can pass
+ * `{ ...browser, openCommandBar }` directly.
+ */
+export interface SidebarActions {
+  selectTab: (tabId: string) => void;
+  selectSpace: (spaceId: string) => void;
+  createTab: (url?: string, spaceId?: string) => unknown;
+  closeTab: (tabId: string) => void;
+  pinTab: (tabId: string) => unknown;
+  unpinTab: (tabId: string) => unknown;
+  addFavorite: (tabId: string) => unknown;
+  removeFavorite: (favoriteId: string) => unknown;
+  duplicateTab: (id: string, spaceId?: string) => unknown;
+  moveTab: (op: MoveOp) => unknown;
+  /** New tab control (R12.8): App opens the Command_Bar, which creates the tab in the active space. */
+  openCommandBar: () => void;
 }
 
-// Domain metadata extractor for macOS notification presentation
-function getTabDomainInfo(url: string, title?: string) {
-  if (!url || url === 'neutrino://newtab' || url === 'about:blank') {
-    return {
-      domain: 'neutrino',
-      displayName: 'Neutrino',
-      color: '#7c9cff',
-      isInternal: true,
-    };
+type ExtraProps = React.HTMLAttributes<HTMLElement> & { draggable?: boolean; [data: `data-${string}`]: unknown };
+
+export interface SidebarProps {
+  /** Live browser state (`useBrowser().state`). */
+  state: SidebarSource;
+  actions: SidebarActions;
+  /** `settings.sidebarExpanded`. */
+  expanded: boolean;
+  /** `settings.sidebarAutoHide`. */
+  autoHide: boolean;
+  /** Persists through the settings IPC (`useSettings().updateSettings` or `updateSidebarState`). */
+  onUpdateSidebarState: (patch: Partial<SidebarState>) => void;
+
+  // Extension points (drag and drop, hover previews). Handlers returned here
+  // run before the sidebar's own handlers for the same event; calling
+  // `preventDefault()` in one skips the sidebar's handler.
+  /** Extra attributes/handlers for each favorite, pinned or Today item. */
+  itemProps?: (item: SidebarItemRef) => ExtraProps;
+  /** Extra attributes/handlers for each section's list container (drop zones). */
+  sectionProps?: (section: SidebarItemKind) => ExtraProps;
+  /** Extra attributes/handlers for each Space_Switcher icon (drop onto a space). */
+  spaceProps?: (space: Space) => ExtraProps;
+  /** Rendered at the end of a section's list (for example a drop indicator). */
+  renderSectionExtras?: (section: SidebarItemKind) => React.ReactNode;
+  /** Overlays rendered inside the sidebar (for example a hover preview card). */
+  children?: React.ReactNode;
+  className?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Small helpers
+
+const SPACE_ICONS: Record<string, LucideIcon> = {
+  Home,
+  Folder,
+  BookOpen,
+  Briefcase,
+  Coffee,
+  Star,
+  Heart,
+  Code,
+  Music,
+  Globe,
+  Sparkles,
+};
+
+export const SpaceIcon: React.FC<{ space: Pick<Space, 'icon' | 'name' | 'color'>; size?: number }> = ({
+  space,
+  size = 14,
+}) => {
+  const Icon = SPACE_ICONS[space.icon];
+  return (
+    <span className="nsb-space-icon" style={{ color: space.color }} aria-hidden="true">
+      {Icon ? <Icon size={size} /> : <span className="nsb-space-letter">{(space.name || '?').charAt(0).toUpperCase()}</span>}
+    </span>
+  );
+};
+
+const Favicon: React.FC<{ src?: string; size?: number }> = ({ src, size = 16 }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (!src || failed) return <Globe size={size - 2} className="nsb-favicon-fallback" aria-hidden="true" />;
+  return <img src={src} alt="" width={size} height={size} className="nsb-favicon" onError={() => setFailed(true)} />;
+};
+
+
+const HANDLER_KEYS = [
+  'onClick',
+  'onContextMenu',
+  'onMouseEnter',
+  'onMouseLeave',
+  'onPointerDown',
+  'onKeyDown',
+  'onDragStart',
+  'onDragOver',
+  'onDragLeave',
+  'onDrop',
+  'onDragEnd',
+] as const;
+
+/** Merges extension props over base props; extension handlers run first, then the base ones. */
+function mergeProps<T extends Record<string, any>>(base: T, extra?: ExtraProps): T {
+  if (!extra) return base;
+  const out: Record<string, any> = { ...base, ...extra };
+  for (const key of HANDLER_KEYS) {
+    const a = (extra as any)[key];
+    const b = (base as any)[key];
+    if (typeof a === 'function' && typeof b === 'function') {
+      out[key] = (e: React.SyntheticEvent) => {
+        a(e);
+        if (!e.defaultPrevented) b(e);
+      };
+    }
   }
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace(/^www\./, '');
-    const parts = host.split('.');
-
-    if (host.includes('youtube.com')) {
-      return { domain: 'youtube.com', displayName: 'YouTube', color: '#ef4444', isInternal: false };
-    }
-    if (host.includes('google.com')) {
-      return { domain: 'google.com', displayName: 'Google', color: '#3b82f6', isInternal: false };
-    }
-    if (host.includes('github.com')) {
-      return { domain: 'github.com', displayName: 'GitHub', color: '#6366f1', isInternal: false };
-    }
-    if (host.includes('reddit.com')) {
-      return { domain: 'reddit.com', displayName: 'Reddit', color: '#f97316', isInternal: false };
-    }
-    if (host.includes('wikipedia.org')) {
-      return { domain: 'wikipedia.org', displayName: 'Wikipedia', color: '#e2e8f0', isInternal: false };
-    }
-    if (host.includes('chatgpt.com') || host.includes('openai.com')) {
-      return { domain: host, displayName: 'ChatGPT', color: '#10b981', isInternal: false };
-    }
-    if (host.includes('twitter.com') || host.includes('x.com')) {
-      return { domain: host, displayName: 'X', color: '#94a3b8', isInternal: false };
-    }
-
-    const brandName = parts.length >= 2 ? parts[parts.length - 2] : host;
-    const displayName = brandName.charAt(0).toUpperCase() + brandName.slice(1);
-    return {
-      domain: host,
-      displayName,
-      color: '#8b5cf6',
-      isInternal: false,
-    };
-  } catch {
-    return {
-      domain: 'web',
-      displayName: title || 'Web Page',
-      color: '#64748b',
-      isInternal: false,
-    };
-  }
+  if (base.className || extra.className) out.className = [base.className, extra.className].filter(Boolean).join(' ');
+  if (base.style || extra.style) out.style = { ...base.style, ...extra.style };
+  return out as T;
 }
 
-interface TabGroup {
-  key: string;
-  domain: string;
-  displayName: string;
-  color: string;
-  tabs: TabState[];
-  hasActiveTab: boolean;
+const MENU_LABELS: Record<SidebarMenuAction, string> = {
+  pin: 'Pin',
+  unpin: 'Unpin',
+  'add-favorite': 'Add to favorites',
+  'remove-favorite': 'Remove from favorites',
+  'move-to-space': 'Move to space',
+  duplicate: 'Duplicate',
+  close: 'Close',
+};
+
+const MENU_ICONS: Record<SidebarMenuAction, LucideIcon> = {
+  pin: Pin,
+  unpin: PinOff,
+  'add-favorite': Star,
+  'remove-favorite': StarOff,
+  'move-to-space': ArrowRightLeft,
+  duplicate: Copy,
+  close: X,
+};
+
+interface MenuState {
+  item: SidebarItemRef;
+  x: number;
+  y: number;
+  showSpaces: boolean;
 }
+
+const MENU_WIDTH = 210;
+
+// ---------------------------------------------------------------------------
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  spaces,
-  activeSpaceId,
-  tabs,
-  activeTabId,
-  isOpen,
-  onToggleSidebar,
-  onOpenCommandBar,
-  onOpenThemeStudio,
-  onToggleShieldModal,
-  onToggleMcpModal,
-  onZenOptimize,
-  shieldStats = { totalBlocked: 0, adsBlocked: 0, trackersBlocked: 0, analyticsBlocked: 0, fingerprintersBlocked: 0, dataSavedKb: 0 },
-  resourceStats = { memorySavedMb: 0, sleepingCount: 0 },
-  activeTab,
-  onNavigate,
-  onGoBack,
-  onGoForward,
-  onReload,
-  onSelectTab,
-  onCloseTab,
-  onTogglePinTab,
-  onToggleSleepTab,
-  onSelectSpace,
-  onCreateTab,
-  onCreateSpace,
-  onDeleteSpace,
-  onReorderTabs,
+  state,
+  actions,
+  expanded,
+  autoHide,
+  onUpdateSidebarState,
+  itemProps,
+  sectionProps,
+  spaceProps,
+  renderSectionExtras,
+  children,
+  className,
 }) => {
-  const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
-  const urlInputRef = useRef<HTMLInputElement>(null);
-  const [isCreatingSpace, setIsCreatingSpace] = useState(false);
-  const [newSpaceName, setNewSpaceName] = useState('');
-  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  // Drag and drop (R17): renders the optimistic layout while dragging/committing.
+  const drag = useSidebarDrag(state, actions.moveTab);
+  const view = useMemo(() => buildSidebarView(drag.displayState), [drag.displayState]);
+  const { activeSpaceId, activeTabId } = state;
 
-  // Tabs Dropdown open/close state triggered by the arrow on top
-  const [isTabsDropdownOpen, setIsTabsDropdownOpen] = useState(true);
+  // --- Auto-hide (R12.4) -----------------------------------------------------
+  const [pointerX, setPointerX] = useState<number | null>(null);
+  const [overSidebar, setOverSidebar] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
-  // Expanded status for stacked tab groups
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-
-  const toggleGroup = (key: string) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const rawUrl = activeTab?.url || '';
-  const isNewTab = !rawUrl || rawUrl === 'neutrino://newtab' || rawUrl === 'about:blank';
-
-  // Synchronize address input
   useEffect(() => {
-    if (!isEditingUrl) {
-      setUrlInput(isNewTab ? '' : rawUrl);
-    }
-  }, [rawUrl, isNewTab, isEditingUrl]);
+    if (!autoHide) return;
+    const onMove = (e: MouseEvent) => setPointerX(e.clientX);
+    const onLeave = () => setPointerX(null);
+    window.addEventListener('mousemove', onMove, { passive: true });
+    document.documentElement.addEventListener('mouseleave', onLeave);
+    window.addEventListener('blur', onLeave);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      document.documentElement.removeEventListener('mouseleave', onLeave);
+      window.removeEventListener('blur', onLeave);
+    };
+  }, [autoHide]);
 
-  const handleUrlSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
+  // An open context menu keeps an auto-hidden sidebar visible.
+  // An active drag keeps it visible too.
+  const visible = sidebarVisibility(autoHide, pointerX, overSidebar || menu !== null || drag.dragging);
 
-    let target = trimmed;
-    if (target.startsWith('localhost') || target.startsWith('127.0.0.1')) {
-      target = 'http://' + target;
-    } else if (!target.includes('://')) {
-      if (target.includes('.') && !target.includes(' ')) {
-        target = 'https://' + target;
-      } else {
-        target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
-      }
-    }
+  // --- Hover previews (R18.1, R18.2) -------------------------------------------
+  // Nothing shows while dragging, while a context menu is open or while the sidebar is hidden.
+  const preview = useHoverPreview(drag.dragging || menu !== null || !visible);
+  const hidePreview = preview.hide;
+  const previewKey = preview.state?.target.key;
+  useEffect(() => {
+    // The hovered item was closed or moved out of view.
+    if (!previewKey) return;
+    const present = [view.favorites, view.pinned, view.today].some((list) => list.some((i) => i.id === previewKey));
+    if (!present) hidePreview();
+  }, [view, previewKey, hidePreview]);
+  /** Drag handlers, then preview handlers (both chain; neither prevents default), then extensions. */
+  const itemExtraProps = (item: SidebarItemRef): ExtraProps =>
+    mergeProps(drag.itemProps(item) as ExtraProps, preview.itemProps(item) as ExtraProps);
 
-    setIsEditingUrl(false);
-    onNavigate(target);
-  };
-
-  const handleUrlFocus = () => {
-    setIsEditingUrl(true);
-    setUrlInput(isNewTab ? '' : rawUrl);
-    setTimeout(() => urlInputRef.current?.select(), 10);
-  };
-
-  const handleUrlBlur = () => {
-    setIsEditingUrl(false);
-    setUrlInput(isNewTab ? '' : rawUrl);
-  };
-
-  const getDisplayDomain = () => {
-    if (isNewTab) return 'Search or enter URL...';
-    try {
-      const u = new URL(rawUrl);
-      return u.hostname.replace(/^www\./, '');
-    } catch {
-      return activeTab?.title || rawUrl;
-    }
-  };
-
-  const isSecure = rawUrl.startsWith('https://');
-
-  // Filter tabs into Pinned vs Regular
-  const pinnedTabs = tabs.filter((t) => t.isPinned);
-  const regularTabs = tabs.filter((t) => !t.isPinned);
-
-  // Group similar regular tabs together by domain
-  const tabGroups = useMemo(() => {
-    const groups: TabGroup[] = [];
-    const map = new Map<string, TabGroup>();
-
-    for (const tab of regularTabs) {
-      const info = getTabDomainInfo(tab.url, tab.title);
-      const key = info.domain;
-      let g = map.get(key);
-      if (!g) {
-        g = {
-          key,
-          domain: info.domain,
-          displayName: info.displayName,
-          color: info.color,
-          tabs: [],
-          hasActiveTab: false,
-        };
-        map.set(key, g);
-        groups.push(g);
-      }
-      g.tabs.push(tab);
-      if (tab.id === activeTabId) {
-        g.hasActiveTab = true;
-      }
-    }
-    return groups;
-  }, [regularTabs, activeTabId]);
-
-  // Spaces Slider calculations
-  const activeSpaceIndex = Math.max(
-    0,
-    spaces.findIndex((s) => s.id === activeSpaceId)
+  // --- Swipe between spaces (R13.3) -------------------------------------------
+  // Panes: previous, current and next space on a horizontal track. useSpaceSwipe
+  // moves the track by ref; the current pane is the only interactive one.
+  const rootRef = useRef<HTMLElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const swipeOrder = useMemo(() => view.spaceOrder.map((s) => ({ id: s.id, color: s.color })), [view.spaceOrder]);
+  const outgoing = useSpaceSwipe({
+    rootRef,
+    trackRef,
+    order: swipeOrder,
+    activeId: activeSpaceId,
+    blocked: drag.dragging || menu !== null,
+    onCommit: actions.selectSpace,
+    onStart: hidePreview,
+  });
+  const activeIndex = view.spaceOrder.findIndex((s) => s.id === activeSpaceId);
+  const prevId =
+    outgoing?.side === 'prev' ? outgoing.id : activeIndex > 0 ? view.spaceOrder[activeIndex - 1].id : undefined;
+  const nextId =
+    outgoing?.side === 'next'
+      ? outgoing.id
+      : activeIndex >= 0 && activeIndex < view.spaceOrder.length - 1
+        ? view.spaceOrder[activeIndex + 1].id
+        : undefined;
+  const displayState = drag.displayState;
+  const prevView = useMemo(
+    () => (prevId ? buildSidebarView({ ...displayState, activeSpaceId: prevId }) : null),
+    [displayState, prevId],
   );
-  const activeSpace = spaces[activeSpaceIndex] || spaces[0];
+  const nextView = useMemo(
+    () => (nextId ? buildSidebarView({ ...displayState, activeSpaceId: nextId }) : null),
+    [displayState, nextId],
+  );
+  // Favorites belong to the profile: static above the track unless a neighbour has another profile.
+  const profileOfSpace = new Map(view.groups.flatMap((g) => g.spaces.map((s) => [s.id, g.profile.id] as const)));
+  const ownProfile = profileOfSpace.get(activeSpaceId);
+  const favoritesInPanes = [prevId, nextId].some((id) => id !== undefined && profileOfSpace.get(id) !== ownProfile);
 
-  // Drag and drop reordering
-  const handleDragStart = (e: React.DragEvent, tabId: string) => {
-    e.dataTransfer.setData('text/plain', tabId);
-    setDraggedTabId(tabId);
+  // --- Context menu (R12.10) --------------------------------------------------
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('blur', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('blur', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+
+  const openMenu = (item: SidebarItemRef, x: number, y: number) => {
+    setMenu({
+      item,
+      x: Math.max(4, Math.min(x, window.innerWidth - MENU_WIDTH - 4)),
+      y: Math.max(4, Math.min(y, window.innerHeight - 280)),
+      showSpaces: false,
+    });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent, targetTabId: string) => {
-    e.preventDefault();
-    if (draggedTabId && draggedTabId !== targetTabId && onReorderTabs) {
-      onReorderTabs(draggedTabId, targetTabId);
+  const runMenuAction = (item: SidebarItemRef, action: SidebarMenuAction) => {
+    switch (action) {
+      case 'pin':
+        actions.pinTab(item.id);
+        break;
+      case 'unpin':
+        actions.unpinTab(item.id);
+        break;
+      case 'add-favorite':
+        actions.addFavorite(item.id);
+        break;
+      case 'remove-favorite':
+        actions.removeFavorite(item.id);
+        break;
+      case 'duplicate':
+        actions.duplicateTab(item.id, item.kind === 'favorite' ? activeSpaceId : undefined);
+        break;
+      case 'close':
+        if (item.kind === 'favorite') {
+          if (item.tab) actions.closeTab(item.tab.id);
+        } else {
+          actions.closeTab(item.id);
+        }
+        break;
+      case 'move-to-space':
+        setMenu((m) => (m ? { ...m, showSpaces: true } : m));
+        return;
     }
-    setDraggedTabId(null);
+    setMenu(null);
   };
 
-  const handleCreateSpaceSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newSpaceName.trim();
-    if (name && onCreateSpace) {
-      const colors = ['#7c9cff', '#38bdf8', '#4ade80', '#a78bfa', '#fb7185', '#fbbf24'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      onCreateSpace(name, randomColor);
-      setNewSpaceName('');
-      setIsCreatingSpace(false);
+  // --- Activation -------------------------------------------------------------
+  const activate = (item: SidebarItemRef) => {
+    if (item.kind === 'favorite' && item.favorite) {
+      const target = favoriteActivation(item.favorite, state.tabs, activeSpaceId);
+      if (target.type === 'select') actions.selectTab(target.tabId);
+      else actions.createTab(target.url, target.spaceId);
+      return;
     }
+    // Unloaded pinned tabs load their saved URL when selected (R15.4).
+    actions.selectTab(item.id);
   };
 
-  // Render a single macOS notification tab card (Image 3 reference)
-  const renderTabCard = (tab: TabState, inStack: boolean = false) => {
-    const isActive = tab.id === activeTabId;
-    const info = getTabDomainInfo(tab.url, tab.title);
+  const itemBaseProps = (item: SidebarItemRef) => ({
+    role: 'button',
+    tabIndex: 0,
+    'data-sidebar-item': item.kind,
+    'data-sidebar-id': item.id,
+    'data-sidebar-index': item.index,
+    // aria-label, not title: a native tooltip would cover the hover preview card.
+    'aria-label': item.title || item.url || 'New Tab',
+    onClick: () => activate(item),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activate(item);
+      } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+        e.preventDefault();
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        openMenu(item, r.left + 12, r.bottom);
+      }
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      openMenu(item, e.clientX, e.clientY);
+    },
+  });
 
+  const isActiveItem = (item: SidebarItemRef) =>
+    item.tab !== undefined && item.tab.id === activeTabId;
+  const isSleepingItem = (item: SidebarItemRef) =>
+    item.kind === 'favorite' ? false : Boolean(item.tab?.isSleeping || item.tab?.unloaded);
+
+  // --- Rendering --------------------------------------------------------------
+  const renderFavorite = (item: SidebarItemRef, inert = false) => {
+    const cls = `nsb-fav ${isActiveItem(item) ? 'active' : ''} ${item.tab ? 'open' : ''}`;
+    if (inert) {
+      return (
+        <div key={item.id} className={cls}>
+          <Favicon src={item.favicon} size={18} />
+        </div>
+      );
+    }
+    const base = { ...itemBaseProps(item), className: cls };
     return (
-      <div
-        key={tab.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, tab.id)}
-        onDragOver={handleDragOver}
-        onDrop={(e) => handleDrop(e, tab.id)}
-        className={`arc-macos-tab-card ${isActive ? 'active' : ''} ${inStack ? 'stacked-card' : ''}`}
-        onClick={() => onSelectTab(tab.id)}
-      >
-        {/* Active glowing indicator */}
-        {isActive && <div className="arc-macos-tab-active-glow" />}
-
-        {/* macOS Notification Left App Squircle */}
-        <div
-          className="arc-macos-tab-squircle"
-          style={{ backgroundColor: info.color ? `${info.color}22` : 'rgba(255, 255, 255, 0.08)' }}
-        >
-          {tab.favicon ? (
-            <img src={tab.favicon} alt="" className="arc-macos-tab-favicon" />
-          ) : (
-            <PixelGlobe size={16} />
-          )}
-        </div>
-
-        {/* macOS Notification Content Body */}
-        <div className="arc-macos-tab-body">
-          {/* Header row: App/Domain Name + Status/Time + Close */}
-          <div className="arc-macos-tab-header-row">
-            <span className="arc-macos-tab-app-name">{info.displayName}</span>
-            <div className="arc-macos-tab-right-meta">
-              {tab.hasActiveMedia && (
-                <span className="arc-meta-icon media" title="Playing Audio">
-                  <PixelVolume size={12} />
-                </span>
-              )}
-              {tab.isSleeping && (
-                <span className="arc-meta-icon sleep" title="Sleeping">
-                  <PixelMoon size={11} />
-                </span>
-              )}
-              <span className="arc-macos-tab-timestamp">
-                {isActive ? 'Active' : 'now'}
-              </span>
-              <button
-                className="arc-macos-tab-close"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseTab(tab.id);
-                }}
-                title="Close Tab"
-                aria-label="Close Tab"
-              >
-                <PixelClose size={11} />
-              </button>
-            </div>
-          </div>
-
-          {/* Subtitle row: Page Title */}
-          <div className="arc-macos-tab-title-row" title={tab.title || 'New Tab'}>
-            {tab.title || 'New Tab'}
-          </div>
-        </div>
+      <div key={item.id} {...mergeProps(mergeProps(base, itemExtraProps(item)), itemProps?.(item))}>
+        <Favicon src={item.favicon} size={18} />
       </div>
     );
   };
+  const renderTabRow = (item: SidebarItemRef, inert = false) => {
+    const active = isActiveItem(item);
+    const sleeping = isSleepingItem(item);
+    const cls = `nsb-tab ${active ? 'active' : ''} ${sleeping ? 'sleeping' : ''} ${item.tab?.unloaded ? 'unloaded' : ''}`;
+    const content = (
+      <>
+        <span className="nsb-tab-favicon">
+          <Favicon src={item.favicon ?? item.tab?.favicon} />
+        </span>
+        <span className="nsb-tab-title">{item.title || item.url || 'New Tab'}</span>
+        {sleeping && (
+          <span className="nsb-tab-mark" title={item.tab?.unloaded ? 'Not loaded' : 'Sleeping'}>
+            <Moon size={11} aria-label={item.tab?.unloaded ? 'Not loaded' : 'Sleeping'} />
+          </span>
+        )}
+      </>
+    );
+    // Neighbour panes only need to look right: no handlers, no focusable controls.
+    if (inert) {
+      return (
+        <div key={item.id} className={cls}>
+          {content}
+        </div>
+      );
+    }
+    const base = {
+      ...itemBaseProps(item),
+      'aria-current': active ? ('page' as const) : undefined,
+      className: cls,
+    };
+    return (
+      <div key={item.id} {...mergeProps(mergeProps(base, itemExtraProps(item)), itemProps?.(item))}>
+        {content}
+        <button
+          type="button"
+          className="nsb-tab-close"
+          title={item.kind === 'pinned' ? 'Close (keeps the pin)' : 'Close tab'}
+          aria-label="Close tab"
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.closeTab(item.id);
+          }}
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  };
+  const section = (kind: SidebarItemKind, body: React.ReactNode, cls: string) => (
+    <div {...mergeProps({ className: cls, 'data-sidebar-section': kind }, sectionProps?.(kind))}>
+      {body}
+      {renderSectionExtras?.(kind)}
+    </div>
+  );
+
+  /** Current pane: a real drop-target section. Neighbour panes: plain markup. */
+  const paneSection = (kind: SidebarItemKind, items: SidebarItemRef[], cls: string, current: boolean) =>
+    current ? (
+      section(kind, items.map((i) => (kind === 'favorite' ? renderFavorite(i) : renderTabRow(i))), cls)
+    ) : (
+      <div className={cls}>{items.map((i) => (kind === 'favorite' ? renderFavorite(i, true) : renderTabRow(i, true)))}</div>
+    );
+  const renderPane = (id: string | undefined, slot: 'prev' | 'next' | 'current', v: SidebarView | null) => {
+    if (!id || !v) return <div key={`empty-${slot}`} className="nsb-pane" aria-hidden="true" />;
+    const current = slot === 'current';
+    const showPinnedOrToday = v.pinned.length > 0 || v.today.length > 0;
+    return (
+      <div
+        key={id}
+        className={`nsb-pane ${current ? 'current' : 'inert'}`}
+        aria-hidden={current ? undefined : true}
+        style={current ? undefined : { pointerEvents: 'none' }}
+      >
+        {favoritesInPanes && (current || v.favorites.length > 0) && paneSection('favorite', v.favorites, 'nsb-favorites', current)}
+        {paneSection('pinned', v.pinned, 'nsb-list nsb-pinned', current)}
+        {showPinnedOrToday && <div className="nsb-divider" role="separator" />}
+        {paneSection('today', v.today, 'nsb-list nsb-today', current)}
+      </div>
+    );
+  };
+  const activeSpace = view.activeSpace;
+  const activeProfile = view.activeProfile;
+  const profileCount = view.groups.length;
+
+  const rootClass = [
+    'nsb',
+    expanded ? 'expanded' : 'collapsed',
+    drag.dragging ? 'dragging' : '',
+    autoHide ? 'autohide' : '',
+    visible ? 'visible' : 'hidden',
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const spaceButton = (space: Space, profile: Profile) => {
+    const active = space.id === activeSpaceId;
+    const base = {
+      type: 'button' as const,
+      className: `nsb-space-btn ${active ? 'active' : ''}`,
+      'data-space-id': space.id,
+      'data-profile-id': profile.id,
+      'aria-pressed': active,
+      title: profileCount > 1 ? `${space.name} (${profile.name})` : space.name,
+      'aria-label': `Space ${space.name}, profile ${profile.name}`,
+      style: { '--nsb-btn-color': space.color } as React.CSSProperties,
+      onClick: () => actions.selectSpace(space.id),
+    };
+    return (
+      <button key={space.id} {...mergeProps(mergeProps(base, drag.spaceProps(space.id)), spaceProps?.(space))}>
+        <SpaceIcon space={space} size={14} />
+      </button>
+    );
+  };
+
+  const menuSpaces = menu
+    ? view.spaceOrder.filter((s) => menu.item.kind === 'favorite' || s.id !== menu.item.tab?.spaceId)
+    : [];
 
   return (
-    <aside className={`arc-sidebar ${isOpen ? 'expanded' : 'collapsed'}`}>
-      {/* 1. Arc Sidebar Top Header with Arrow on Top to Trigger Tabs Dropdown */}
-      <div className="arc-sidebar-header">
-        <div className="arc-header-left">
-          <div className="arc-traffic-dot" title="Neutrino Browser" />
-          <div className="arc-history-buttons">
-            <button
-              className="arc-icon-btn"
-              disabled={!activeTab?.canGoBack}
-              onClick={onGoBack}
-              title="Back (Alt+Left)"
-              aria-label="Back"
-            >
-              <PixelBack size={14} />
-            </button>
-            <button
-              className="arc-icon-btn"
-              disabled={!activeTab?.canGoForward}
-              onClick={onGoForward}
-              title="Forward (Alt+Right)"
-              aria-label="Forward"
-            >
-              <PixelForward size={14} />
-            </button>
-            <button
-              className="arc-icon-btn"
-              onClick={onReload}
-              title="Reload (Ctrl+R)"
-              aria-label="Reload"
-            >
-              <PixelReload size={13} className={activeTab?.isLoading ? 'spinning' : ''} />
-            </button>
-          </div>
-        </div>
-
-        <div className="arc-header-right">
-          {/* Arrow on top that triggers dropdown for tabs */}
-          <button
-            className={`arc-icon-btn arc-tabs-dropdown-trigger ${isTabsDropdownOpen ? 'open' : 'closed'}`}
-            onClick={() => setIsTabsDropdownOpen(!isTabsDropdownOpen)}
-            title={isTabsDropdownOpen ? 'Collapse Tabs Dropdown' : 'Expand Tabs Dropdown'}
-            aria-label="Trigger Tabs Dropdown"
-          >
-            {isTabsDropdownOpen ? (
-              <PixelChevronUp size={13} className="arc-dropdown-chevron" />
-            ) : (
-              <PixelChevronDown size={13} className="arc-dropdown-chevron" />
-            )}
-          </button>
-
-          {/* Sidebar Hide Toggle */}
-          <button
-            className="arc-icon-btn arc-toggle-btn"
-            onClick={onToggleSidebar}
-            title="Toggle Sidebar (Ctrl+S)"
-            aria-label="Toggle Sidebar"
-          >
-            <PixelSidebar size={15} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Arc Integrated Address / Omnibox Bar */}
-      <div className="arc-omnibox-container">
-        <form className="arc-omnibox-form" onSubmit={handleUrlSubmit}>
-          <div className="arc-omnibox-icon-wrapper">
-            {isNewTab ? (
-              <PixelSearch size={14} className="arc-omnibox-icon" />
-            ) : (
-              <PixelLock size={13} className="arc-omnibox-icon-secure" />
-            )}
-          </div>
-
-          <input
-            ref={urlInputRef}
-            type="text"
-            className="arc-omnibox-input"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onFocus={handleUrlFocus}
-            onBlur={handleUrlBlur}
-            placeholder="Search or enter URL..."
-            spellCheck={false}
-            autoComplete="off"
-          />
-
-          {!isEditingUrl && !isNewTab && (
-            <div className="arc-omnibox-display-pill" onClick={handleUrlFocus}>
-              <span className="arc-display-domain">{getDisplayDomain()}</span>
-              {activeTab?.isLoading && <div className="arc-display-loader" />}
+    <>
+      {autoHide && !visible && (
+        <div
+          className="nsb-edge-zone"
+          aria-hidden="true"
+          onMouseEnter={(e) => setPointerX(e.clientX)}
+          onMouseMove={(e) => setPointerX(e.clientX)}
+        />
+      )}
+      <aside
+        ref={rootRef}
+        className={rootClass}
+        aria-label="Sidebar"
+        aria-hidden={!visible}
+        style={{ '--nsb-space-color': activeSpace?.color ?? 'var(--theme-accent)' } as React.CSSProperties}
+        onMouseEnter={() => setOverSidebar(true)}
+        onMouseLeave={() => setOverSidebar(false)}
+      >
+        {/* Active space: name, icon and color (R13.6) */}
+        <div className="nsb-header">
+          {activeSpace && (
+            <div className="nsb-space-title" title={activeSpace.name}>
+              <SpaceIcon space={activeSpace} size={15} />
+              <span className="nsb-space-name">{activeSpace.name}</span>
+              {activeProfile && profileCount > 1 && (
+                <span className="nsb-profile-chip" title={`Profile: ${activeProfile.name}`}>
+                  {activeProfile.name}
+                </span>
+              )}
             </div>
           )}
-        </form>
-      </div>
-
-      {/* 3. Arc Pinned Favorites (if any) */}
-      {pinnedTabs.length > 0 && (
-        <div className="arc-pinned-section">
-          <div className="arc-pinned-grid">
-            {pinnedTabs.map((tab) => {
-              const isActive = tab.id === activeTabId;
-              return (
-                <div
-                  key={tab.id}
-                  className={`arc-pinned-tile ${isActive ? 'active' : ''}`}
-                  onClick={() => onSelectTab(tab.id)}
-                  title={tab.title}
-                >
-                  <div className="arc-tile-favicon-wrapper">
-                    {tab.favicon ? (
-                      <img src={tab.favicon} alt="" className="arc-tile-favicon" />
-                    ) : (
-                      <PixelGlobe size={14} />
-                    )}
-                  </div>
-                  <span className="arc-tile-title">{tab.title || 'Tab'}</span>
-                  <button
-                    className="arc-tile-unpin-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTogglePinTab(tab.id);
-                    }}
-                    title="Unpin Tab"
-                  >
-                    <PixelPin size={11} />
-                  </button>
-                </div>
-              );
-            })}
+          <div className="nsb-header-actions">
+            <button
+              type="button"
+              className="nsb-icon-btn"
+              aria-pressed={autoHide}
+              title={autoHide ? 'Keep sidebar visible' : 'Auto-hide sidebar'}
+              aria-label={autoHide ? 'Keep sidebar visible' : 'Auto-hide sidebar'}
+              onClick={() => onUpdateSidebarState({ sidebarAutoHide: !autoHide })}
+            >
+              {autoHide ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+            <button
+              type="button"
+              className="nsb-icon-btn"
+              aria-expanded={expanded}
+              title={expanded ? 'Collapse sidebar (Ctrl+E)' : 'Expand sidebar (Ctrl+E)'}
+              aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              onClick={() => onUpdateSidebarState({ sidebarExpanded: !expanded })}
+            >
+              {expanded ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+            </button>
           </div>
+        </div>
+
+        {!favoritesInPanes && section('favorite', view.favorites.map((f) => renderFavorite(f)), 'nsb-favorites')}
+        <div className="nsb-panes">
+          <div className="nsb-track" ref={trackRef}>
+            {renderPane(prevId, 'prev', prevView)}
+            {renderPane(activeSpaceId, 'current', view)}
+            {renderPane(nextId, 'next', nextView)}
+          </div>
+        </div>
+        {/* Space_Switcher: one row of icons, profile groups separated by a divider (R13.1) */}
+        <nav className="nsb-switcher" aria-label="Spaces">
+          {view.groups.map(({ profile, spaces }) =>
+            spaces.length === 0 ? null : (
+              <div key={profile.id} className="nsb-switcher-group" data-profile-id={profile.id}>
+                {spaces.map((s) => spaceButton(s, profile))}
+              </div>
+            ),
+          )}
+        </nav>
+        {children}
+      </aside>
+
+      {preview.state && !drag.dragging && (
+        <TabPreviewCard
+          preview={preview.state}
+          onMouseEnter={preview.cardProps.onMouseEnter}
+          onMouseLeave={preview.cardProps.onMouseLeave}
+        />
+      )}
+
+      {drag.ghost && (
+        <div
+          ref={drag.ghostRef}
+          className={`nsb-drag-ghost ${drag.ghost.item.kind === 'favorite' ? 'tile' : ''}`}
+          aria-hidden="true"
+          style={{ transform: `translate(${drag.ghost.x + 12}px, ${drag.ghost.y + 8}px)` }}
+        >
+          <Favicon src={drag.ghost.item.favicon ?? drag.ghost.item.tab?.favicon} />
+          {drag.ghost.item.kind !== 'favorite' && (
+            <span className="nsb-tab-title">{drag.ghost.item.title || drag.ghost.item.url || 'New Tab'}</span>
+          )}
         </div>
       )}
 
-      {/* 4. Tabs Section - Sits on Transparent Background, Dropdown Triggered by Top Arrow */}
-      <div className={`arc-tabs-section ${isTabsDropdownOpen ? 'open' : 'collapsed'}`}>
-        <div className="arc-tabs-header-strip">
-          <button
-            className="arc-tabs-title-trigger-btn"
-            onClick={() => setIsTabsDropdownOpen(!isTabsDropdownOpen)}
-            title="Toggle Tabs Dropdown"
-          >
-            {isTabsDropdownOpen ? (
-              <PixelChevronUp size={12} className="arc-tabs-strip-arrow open" />
-            ) : (
-              <PixelChevronDown size={12} className="arc-tabs-strip-arrow closed" />
-            )}
-            <span className="arc-section-title">Tabs</span>
-            <span className="arc-tabs-count-badge">{regularTabs.length}</span>
-          </button>
-
-          <button
-            className="arc-new-tab-btn"
-            onClick={() => {
-              onCreateTab(undefined, activeSpaceId);
-              window.dispatchEvent(new CustomEvent('neutrino:show-search'));
-            }}
-            title="New Tab (Ctrl+T)"
-            aria-label="New Tab"
-          >
-            <PixelPlus size={14} />
-          </button>
-        </div>
-
-        {/* Scrollable Tabs List - Transparent Background, macOS Notification Cards & Grouped Stacks */}
-        {isTabsDropdownOpen && (
-          <div className="arc-tabs-scroll-list transparent-bg">
-            {tabGroups.map((group) => {
-              const isGroupExpanded = expandedGroups[group.key];
-
-              // Case A: Single tab in this domain -> clean single notification card
-              if (group.tabs.length === 1) {
-                return renderTabCard(group.tabs[0]);
-              }
-
-              // Case B: Multiple tabs from same domain -> Grouped Stack
-              const topTab =
-                group.tabs.find((t) => t.id === activeTabId) || group.tabs[0];
-
-              if (!isGroupExpanded) {
-                // Stacked View: Top notification card + stacked peek layers underneath
-                return (
-                  <div key={group.key} className="arc-tab-stack-container">
-                    {/* Top Active/Primary Card */}
-                    {renderTabCard(topTab, true)}
-
-                    {/* Stacked card layers peeking out from underneath */}
-                    <div className="arc-stack-peek-layer arc-peek-1" />
-                    <div className="arc-stack-peek-layer arc-peek-2" />
-
-                    {/* Stack Count Pill */}
-                    <button
-                      className="arc-stack-toggle-pill"
-                      onClick={() => toggleGroup(group.key)}
-                      title={`Expand ${group.tabs.length} tabs from ${group.displayName}`}
-                    >
-                      <PixelLayers size={12} />
-                      <span>{group.tabs.length} tabs from {group.displayName}</span>
-                      <PixelChevronDown size={11} />
-                    </button>
-                  </div>
-                );
-              }
-
-              // Expanded Group View: All tabs in group revealed with collapse button
+      {menu && (
+        <div
+          className="nsb-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y, width: MENU_WIDTH }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {!menu.showSpaces ? (
+            contextMenuActions(menu.item).map((action) => {
+              const Icon = MENU_ICONS[action];
               return (
-                <div key={group.key} className="arc-tab-stack-container expanded">
-                  <div className="arc-group-expanded-header">
-                    <span className="arc-group-expanded-title">
-                      <PixelLayers size={12} />
-                      <span>{group.displayName}</span>
-                      <span className="arc-group-badge">{group.tabs.length}</span>
-                    </span>
-                    <button
-                      className="arc-group-collapse-btn"
-                      onClick={() => toggleGroup(group.key)}
-                      title="Stack Tabs"
-                    >
-                      <PixelChevronUp size={11} />
-                    </button>
-                  </div>
-
-                  <div className="arc-group-cards-list">
-                    {group.tabs.map((tab) => renderTabCard(tab))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 5. Spaces Slider (Bottom Section - Pure interactive slider, Zen & Shields moved to top) */}
-      <div className="arc-sidebar-bottom">
-        <div className="arc-spaces-bar">
-          <div className="arc-spaces-slider-wrapper">
-            <div
-              className="arc-spaces-slider-track"
-              onPointerDown={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                if (rect.width > 0) {
-                  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                  const targetIdx = Math.round(ratio * Math.max(0, spaces.length - 1));
-                  if (spaces[targetIdx] && spaces[targetIdx].id !== activeSpaceId) {
-                    onSelectSpace(spaces[targetIdx].id);
-                  }
-                }
-              }}
-            >
-              {/* Sliding Pill Thumb */}
-              {spaces.length > 0 && (
-                <div
-                  className="arc-slider-thumb"
-                  style={{
-                    left: spaces.length > 1 ? `${(activeSpaceIndex / (spaces.length - 1)) * 100}%` : '50%',
-                    transform: 'translate(-50%, -50%)',
-                    top: '50%',
-                  }}
+                <button
+                  key={action}
+                  type="button"
+                  role="menuitem"
+                  className={`nsb-menu-item ${action === 'close' ? 'danger' : ''}`}
+                  disabled={action === 'move-to-space' && menuSpaces.length === 0}
+                  onClick={() => runMenuAction(menu.item, action)}
                 >
-                  <span
-                    className="arc-thumb-glow-dot"
-                    style={{ backgroundColor: activeSpace?.color || '#7c9cff' }}
-                  />
-                </div>
+                  <Icon size={13} />
+                  <span>{MENU_LABELS[action]}</span>
+                  {action === 'move-to-space' && <span className="nsb-menu-more">›</span>}
+                </button>
+              );
+            })
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="nsb-menu-item nsb-menu-back"
+                onClick={() => setMenu((m) => (m ? { ...m, showSpaces: false } : m))}
+              >
+                <span>‹ Move to space</span>
+              </button>
+              {view.groups.map(({ profile, spaces }) =>
+                spaces
+                  .filter((s) => menuSpaces.includes(s))
+                  .map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="menuitem"
+                      className="nsb-menu-item"
+                      onClick={() => {
+                        actions.moveTab(moveToSpaceOp(menu.item, s.id));
+                        setMenu(null);
+                      }}
+                    >
+                      <SpaceIcon space={s} size={13} />
+                      <span>{s.name}</span>
+                      {profileCount > 1 && <span className="nsb-menu-hint">{profile.name}</span>}
+                    </button>
+                  )),
               )}
-
-              {/* Dynamic Tick Marks for each Space */}
-              {spaces.map((s, idx) => {
-                const isSelected = s.id === activeSpaceId;
-                const pct = spaces.length > 1 ? (idx / (spaces.length - 1)) * 100 : 50;
-                return (
-                  <button
-                    key={s.id}
-                    className={`arc-slider-tick ${isSelected ? 'active' : ''}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${pct}%`,
-                      top: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      zIndex: 3,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectSpace(s.id);
-                    }}
-                    title={`Switch to Space: ${s.name}`}
-                    aria-label={`Space ${s.name}`}
-                  >
-                    <span
-                      className="arc-slider-tick-dot"
-                      style={{ backgroundColor: s.color || '#7c9cff' }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Minimal Add Space Button */}
-            <button
-              className="arc-add-space-btn"
-              onClick={() => setIsCreatingSpace(!isCreatingSpace)}
-              title="Create New Space"
-              aria-label="Add Space"
-            >
-              <PixelPlus size={13} />
-            </button>
-          </div>
+            </>
+          )}
         </div>
-
-        {/* Inline Create Space Form */}
-        {isCreatingSpace && (
-          <form className="arc-create-space-form" onSubmit={handleCreateSpaceSubmit}>
-            <input
-              type="text"
-              className="arc-create-space-input"
-              value={newSpaceName}
-              onChange={(e) => setNewSpaceName(e.target.value)}
-              placeholder="Space name..."
-              autoFocus
-            />
-            <button type="submit" className="arc-create-space-submit">
-              Add
-            </button>
-          </form>
-        )}
-      </div>
-    </aside>
+      )}
+    </>
   );
 };
+
+export default Sidebar;

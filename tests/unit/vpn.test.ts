@@ -12,6 +12,7 @@ import {
   normalizeVpnConfig,
   parseCloudflareTrace,
   probeTcpEndpoint,
+  resolveVpnTargetPartitions,
   shouldKillSwitchBlockRequest,
 } from '../../src/main/vpnCore';
 
@@ -155,6 +156,23 @@ describe('Built-in VPN core helpers', () => {
     expect(reloaded.dohProvider).toBe('mullvad');
     expect(reloaded.proxy.port).toBe(10808);
     expect(reloaded.killSwitch).toBe(true);
+  });
+
+  it('resolves VPN target partitions once each, skipping invalid entries', () => {
+    expect(resolveVpnTargetPartitions(['persist:neutrino'])).toEqual(['persist:neutrino']);
+    expect(
+      resolveVpnTargetPartitions([
+        'persist:neutrino',
+        'persist:profile-work',
+        'persist:neutrino',
+        '',
+        42,
+        null,
+        'persist:profile-work',
+      ]),
+    ).toEqual(['persist:neutrino', 'persist:profile-work']);
+    expect(resolveVpnTargetPartitions([])).toEqual([]);
+    expect(resolveVpnTargetPartitions(undefined)).toEqual([]);
   });
 });
 

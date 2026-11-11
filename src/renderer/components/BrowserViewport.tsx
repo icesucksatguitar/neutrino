@@ -13,6 +13,10 @@ import {
   createTrackpadSwipeTracker,
   hasHorizontalScrollRoom,
 } from '../utils/trackpadGesture';
+import { resolvePageColor } from '../../main/topbar/color';
+import type { PageColorReport } from '../utils/topBarTint';
+// Session used when a tab arrives without a partition (state written before profiles existed).
+import { DEFAULT_PARTITION } from '../../main/profiles/partition';
 
 interface BrowserViewportProps {
   activeTab?: TabState;
@@ -30,7 +34,25 @@ interface BrowserViewportProps {
   userName?: string;
   onTopHover?: (isHovering: boolean) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
+  /** Page color of the active tab for the top bar tint (R20): theme-color meta and sampled top color. */
+  onPageColor?: (tabId: string, report: PageColorReport) => void;
 }
+
+/**
+ * Reads the page's `theme-color` meta. With several metas (media-qualified light/dark values)
+ * the first one whose media query matches wins.
+ */
+const READ_THEME_COLOR_JS = `(() => {
+  try {
+    const metas = Array.from(document.querySelectorAll('meta[name="theme-color" i]'));
+    const m = metas.find((el) => !el.media || window.matchMedia(el.media).matches);
+    const v = m && m.getAttribute('content');
+    return typeof v === 'string' ? v.trim() : null;
+  } catch (e) { return null; }
+})()`;
+
+/** Delay before reading the page color, so the page has painted after load or activation. */
+const PAGE_COLOR_DELAY_MS = 120;
 
 function hasWebview(url: string | undefined): url is string {
   return !!url && url !== 'neutrino://newtab' && url !== 'about:blank';
@@ -52,6 +74,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   userName,
   onTopHover,
   onFullscreenChange,
+  onPageColor,
 }) => {
   const webviewRefs = useRef<Record<string, any>>({});
   const attachedListenersRef = useRef<Set<string>>(new Set());
@@ -59,7 +82,11 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   const webviewRefCallbacksRef = useRef<Record<string, (el: any) => void>>({});
   // Per-tab navigation bookkeeping (see utils/webviewNavigation.ts). `initialSrc` is the only value
   // ever given to the webview's src attribute; later navigations use loadURL.
-  const navStatesRef = useRef<Record<string, WebviewNavState & { initialSrc: string }>>({});
+  // `partition` records the session the webview was mounted in, so a cross-profile move (R1.12)
+  // starts a fresh nav state whose initialSrc is the tab's current URL.
+  const navStatesRef = useRef<
+    Record<string, WebviewNavState & { initialSrc: string; partition: string }>
+  >({});
   const [activeMediaTabId, setActiveMediaTabId] = useState<string | null>(null);
   const [zoomIndicator, setZoomIndicator] = useState<{ factor: number; visible: boolean }>({
     factor: 1.0,
@@ -90,6 +117,72 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
+
+  // Top bar tint (R20): read the active page's theme-color, fall back to sampling its top strip
+  // in main, and report it. Results for a tab that is no longer active, or superseded by a newer
+  // request, are dropped.
+  const onPageColorRef = useRef(onPageColor);
+  useEffect(() => {
+    onPageColorRef.current = onPageColor;
+  }, [onPageColor]);
+  const pageColorSeqRef = useRef(0);
+  const pageColorTimerRef = useRef<number | null>(null);
+
+  const requestPageColor = useCallback(async (tabId: string, knownThemeColor?: string | null) => {
+    if (!onPageColorRef.current) return;
+    const isStillActive = () => {
+      const tab = activeTabRef.current;
+      return Boolean(tab && tab.id === tabId && hasWebview(tab.url) && !tab.isSleeping);
+    };
+    if (!isStillActive()) return;
+    const wv = webviewRefs.current[tabId];
+    if (!wv) return;
+    const seq = ++pageColorSeqRef.current;
+
+    let themeColor: string | null = knownThemeColor ?? null;
+    if (!themeColor) {
+      try {
+        const v = await wv.executeJavaScript(READ_THEME_COLOR_JS);
+        themeColor = typeof v === 'string' && v ? v : null;
+      } catch {
+        themeColor = null; // guest not ready yet; a later load event retries
+      }
+    }
+    let sampled: PageColorReport['sampled'] = null;
+    if (resolvePageColor(themeColor, null, false).source !== 'theme-color') {
+      try {
+        sampled = (await window.neutrino?.sampleTabTopColor?.(tabId)) ?? null;
+      } catch {
+        sampled = null;
+      }
+    }
+    if (seq !== pageColorSeqRef.current || !isStillActive()) return;
+    onPageColorRef.current?.(tabId, { themeColor, sampled });
+  }, []);
+
+  const schedulePageColor = useCallback(
+    (tabId: string) => {
+      if (pageColorTimerRef.current !== null) window.clearTimeout(pageColorTimerRef.current);
+      pageColorTimerRef.current = window.setTimeout(() => {
+        pageColorTimerRef.current = null;
+        void requestPageColor(tabId);
+      }, PAGE_COLOR_DELAY_MS);
+    },
+    [requestPageColor]
+  );
+
+  // Active-tab change (and wake from sleep): read the newly active page's color (R20.1).
+  const activeTabId = activeTab?.id;
+  const activeTabSleeping = activeTab?.isSleeping;
+  useEffect(() => {
+    if (activeTabId && !activeTabSleeping) schedulePageColor(activeTabId);
+  }, [activeTabId, activeTabSleeping, schedulePageColor]);
+
+  useEffect(() => {
+    return () => {
+      if (pageColorTimerRef.current !== null) window.clearTimeout(pageColorTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     onNavigateRef.current = onNavigate;
@@ -549,6 +642,15 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
       // Restore zoom and attach guest UX detectors on dom-ready
       const handleDomReady = () => {
         try {
+          // Lets main capture this tab's hover preview by tab id (R18.3).
+          try {
+            const wcId = webview.getWebContentsId?.();
+            if (typeof wcId === 'number') {
+              window.neutrino?.registerTabWebview?.(tabId, wcId)?.catch?.(() => { });
+            }
+          } catch {
+            // getWebContentsId throws before the guest attaches
+          }
           const factor = tabZoomMap.current[tabId] ?? activeTabRef.current?.zoomFactor ?? 1.0;
           if (webview.setZoomFactor) webview.setZoomFactor(factor);
           injectAdblocking();
@@ -725,6 +827,15 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         if (Object.keys(caps).length > 0) {
           onUpdateTab(tabId, caps);
         }
+        // Load finished: refresh the top bar tint if this tab is active (R20.1, R20.2).
+        if (tabId === activeTabRef.current?.id) schedulePageColor(tabId);
+      };
+
+      // Live theme-color updates (R20.7). A removed meta reports no color: re-read and sample.
+      const handleThemeColor = (e: any) => {
+        if (tabId !== activeTabRef.current?.id) return;
+        const value = typeof e?.themeColor === 'string' && e.themeColor ? e.themeColor : undefined;
+        void requestPageColor(tabId, value);
       };
 
       const handleTitle = (e: any) => {
@@ -798,6 +909,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
           webview.addEventListener('dom-ready', handleDomReady);
           webview.addEventListener('did-start-loading', handleStartLoading);
           webview.addEventListener('did-finish-load', handleFinishLoad);
+          webview.addEventListener('did-change-theme-color', handleThemeColor);
           webview.addEventListener('did-stop-loading', handleStopLoading);
           webview.addEventListener('page-title-updated', handleTitle);
           webview.addEventListener('page-favicon-updated', handleFavicon);
@@ -961,8 +1073,15 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                   return null;
                 }
 
-                if (!navStatesRef.current[tab.id]) {
-                  navStatesRef.current[tab.id] = { ...createWebviewNavState(tab.url), initialSrc: tab.url };
+                // The tab's own profile session (R1.2); the fallback covers tabs from older state.
+                const partition = tab.partition ?? DEFAULT_PARTITION;
+                const existingNav = navStatesRef.current[tab.id];
+                if (!existingNav || existingNav.partition !== partition) {
+                  navStatesRef.current[tab.id] = {
+                    ...createWebviewNavState(tab.url),
+                    initialSrc: tab.url,
+                    partition,
+                  };
                 }
                 const initialSrc = navStatesRef.current[tab.id].initialSrc;
 
@@ -1000,10 +1119,13 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                     }
                   >
                     {React.createElement('webview', {
+                      // A webview's partition is fixed once its guest attaches, so a cross-profile
+                      // move needs a new element; the new node re-registers on its dom-ready (R1.12, R17.5).
+                      key: `${tab.id}:${partition}`,
                       ref: getWebviewRef(tab.id),
                       src: initialSrc,
                       className: 'chromium-webview',
-                      partition: 'persist:neutrino',
+                      partition,
                       allowpopups: 'true',
                       webpreferences: 'contextIsolation=yes,nodeIntegration=no,spellcheck=no,backgroundThrottling=yes',
                       style: {

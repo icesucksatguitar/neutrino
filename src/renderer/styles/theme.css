@@ -4420,6 +4420,152 @@ input:focus-visible {
   border-color: rgba(60, 50, 40, 0.2);
 }
 
+/* Save/update password prompt (PasswordPrompt.tsx) */
+.password-prompt {
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  width: min(340px, calc(100% - 32px));
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #F2F2F3;
+  font-size: 12px;
+  z-index: 10400;
+  animation: floatIn 0.25s ease-out;
+}
+
+.password-prompt-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #A1A1AA;
+}
+
+.password-prompt-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.password-prompt-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.password-prompt-site,
+.password-prompt-user,
+.password-prompt-more {
+  margin: 2px 0 0;
+  color: #A1A1AA;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.password-prompt-error {
+  margin: 6px 0 0;
+  color: #FCA5A5;
+  line-height: 1.45;
+}
+
+.password-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.password-prompt-primary,
+.password-prompt-secondary,
+.password-prompt-close {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.password-prompt-primary {
+  padding: 0 12px;
+  background: #FFFFFF;
+  color: #0A0A0B;
+  font-weight: 600;
+}
+
+.password-prompt-secondary {
+  padding: 0 10px;
+  background: transparent;
+  color: #F2F2F3;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.password-prompt-close {
+  width: 28px;
+  flex-shrink: 0;
+  justify-content: center;
+  background: transparent;
+  color: #A1A1AA;
+}
+
+.password-prompt-primary:disabled,
+.password-prompt-secondary:disabled,
+.password-prompt-close:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.password-prompt-close:hover:not(:disabled),
+.password-prompt-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.password-prompt-primary:focus-visible,
+.password-prompt-secondary:focus-visible,
+.password-prompt-close:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+[data-theme="light"] .password-prompt {
+  background: rgba(250, 247, 242, 0.96);
+  border-color: rgba(60, 50, 40, 0.16);
+  box-shadow: 0 14px 36px rgba(60, 50, 40, 0.18);
+  color: #1C1917;
+}
+
+[data-theme="light"] .password-prompt-site,
+[data-theme="light"] .password-prompt-user,
+[data-theme="light"] .password-prompt-more,
+[data-theme="light"] .password-prompt-icon,
+[data-theme="light"] .password-prompt-close {
+  color: #756E66;
+}
+
+[data-theme="light"] .password-prompt-error {
+  color: #B91C1C;
+}
+
+[data-theme="light"] .password-prompt-primary {
+  background: #1C1917;
+  color: #FAF7F2;
+}
+
+[data-theme="light"] .password-prompt-secondary {
+  color: #1C1917;
+  border-color: rgba(60, 50, 40, 0.2);
+}
+
 /* 4. Command Bar (Cmd+K / Cmd+L) */
 .command-bar-modal-backdrop {
   position: absolute;
@@ -5354,6 +5500,32 @@ input:focus-visible {
   background: var(--theme-surface);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
+}
+
+/* Dia-style top bar tint (R20). App sets --topbar-tint-* and re-scoped theme variables inline
+   on the capsule; without them the Space theme colors apply (internal pages, no page color).
+   The background, border and text colors animate over 200 ms (R20.3, decision A5). */
+.floating-top-chrome-capsule.on-webpage {
+  transition:
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.18s ease,
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+
+.floating-top-chrome-capsule.on-webpage.topbar-tinted,
+[data-theme="light"] .floating-top-chrome-capsule.on-webpage.topbar-tinted {
+  background: var(--topbar-tint-bg);
+  color: var(--topbar-tint-fg);
+  border-bottom-color: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-top-chrome-capsule.on-webpage,
+  .floating-top-chrome-capsule.on-webpage * {
+    transition: none !important;
+  }
 }
 
 .floating-top-chrome-capsule.on-webpage .top-floating-url-pill {
@@ -7250,17 +7422,30 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
 }
 
 /* ==========================================================================
-   LEFT EDGE HOVER TRIGGER & NOTIFICATION HAIRLINES
+   ARC SIDEBAR PLACEMENT (App.tsx) & NOTIFICATION HAIRLINES
    ========================================================================== */
-.left-edge-hover-zone {
+/* The sidebar sits on the left edge below the top bar, so the window controls keep their place.
+   App sets --app-top-offset (44px on web pages, 60px otherwise) and --app-sidebar-width
+   (240px / 56px while docked, 0 while auto-hidden). */
+.arc-app-shell .nsb.app-sidebar {
   position: fixed;
-  top: 0;
-  left: 0;
+  top: var(--app-top-offset, 44px);
   bottom: 0;
-  width: 14px;
-  z-index: 135;
-  background: transparent;
-  pointer-events: auto;
+  left: 0;
+  height: auto;
+}
+
+.arc-app-shell .nsb.app-sidebar:not(.autohide) {
+  z-index: 40;
+}
+
+.arc-viewport-container.edge-to-edge.with-docked-sidebar {
+  left: var(--app-sidebar-width, 0px);
+  width: auto;
+  transition:
+    top 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    left 180ms ease;
 }
 
 /* Left edge hover trigger for hairlines on active web pages */
@@ -8177,6 +8362,205 @@ body.light .zen-sleeping-hint {
   margin-top: -2px;
   font-size: 11.5px;
   color: var(--danger);
+}
+
+/* Profiles & spaces (uses its own heading class; settings-section-title is reserved for the core four) */
+.settings-group-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.settings-profile-list,
+.settings-space-list,
+.settings-erase-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-profile-item {
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-profile-name {
+  flex: 1 1 auto;
+}
+
+.settings-space-list {
+  padding-left: 8px;
+}
+
+.settings-space-item {
+  min-height: 26px;
+}
+
+.settings-space-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-space-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.settings-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.settings-icon-button:hover {
+  background-color: var(--surface-hover);
+  color: var(--danger);
+}
+
+.settings-button-danger {
+  color: var(--danger);
+}
+
+.settings-button:disabled,
+.settings-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-select {
+  flex: 0 1 140px;
+}
+
+.settings-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  background-color: var(--bg-input);
+}
+
+.settings-confirm-text {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-main);
+}
+
+.settings-erase-list {
+  padding-left: 16px;
+  list-style: disc;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Passwords (task 12.11) */
+.settings-password-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-password-item {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.settings-password-item .settings-add-form {
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.settings-password-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-password-origin,
+.settings-password-user {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-password-origin {
+  font-size: 12.5px;
+  color: var(--text-main);
+}
+
+.settings-password-user {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.settings-password-secret {
+  flex: 0 1 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-main);
+  user-select: text;
+}
+
+.settings-password-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.settings-password-actions {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.settings-password-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-steps-list {
+  list-style: decimal;
 }
 
 /* Segmented control */

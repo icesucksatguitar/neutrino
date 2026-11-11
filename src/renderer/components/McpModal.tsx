@@ -17,6 +17,8 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { TabState } from '../types';
+import { withAssistantMarker } from '../../main/passwords/webviewMarker';
+import { DEFAULT_PARTITION } from '../../main/profiles/partition';
 
 interface McpModalProps {
   isOpen: boolean;
@@ -24,7 +26,15 @@ interface McpModalProps {
   activeTab?: TabState;
   onNavigate?: (url: string) => void;
   initialTab?: McpTab;
+  /** Session partition of the active profile; assistant webviews load in it. */
+  partition?: string;
 }
+
+/** Fallback when no profile partition is passed (the default profile's session). */
+const DEFAULT_ASSISTANT_PARTITION = DEFAULT_PARTITION;
+
+/** Assistant webviews keep their existing preferences plus the marker that skips the password preload. */
+const ASSISTANT_WEBPREFERENCES = withAssistantMarker('contextIsolation=yes,nodeIntegration=no');
 
 type McpTab = 'assistants' | 'local' | 'tools';
 type AssistantProvider = 'claude' | 'chatgpt' | 'gemini' | 'deepseek' | 'perplexity';
@@ -33,7 +43,6 @@ interface AssistantConfig {
   id: AssistantProvider;
   name: string;
   url: string;
-  partition: string;
   color: string;
 }
 
@@ -42,35 +51,30 @@ const ASSISTANTS: AssistantConfig[] = [
     id: 'claude',
     name: 'Claude',
     url: 'https://claude.ai',
-    partition: 'persist:neutrino',
     color: '#d97706',
   },
   {
     id: 'chatgpt',
     name: 'ChatGPT',
     url: 'https://chatgpt.com',
-    partition: 'persist:neutrino',
     color: '#10b981',
   },
   {
     id: 'gemini',
     name: 'Gemini',
     url: 'https://gemini.google.com',
-    partition: 'persist:neutrino',
     color: '#2563eb',
   },
   {
     id: 'deepseek',
     name: 'DeepSeek',
     url: 'https://chat.deepseek.com',
-    partition: 'persist:neutrino',
     color: '#06b6d4',
   },
   {
     id: 'perplexity',
     name: 'Perplexity',
     url: 'https://www.perplexity.ai',
-    partition: 'persist:neutrino',
     color: '#A1A1AA',
   },
 ];
@@ -86,6 +90,7 @@ export const McpModal: React.FC<McpModalProps> = ({
   activeTab,
   onNavigate,
   initialTab,
+  partition = DEFAULT_ASSISTANT_PARTITION,
 }) => {
   const [activeTabType, setActiveTabType] = useState<McpTab>(initialTab || 'assistants');
 
@@ -638,12 +643,15 @@ export const McpModal: React.FC<McpModalProps> = ({
                 style={{ pointerEvents: isDragging || isResizing ? 'none' : 'auto' }}
               >
                 {React.createElement('webview', {
+                  // The partition is part of the key: Electron fixes a webview's
+                  // session at attach time, so a profile change must remount it.
+                  key: `assistant-webview|${partition}`,
                   ref: assistantWebviewRef,
                   src: currentAssistant.url,
-                  partition: currentAssistant.partition,
+                  partition,
                   className: 'assistant-webview',
                   allowpopups: 'true',
-                  webpreferences: 'contextIsolation=yes,nodeIntegration=no',
+                  webpreferences: ASSISTANT_WEBPREFERENCES,
                 })}
               </div>
             </div>

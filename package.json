@@ -4,7 +4,7 @@
   "description": "Local-first, high-speed Chromium desktop browser with Brave-level ad-blocking, Zen-level low resource usage, Arc-level customizability, and native MCP capability.",
   "main": "dist-main/index.js",
   "scripts": {
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "build": "npm run build:renderer && npm run build:main",
     "start": "npm run build && (set ELECTRON_RUN_AS_NODE=& electron .)",

@@ -2,14 +2,16 @@
 // No Electron import: the renderer imports this module too (Vite resolves it), and tests run it directly.
 
 import {
+  type CustomSpaceThemePreset,
   type SpaceTheme,
   type SpaceThemesMap,
   getDefaultSpaceTheme,
+  normalizeCustomThemePresets,
   normalizeSpaceThemesMap,
   validateAndClampSpaceTheme,
 } from './spaceTheme';
 
-export type { SpaceTheme, SpaceThemesMap };
+export type { CustomSpaceThemePreset, SpaceTheme, SpaceThemesMap };
 
 export type SearchEngineId = 'google' | 'duckduckgo' | 'bing' | 'brave';
 
@@ -38,6 +40,7 @@ export interface BrowserSettings {
   searchEngine: SearchEngineId;
   reducedEffectsMode?: ReducedEffectsMode;
   spaceThemes?: SpaceThemesMap;
+  customThemePresets?: CustomSpaceThemePreset[];
   shieldWhitelist?: string[];
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
 }
@@ -181,6 +184,7 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
     searchEngine: normalizeSearchEngine(source.searchEngine),
     reducedEffectsMode: normalizeReducedEffectsMode(source.reducedEffectsMode),
     spaceThemes: buildSpaceThemes(source.spaceThemes, source),
+    customThemePresets: normalizeCustomThemePresets(source.customThemePresets),
     shieldWhitelist: normalizeShieldWhitelist(source.shieldWhitelist),
   };
 }

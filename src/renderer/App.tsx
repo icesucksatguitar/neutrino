@@ -1213,6 +1213,8 @@ return (
           onClose={() => setIsThemeModalOpen(false)}
           activeSpace={activeSpace}
           spaceTheme={activeSpaceTheme}
+          customPresets={settings.customThemePresets || []}
+          onChangeCustomPresets={(nextPresets) => void updateSettings({ customThemePresets: nextPresets })}
           onChangeSpaceTheme={handleChangeSpaceTheme}
           onResetSpaceTheme={handleResetSpaceTheme}
           isDarkMode={isDarkMode}

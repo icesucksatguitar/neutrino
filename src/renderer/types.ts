@@ -5,10 +5,17 @@ import type {
   SpaceTheme,
   SpaceThemesMap,
 } from '../main/settings';
-import type { SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette } from '../main/spaceTheme';
+import type {
+  CustomSpaceThemePreset,
+  SpaceThemeMode,
+  SpaceThemePoint,
+  SpaceThemePreset,
+  ThemePalette,
+} from '../main/spaceTheme';
 
 export type {
   BrowserSettings,
+  CustomSpaceThemePreset,
   PerformanceStatus,
   ReducedEffectsMode,
   SpaceTheme,

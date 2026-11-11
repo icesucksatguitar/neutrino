@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Monitor, Moon, Plus, RotateCcw, Sparkles, Sun, Trash2 } from 'lucide-react';
+import { Check, Monitor, Moon, Pencil, Plus, RotateCcw, Sparkles, Sun, Trash2, X } from 'lucide-react';
 import {
+  type CustomSpaceThemePreset,
   DEFAULT_SPACE_GLOW,
+  MAX_CUSTOM_THEME_PRESETS,
   SPACE_THEME_PRESETS,
   type SpaceGlowSettings,
   type SpaceGlowStyle,
@@ -12,11 +14,17 @@ import {
   clamp01,
   clampWheelPos,
   colorToWheelPos,
+  createCustomThemePreset,
+  deleteCustomThemePreset,
   getDefaultSpaceTheme,
   hexToHsl,
   hslToHex,
   hueSatToWheelPos,
+  normalizeCustomThemePresets,
   normalizeHex,
+  normalizePresetName,
+  renameCustomThemePreset,
+  themesMatchCustomization,
   validateAndClampSpaceGlow,
   wheelPosToColorKeepingLightness,
   wheelPosToHueSat,
@@ -78,6 +86,8 @@ export interface ThemeModalProps {
   onClose: () => void;
   activeSpace?: { id: string; name: string };
   spaceTheme?: SpaceTheme;
+  customPresets?: CustomSpaceThemePreset[];
+  onChangeCustomPresets?: (nextPresets: CustomSpaceThemePreset[]) => void;
   onChangeSpaceTheme?: (
     nextTheme: SpaceTheme,
     options?: { immediateSave?: boolean; animateTransition?: boolean }
@@ -94,6 +104,8 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
   onClose,
   activeSpace = { id: 'space-study', name: 'Study' },
   spaceTheme,
+  customPresets,
+  onChangeCustomPresets,
   onChangeSpaceTheme,
   onResetSpaceTheme,
 }) => {
@@ -104,6 +116,13 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
   const [hexDraft, setHexDraft] = useState<string>(initialTheme.points[0]?.color || '#0E5E43');
   const [glowHexDraft, setGlowHexDraft] = useState<string>(initialGlow.color);
   const [isWheelDragging, setIsWheelDragging] = useState<boolean>(false);
+  const [localPresets, setLocalPresets] = useState<CustomSpaceThemePreset[]>(() =>
+    normalizeCustomThemePresets(customPresets)
+  );
+  const [presetNameInput, setPresetNameInput] = useState<string>('');
+  const [presetFormError, setPresetFormError] = useState<string>('');
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [editingPresetName, setEditingPresetName] = useState<string>('');
 
   const wheelRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<SpaceTheme>(initialTheme);
@@ -147,20 +166,31 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
     };
   }, [flushPendingSave]);
 
-  // Esc closes the floating popover
+  useEffect(() => {
+    if (customPresets !== undefined) {
+      setLocalPresets(normalizeCustomThemePresets(customPresets));
+    }
+  }, [customPresets]);
+
+  // Esc closes the floating popover (or cancels an active inline preset rename first)
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
+        if (editingPresetId !== null) {
+          setEditingPresetId(null);
+          setEditingPresetName('');
+          return;
+        }
         flushPendingSave();
         onClose();
       }
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isOpen, flushPendingSave, onClose]);
+  }, [isOpen, editingPresetId, flushPendingSave, onClose]);
 
   const applyLiveAndScheduleSave = useCallback(
     (nextTheme: SpaceTheme, options?: { immediateSave?: boolean; animateTransition?: boolean }) => {
@@ -387,6 +417,71 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
   const handleGlowHexBlur = () => {
     const baseGlow = validateAndClampSpaceGlow(draftRef.current.glow, DEFAULT_SPACE_GLOW);
     setGlowHexDraft(baseGlow.color);
+  };
+
+  const commitCustomPresets = useCallback(
+    (nextPresets: CustomSpaceThemePreset[]) => {
+      const normalized = normalizeCustomThemePresets(nextPresets);
+      setLocalPresets(normalized);
+      onChangeCustomPresets?.(normalized);
+    },
+    [onChangeCustomPresets]
+  );
+
+  const handleSaveCustomPreset = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const cleaned = normalizePresetName(presetNameInput);
+    if (!cleaned) {
+      setPresetFormError('Enter a preset name');
+      return;
+    }
+    if (localPresets.length >= MAX_CUSTOM_THEME_PRESETS) {
+      setPresetFormError(`Maximum ${MAX_CUSTOM_THEME_PRESETS} saved presets reached`);
+      return;
+    }
+    const next = createCustomThemePreset(localPresets, cleaned, draftRef.current);
+    commitCustomPresets(next);
+    setPresetNameInput('');
+    setPresetFormError('');
+  };
+
+  const handleStartRenamePreset = (preset: CustomSpaceThemePreset) => {
+    setEditingPresetId(preset.id);
+    setEditingPresetName(preset.name);
+    setPresetFormError('');
+  };
+
+  const handleCommitRenamePreset = () => {
+    if (!editingPresetId) return;
+    const cleaned = normalizePresetName(editingPresetName);
+    if (!cleaned) {
+      setPresetFormError('Preset name cannot be empty');
+      return;
+    }
+    const next = renameCustomThemePreset(localPresets, editingPresetId, cleaned);
+    commitCustomPresets(next);
+    setEditingPresetId(null);
+    setEditingPresetName('');
+    setPresetFormError('');
+  };
+
+  const handleDeleteCustomPreset = (presetId: string) => {
+    const next = deleteCustomThemePreset(localPresets, presetId);
+    if (editingPresetId === presetId) {
+      setEditingPresetId(null);
+      setEditingPresetName('');
+    }
+    setPresetFormError('');
+    commitCustomPresets(next);
+  };
+
+  const formatPresetSwatchBackground = (theme: SpaceTheme): string => {
+    const p1 = theme.points[0].color;
+    const p2 = theme.points[1].color;
+    const p3 = theme.points[2]?.color;
+    return p3
+      ? `radial-gradient(circle at 24% 28%, ${p1} 0%, transparent 72%), radial-gradient(circle at 80% 74%, ${p2} 0%, transparent 72%), ${p3}`
+      : `linear-gradient(135deg, ${p1} 0%, ${p2} 100%)`;
   };
 
   const handleSelectPreset = (presetTheme: SpaceTheme) => {
@@ -791,20 +886,152 @@ export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
           )}
         </div>
 
-        {/* Curated Gradient Presets */}
+        {/* Saved Custom Presets & Curated Presets */}
         <div className="theme-presets-section">
           <div className="theme-presets-header">
             <span>Presets</span>
-            <span>{SPACE_THEME_PRESETS.length} curated</span>
+            <button
+              type="button"
+              className="theme-preset-reset-btn"
+              onClick={handleReset}
+              aria-label="Reset customization to default"
+            >
+              Reset to default
+            </button>
+          </div>
+
+          <form className="theme-preset-save-row" onSubmit={handleSaveCustomPreset}>
+            <input
+              type="text"
+              className="theme-preset-name-input"
+              placeholder="Save preset as..."
+              aria-label="New custom preset name"
+              maxLength={40}
+              value={presetNameInput}
+              onChange={(e) => {
+                setPresetNameInput(e.target.value);
+                if (presetFormError) setPresetFormError('');
+              }}
+            />
+            <button type="submit" className="theme-preset-save-btn">
+              Save
+            </button>
+          </form>
+
+          {presetFormError && (
+            <div className="theme-preset-error" role="alert">
+              {presetFormError}
+            </div>
+          )}
+
+          {localPresets.length > 0 ? (
+            <div className="theme-custom-presets-list" role="list" aria-label="Saved custom presets">
+              {localPresets.map((preset) => {
+                const isEditing = editingPresetId === preset.id;
+                const isActive = themesMatchCustomization(draftTheme, preset.theme);
+                return (
+                  <div
+                    key={preset.id}
+                    className={`theme-custom-preset-item ${isActive ? 'active' : ''}`}
+                    role="listitem"
+                  >
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="text"
+                          className="theme-preset-rename-input"
+                          aria-label={`Rename preset ${preset.name}`}
+                          maxLength={40}
+                          autoFocus
+                          value={editingPresetName}
+                          onChange={(e) => {
+                            setEditingPresetName(e.target.value);
+                            if (presetFormError) setPresetFormError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCommitRenamePreset();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="theme-preset-icon-btn"
+                          aria-label={`Confirm rename ${preset.name}`}
+                          title="Save name"
+                          onClick={handleCommitRenamePreset}
+                        >
+                          <Check size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="theme-preset-icon-btn"
+                          aria-label="Cancel rename"
+                          title="Cancel"
+                          onClick={() => {
+                            setEditingPresetId(null);
+                            setEditingPresetName('');
+                            setPresetFormError('');
+                          }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="theme-custom-preset-load-btn"
+                          onClick={() => handleSelectPreset(preset.theme)}
+                          title={`Load preset "${preset.name}"`}
+                          aria-label={`Load preset ${preset.name}`}
+                          aria-pressed={isActive}
+                        >
+                          <span
+                            className="theme-custom-preset-dot"
+                            style={{ background: formatPresetSwatchBackground(preset.theme) }}
+                            aria-hidden="true"
+                          />
+                          <span className="theme-custom-preset-name">{preset.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="theme-preset-icon-btn"
+                          title="Rename preset"
+                          aria-label={`Rename preset ${preset.name}`}
+                          onClick={() => handleStartRenamePreset(preset)}
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          className="theme-preset-icon-btn danger"
+                          title="Delete preset"
+                          aria-label={`Delete preset ${preset.name}`}
+                          onClick={() => handleDeleteCustomPreset(preset.id)}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="theme-preset-empty-hint">
+              No saved presets yet — name &amp; save your current setup above.
+            </div>
+          )}
+
+          <div className="theme-presets-subheader">
+            <span>Curated</span>
+            <span>{SPACE_THEME_PRESETS.length} built-in</span>
           </div>
           <div className="theme-presets-grid">
             {SPACE_THEME_PRESETS.map((preset) => {
-              const p1 = preset.theme.points[0].color;
-              const p2 = preset.theme.points[1].color;
-              const p3 = preset.theme.points[2]?.color;
-              const bg = p3
-                ? `radial-gradient(circle at 24% 28%, ${p1} 0%, transparent 72%), radial-gradient(circle at 80% 74%, ${p2} 0%, transparent 72%), ${p3}`
-                : `linear-gradient(135deg, ${p1} 0%, ${p2} 100%)`;
+              const bg = formatPresetSwatchBackground(preset.theme);
 
               const isSelected =
                 draftTheme.mode === preset.theme.mode &&

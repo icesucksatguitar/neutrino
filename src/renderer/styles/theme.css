@@ -3294,8 +3294,8 @@ input:focus-visible {
   gap: 8px;
   border-radius: 17px;
   background: var(--theme-surface, rgba(24, 24, 27, 0.85));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-sm);
   font-size: 13.5px;
@@ -5119,7 +5119,9 @@ input:focus-visible {
   pointer-events: none;
   z-index: 0;
   opacity: var(--theme-grain-opacity, 0.035);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='spaceNoiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23spaceNoiseFilter)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 96px 96px;
+  background-repeat: repeat;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5223,8 +5225,8 @@ input:focus-visible {
   right: 0;
   height: 44px;
   background: var(--theme-surface);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   transform: translateY(0) !important;
@@ -5278,8 +5280,8 @@ input:focus-visible {
   padding: 0 12px;
   border-radius: var(--radius-full);
   background: var(--theme-surface);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
@@ -5304,8 +5306,8 @@ input:focus-visible {
   height: 32px;
   border-radius: 9px;
   background: var(--theme-surface);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
@@ -5650,7 +5652,6 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  animation: ambientHueRotate var(--glow-speed, 24s) linear infinite;
 }
 
 .ambient-glow-container {
@@ -5661,11 +5662,9 @@ input:focus-visible {
   width: var(--glow-size, 1040px);
   height: var(--glow-height, 580px);
   opacity: var(--theme-ambient-opacity, 0.21);
-  filter: blur(var(--glow-blur, 110px));
   pointer-events: none;
   transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
     opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
 }
 
 /* On Search Bar Focus: Smoothly raise glow opacity & scale by ~15% */
@@ -5678,53 +5677,47 @@ input:focus-visible {
   transform: translate(-50%, -50%) scale(1.15);
 }
 
-/* 4 Individual drifting blobs with non-looping varied durations & alternate directions */
+/* Pre-softened radial gradients replace heavy blur(110px) GPU render targets */
 .ambient-glow-blob {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  mix-blend-mode: screen;
-  will-change: transform;
 }
 
-/* Blob 1: Warm Golden-Yellow Anchor (Gemini Inspired) */
+/* Blob 1: Warm Golden-Yellow Anchor */
 .ambient-glow-blob.blob-1 {
-  width: 530px;
-  height: 390px;
-  top: 10%;
-  left: 14%;
-  background: radial-gradient(circle at 45% 45%, var(--glow-gold, #F59E0B) 0%, rgba(245, 158, 11, 0.55) 35%, rgba(245, 158, 11, 0.15) 60%, transparent 75%);
-  animation: blobDrift1 var(--glow-drift-speed-1, 22s) ease-in-out infinite alternate;
+  width: 680px;
+  height: 520px;
+  top: 2%;
+  left: 8%;
+  background: radial-gradient(ellipse at 45% 45%, rgba(245, 158, 11, 0.34) 0%, rgba(245, 158, 11, 0.14) 36%, transparent 72%);
 }
 
 /* Blob 2: Warm Sunrise Orange */
 .ambient-glow-blob.blob-2 {
-  width: 490px;
-  height: 370px;
-  top: 20%;
-  right: 12%;
-  background: radial-gradient(circle at 55% 50%, var(--glow-orange, #F97316) 0%, rgba(249, 115, 22, 0.50) 35%, rgba(249, 115, 22, 0.12) 60%, transparent 75%);
-  animation: blobDrift2 var(--glow-drift-speed-2, 28s) ease-in-out infinite alternate;
+  width: 640px;
+  height: 490px;
+  top: 10%;
+  right: 6%;
+  background: radial-gradient(ellipse at 55% 50%, rgba(249, 115, 22, 0.30) 0%, rgba(249, 115, 22, 0.12) 38%, transparent 72%);
 }
 
-/* Blob 3: Glowing Rose & Magenta (Washes right under search pill) */
+/* Blob 3: Soft Rose & Violet */
 .ambient-glow-blob.blob-3 {
-  width: 570px;
-  height: 350px;
-  bottom: 8%;
-  left: 22%;
-  background: radial-gradient(circle at 50% 50%, var(--glow-magenta, #EC4899) 0%, rgba(236, 72, 153, 0.45) 30%, rgba(139, 92, 246, 0.15) 55%, transparent 72%);
-  animation: blobDrift3 var(--glow-drift-speed-3, 17s) ease-in-out infinite alternate;
+  width: 720px;
+  height: 470px;
+  bottom: 0%;
+  left: 16%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(236, 72, 153, 0.28) 0%, rgba(139, 92, 246, 0.10) 42%, transparent 72%);
 }
 
-/* Blob 4: Radiant Amber Heart (Deep central ambient core) */
+/* Blob 4: Radiant Amber Heart */
 .ambient-glow-blob.blob-4 {
-  width: 650px;
-  height: 430px;
-  top: 14%;
-  left: 18%;
-  background: radial-gradient(ellipse at 50% 50%, var(--glow-amber, #FBBF24) 0%, rgba(251, 191, 36, 0.40) 30%, rgba(245, 158, 11, 0.20) 50%, transparent 75%);
-  animation: blobDrift4 var(--glow-drift-speed-4, 25s) ease-in-out infinite alternate;
+  width: 780px;
+  height: 540px;
+  top: 8%;
+  left: 12%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(251, 191, 36, 0.24) 0%, rgba(245, 158, 11, 0.10) 40%, transparent 74%);
 }
 
 /* Continuous Asymmetric Drift Keyframes */
@@ -5818,8 +5811,8 @@ input:focus-visible {
   height: 48px;
   border-radius: 24px;
   background: var(--theme-surface, rgba(20, 20, 22, 0.60)) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong) !important;
   display: flex;
   align-items: center;
@@ -5959,8 +5952,8 @@ input:focus-visible {
   padding: 10px 8px;
   border-radius: 26px;
   background: var(--theme-surface);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-lg);
 }
@@ -6933,8 +6926,8 @@ input:focus-visible {
   padding: 0 12px;
   border-radius: var(--radius-full);
   background: var(--theme-surface);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-strong);
   color: var(--theme-fg);
   font-family: var(--font-sans);

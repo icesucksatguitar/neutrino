@@ -15,28 +15,50 @@ import { applyBrowserIdentity, getBrowserUserAgent } from './browserIdentity';
 import { decideWindowOpen } from './windowOpen';
 import { AuthHandoffController } from './authHandoff';
 
-// Maximum performance and stable rendering flags for Windows
+// Ultra-low-memory Chromium switches for Windows (compatible with YouTube/media tests)
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('num-raster-threads', '4');
+app.commandLine.appendSwitch('num-raster-threads', '1');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
+app.commandLine.appendSwitch('enable-low-end-device-mode');
+app.commandLine.appendSwitch('in-process-gpu');
+app.commandLine.appendSwitch('renderer-process-limit', '2');
+app.commandLine.appendSwitch('process-per-site');
+app.commandLine.appendSwitch('disk-cache-size', '4194304');
+app.commandLine.appendSwitch('media-cache-size', '4194304');
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.commandLine.appendSwitch('disable-background-networking');
+app.commandLine.appendSwitch('disable-component-update');
+app.commandLine.appendSwitch('disable-domain-reliability');
+app.commandLine.appendSwitch('disable-sync');
+app.commandLine.appendSwitch('no-pings');
+app.commandLine.appendSwitch('js-flags', '--optimize-for-size --expose-gc');
+app.commandLine.appendSwitch(
+  'disable-features',
+  'Vulkan,BackForwardCache,SpareRendererForSitePerProcess,AutofillServerCommunication,OptimizationHints,MediaRouter,CertificateTransparencyComponentUpdater'
+);
 
-// Preload DarkReader script into memory for universal website dark mode
-let darkReaderCode = '';
-try {
-  const possiblePaths = [
-    path.join(__dirname, '..', 'node_modules', 'darkreader', 'darkreader.js'),
-    path.join(app.getAppPath(), 'node_modules', 'darkreader', 'darkreader.js'),
-    path.join(__dirname, 'darkreader.js'),
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      darkReaderCode = fs.readFileSync(p, 'utf8');
-      break;
+// Lazy-load DarkReader script on first eligible page in dark mode (0 KB at idle Homescreen)
+let cachedDarkReaderCode: string | null = null;
+function getDarkReaderCode(): string {
+  if (cachedDarkReaderCode !== null) return cachedDarkReaderCode;
+  try {
+    const possiblePaths = [
+      path.join(__dirname, '..', 'node_modules', 'darkreader', 'darkreader.js'),
+      path.join(app.getAppPath(), 'node_modules', 'darkreader', 'darkreader.js'),
+      path.join(__dirname, 'darkreader.js'),
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        cachedDarkReaderCode = fs.readFileSync(p, 'utf8');
+        return cachedDarkReaderCode;
+      }
     }
+  } catch (e) {
+    console.error('Failed to load darkreader.js:', e);
   }
-} catch (e) {
-  console.error('Failed to load darkreader.js:', e);
+  cachedDarkReaderCode = '';
+  return cachedDarkReaderCode;
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -48,14 +70,7 @@ const mcpServer = new McpServer();
 const storage = new LocalStorageManager();
 const dataDir = path.join(app.getPath('userData'), 'neutrino-data');
 const historyManager = new HistoryManager(path.join(dataDir, 'history.json'));
-const vpnController = new VpnController(path.join(dataDir, 'vpn-config.json'), [
-  'persist:neutrino',
-  'persist:claude',
-  'persist:chatgpt',
-  'persist:gemini',
-  'persist:deepseek',
-  'persist:perplexity',
-]);
+const vpnController = new VpnController(path.join(dataDir, 'vpn-config.json'), ['persist:neutrino']);
 const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpServer, storage, historyManager);
 
 mcpServer.start();
@@ -143,18 +158,21 @@ async function applyDarkMode(wc: WebContents): Promise<void> {
   }
   const eligible = shouldInjectDarkReader(url, settings.darkModeExclusions);
 
-  if (isDarkMode && darkReaderCode && eligible) {
-    const prepaintPromise = applyPrepaintDarkCss(wc);
-    const includeLib = !darkReaderLibLoaded.has(wc);
-    const jsPromise = run(buildDarkModeEnableScript(darkReaderCode, includeLib)).then((res) => {
-      if (res !== undefined && !wc.isDestroyed()) {
-        darkReaderLibLoaded.add(wc);
-      }
-    });
-    await Promise.allSettled([prepaintPromise, jsPromise]);
-    // DarkReader now owns the page dark palette; remove temporary pre-paint stylesheet.
-    await removePrepaintDarkCss(wc);
-    return;
+  if (isDarkMode && eligible) {
+    const darkReaderCode = getDarkReaderCode();
+    if (darkReaderCode) {
+      const prepaintPromise = applyPrepaintDarkCss(wc);
+      const includeLib = !darkReaderLibLoaded.has(wc);
+      const jsPromise = run(buildDarkModeEnableScript(darkReaderCode, includeLib)).then((res) => {
+        if (res !== undefined && !wc.isDestroyed()) {
+          darkReaderLibLoaded.add(wc);
+        }
+      });
+      await Promise.allSettled([prepaintPromise, jsPromise]);
+      // DarkReader now owns the page dark palette; remove temporary pre-paint stylesheet.
+      await removePrepaintDarkCss(wc);
+      return;
+    }
   }
 
     const removePromise = removePrepaintDarkCss(wc);
@@ -315,14 +333,20 @@ async function applyDarkMode(wc: WebContents): Promise<void> {
       });
     };
 
-    applyInterception(currentSession);
-    applyInterception(neutrinoSession);
+    const interceptedSessions = new WeakSet<Electron.Session>();
+    const applyIfNew = (sess: Electron.Session) => {
+      if (interceptedSessions.has(sess)) return;
+      interceptedSessions.add(sess);
+      applyInterception(sess);
+    };
 
-    // Also apply to any assistant-specific partitions if created
-    const partitions = ['persist:claude', 'persist:chatgpt', 'persist:gemini', 'persist:deepseek', 'persist:perplexity'];
-    for (const part of partitions) {
-      applyInterception(session.fromPartition(part));
-    }
+    applyIfNew(currentSession);
+    applyIfNew(neutrinoSession);
+
+    // Attach adblock/header interception lazily only if another partition is ever created
+    app.on('session-created', (sess) => {
+      applyIfNew(sess);
+    });
   }
 
   function createWindow() {
@@ -377,6 +401,8 @@ async function applyDarkMode(wc: WebContents): Promise<void> {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
+        spellcheck: false,
+        backgroundThrottling: true,
       },
     });
 
@@ -428,13 +454,37 @@ async function applyDarkMode(wc: WebContents): Promise<void> {
       mainWindow.loadFile(rendererPath);
     }
 
+    let gcTimer: NodeJS.Timeout | null = null;
+    const scheduleIdleTrim = (delayMs: number) => {
+      if (gcTimer) clearTimeout(gcTimer);
+      gcTimer = setTimeout(() => {
+        gcTimer = null;
+        try {
+          if (typeof global.gc === 'function') global.gc();
+        } catch { }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('neutrino:trim-memory');
+          void mainWindow.webContents.executeJavaScript('window.gc?.()').catch(() => { });
+        }
+      }, delayMs);
+    };
+
+    mainWindow.on('blur', () => {
+      scheduleIdleTrim(1500);
+    });
+
     // Create initial tabs (renderer stays at native 100% standard desktop scale)
     mainWindow.webContents.once('did-finish-load', () => {
       mainWindow!.webContents.setZoomFactor(1.0);
       browserManager.createTab('neutrino://newtab', browserManager.getActiveSpaceId());
+      scheduleIdleTrim(3200);
     });
 
     mainWindow.on('closed', () => {
+      if (gcTimer) {
+        clearTimeout(gcTimer);
+        gcTimer = null;
+      }
       mainWindow = null;
     });
   }

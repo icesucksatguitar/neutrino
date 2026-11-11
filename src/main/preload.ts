@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
+// Allow main process idle hook to purge Blink's decoded image/font/CSS caches safely
+ipcRenderer.on('neutrino:trim-memory', () => {
+  try {
+    webFrame.clearCache();
+  } catch { }
+});
+
 contextBridge.exposeInMainWorld('neutrino', {
   isElectron: true,
 

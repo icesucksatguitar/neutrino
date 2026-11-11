@@ -1,10 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface HomescreenProps {
   isDarkMode?: boolean;
   onNavigate: (url: string) => void;
   onOpenCommandBar?: () => void;
   userName?: string;
+}
+
+function formatClockParts(now: Date) {
+  return {
+    hm: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    seconds: String(now.getSeconds()).padStart(2, '0'),
+    dateStr: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+  };
 }
 
 export const Homescreen: React.FC<HomescreenProps> = ({
@@ -31,20 +39,11 @@ export const Homescreen: React.FC<HomescreenProps> = ({
     }
   }, [userName]);
 
-  const [time, setTime] = useState<{
-    hours: string;
-    minutes: string;
-    seconds: string;
-    dateStr: string;
-  }>(() => {
-    const now = new Date();
-    return {
-      hours: String(now.getHours()).padStart(2, '0'),
-      minutes: String(now.getMinutes()).padStart(2, '0'),
-      seconds: String(now.getSeconds()).padStart(2, '0'),
-      dateStr: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-    };
-  });
+  const initialClock = useRef(formatClockParts(new Date())).current;
+  const dateRef = useRef<HTMLDivElement>(null);
+  const hmRef = useRef<HTMLSpanElement>(null);
+  const secRef = useRef<HTMLSpanElement>(null);
+  const greetRef = useRef<HTMLDivElement>(null);
 
   // Calculate greeting: Good morning / Good afternoon / Good evening *name*
   const getGreeting = useCallback((): string => {
@@ -58,22 +57,45 @@ export const Homescreen: React.FC<HomescreenProps> = ({
     }
   }, [displayName]);
 
-  const [greeting, setGreeting] = useState<string>(getGreeting);
-
   useEffect(() => {
+    let lastDate = '';
+    let lastHm = '';
+    let lastGreet = '';
+
     const tick = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       const now = new Date();
-      setTime({
-        hours: String(now.getHours()).padStart(2, '0'),
-        minutes: String(now.getMinutes()).padStart(2, '0'),
-        seconds: String(now.getSeconds()).padStart(2, '0'),
-        dateStr: now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
-      });
-      setGreeting(getGreeting());
+      const parts = formatClockParts(now);
+      if (hmRef.current && parts.hm !== lastHm) {
+        hmRef.current.textContent = parts.hm;
+        lastHm = parts.hm;
+      }
+      if (secRef.current) {
+        secRef.current.textContent = parts.seconds;
+      }
+      if (dateRef.current && parts.dateStr !== lastDate) {
+        dateRef.current.textContent = parts.dateStr;
+        lastDate = parts.dateStr;
+      }
+      if (greetRef.current) {
+        const nextGreet = getGreeting();
+        if (nextGreet !== lastGreet) {
+          greetRef.current.textContent = nextGreet;
+          lastGreet = nextGreet;
+        }
+      }
     };
 
+    tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    const onVis = () => {
+      if (!document.hidden) tick();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [getGreeting]);
 
   // Search URL Bar is revealed by default as a clean minimal pill
@@ -118,16 +140,16 @@ export const Homescreen: React.FC<HomescreenProps> = ({
       {/* Main Peaceful Hero Center */}
       <div className="homescreen-hero-center">
         {/* Y Combinator Italic Serif Greeting */}
-        <div className="yc-italic-greeting">
-          {greeting}
+        <div className="yc-italic-greeting" ref={greetRef}>
+          {getGreeting()}
         </div>
 
         {/* Refined, Smaller Modern Digital Clock */}
         <div className="digital-clock-container compact-clock">
-          <div className="digital-clock-date">{time.dateStr}</div>
+          <div className="digital-clock-date" ref={dateRef}>{initialClock.dateStr}</div>
           <div className="digital-clock-time">
-            <span className="digital-clock-digits">{time.hours}:{time.minutes}</span>
-            <span className="digital-clock-seconds">{time.seconds}</span>
+            <span className="digital-clock-digits" ref={hmRef}>{initialClock.hm}</span>
+            <span className="digital-clock-seconds" ref={secRef}>{initialClock.seconds}</span>
           </div>
         </div>
 

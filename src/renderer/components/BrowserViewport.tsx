@@ -560,9 +560,14 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         </div>
       )}
 
-      {/* Keep webviews of all open web tabs alive in the background */}
+      {/* Mount webviews only for non-sleeping web tabs so sleeping genuinely frees renderer RAM */}
       {tabs.map((tab) => {
-        if (!hasWebview(tab.url)) {
+        if (!hasWebview(tab.url) || tab.isSleeping) {
+          if (tab.isSleeping) {
+            delete navStatesRef.current[tab.id];
+            delete webviewRefs.current[tab.id];
+            attachedListenersRef.current.delete(tab.id);
+          }
           return null;
         }
 
@@ -609,13 +614,16 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 if (el) {
                   webviewRefs.current[tab.id] = el;
                   attachWebviewEvents(tab.id, el);
+                } else {
+                  delete webviewRefs.current[tab.id];
+                  attachedListenersRef.current.delete(tab.id);
                 }
               },
               src: initialSrc,
               className: 'chromium-webview',
               partition: 'persist:neutrino',
               allowpopups: 'true',
-              webpreferences: 'contextIsolation=yes,nodeIntegration=no',
+              webpreferences: 'contextIsolation=yes,nodeIntegration=no,spellcheck=no,backgroundThrottling=yes',
               style: {
                 display: 'inline-flex',
                 position: 'absolute',

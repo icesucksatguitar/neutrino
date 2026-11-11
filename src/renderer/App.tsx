@@ -1,20 +1,11 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useRef, useCallback } from 'react';
 import { useBrowser } from './hooks/useBrowser';
-import { NotificationTabs } from './components/NotificationTabs';
 import { FloatingUrlPill } from './components/FloatingUrlPill';
 import { BrowserViewport } from './components/BrowserViewport';
-import { CommandBar } from './components/CommandBar';
-import { ShieldModal } from './components/ShieldModal';
-import { McpModal } from './components/McpModal';
-import { ThemeCustomizerModal } from './components/ThemeCustomizerModal';
-import { MediaPlayer } from './components/MediaPlayer';
-import { WelcomeModal, UserProfile } from './components/WelcomeModal';
 import { StartupSplash } from './components/StartupSplash';
 import { RightPinsDock, type PinnedSite } from './components/RightPinsDock';
-import { SettingsPanel } from './components/SettingsPanel';
-import { HistoryModal } from './components/HistoryModal';
-import { VpnModal } from './components/VpnModal';
 import { AuthHandoffNotice } from './components/AuthHandoffNotice';
+import type { UserProfile } from './components/WelcomeModal';
 import { useSettings } from './hooks/useSettings';
 import { isHostExcluded, resolveSpaceTheme, toggleSiteExclusion } from '../main/settings';
 import { type SpaceTheme, getDefaultSpaceTheme } from '../main/spaceTheme';
@@ -29,6 +20,37 @@ import {
   VpnStatus,
 } from './types';
 import './styles/theme.css';
+
+const NotificationTabs = lazy(() =>
+  import('./components/NotificationTabs').then((m) => ({ default: m.NotificationTabs }))
+);
+const CommandBar = lazy(() =>
+  import('./components/CommandBar').then((m) => ({ default: m.CommandBar }))
+);
+const ShieldModal = lazy(() =>
+  import('./components/ShieldModal').then((m) => ({ default: m.ShieldModal }))
+);
+const McpModal = lazy(() =>
+  import('./components/McpModal').then((m) => ({ default: m.McpModal }))
+);
+const ThemeCustomizerModal = lazy(() =>
+  import('./components/ThemeCustomizerModal').then((m) => ({ default: m.ThemeCustomizerModal }))
+);
+const MediaPlayer = lazy(() =>
+  import('./components/MediaPlayer').then((m) => ({ default: m.MediaPlayer }))
+);
+const WelcomeModal = lazy(() =>
+  import('./components/WelcomeModal').then((m) => ({ default: m.WelcomeModal }))
+);
+const SettingsPanel = lazy(() =>
+  import('./components/SettingsPanel').then((m) => ({ default: m.SettingsPanel }))
+);
+const HistoryModal = lazy(() =>
+  import('./components/HistoryModal').then((m) => ({ default: m.HistoryModal }))
+);
+const VpnModal = lazy(() =>
+  import('./components/VpnModal').then((m) => ({ default: m.VpnModal }))
+);
 
 export function App() {
   const {
@@ -69,6 +91,16 @@ export function App() {
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isNotificationTabsOpen, setIsNotificationTabsOpen] = useState(false);
+  const [isTabsDrawerMounted, setIsTabsDrawerMounted] = useState(false);
+  useEffect(() => {
+    if (isNotificationTabsOpen) {
+      setIsTabsDrawerMounted(true);
+      return;
+    }
+    if (!isTabsDrawerMounted) return;
+    const t = setTimeout(() => setIsTabsDrawerMounted(false), 300);
+    return () => clearTimeout(t);
+  }, [isNotificationTabsOpen, isTabsDrawerMounted]);
   const [isStartingUp, setIsStartingUp] = useState(true);
   const [spaceOverlay, setSpaceOverlay] = useState<string | null>(null);
   const [spaceTransitionClass, setSpaceTransitionClass] = useState<string>('');
@@ -469,15 +501,8 @@ export function App() {
     };
   }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen]);
 
-  // History & Built-in VPN state hydration and live IPC subscriptions
+  // Built-in VPN state hydration & lazy History hydration (only fetch 500 history entries when open)
   useEffect(() => {
-    void window.neutrino?.getHistory?.({ limit: 500 }).then((list) => {
-      if (Array.isArray(list)) setHistoryEntries(list);
-    });
-    const unsubHistory = window.neutrino?.onHistoryUpdated?.((entries) => {
-      if (Array.isArray(entries)) setHistoryEntries(entries);
-    });
-
     void window.neutrino?.getVpnStatus?.().then((status) => {
       if (status) setVpnStatus(status);
     });
@@ -486,16 +511,24 @@ export function App() {
     });
 
     return () => {
-      unsubHistory?.();
       unsubVpn?.();
     };
   }, []);
 
   useEffect(() => {
-    if (!isHistoryModalOpen) return;
+    if (!isHistoryModalOpen) {
+      setHistoryEntries((prev) => (prev.length > 0 ? [] : prev));
+      return;
+    }
     void window.neutrino?.getHistory?.({ limit: 500 }).then((list) => {
       if (Array.isArray(list)) setHistoryEntries(list);
     });
+    const unsubHistory = window.neutrino?.onHistoryUpdated?.((entries) => {
+      if (Array.isArray(entries)) setHistoryEntries(entries);
+    });
+    return () => {
+      unsubHistory?.();
+    };
   }, [isHistoryModalOpen]);
 
   useEffect(() => {
@@ -839,21 +872,25 @@ export function App() {
         </div>
       </div>
 
-      {/* Notification-Style Tab Stack System (Left Hairlines & Sliding Deck) */}
-      <NotificationTabs
-        tabs={state.tabs}
-        activeTabId={state.activeTabId}
-        spaces={state.spaces}
-        activeSpaceId={state.activeSpaceId}
-        isOpen={isNotificationTabsOpen}
-        onToggle={(open) => setIsNotificationTabsOpen(typeof open === 'boolean' ? open : !isNotificationTabsOpen)}
-        onSelectTab={selectTab}
-        onCloseTab={closeTab}
-        onCreateTab={createTab}
-        onTogglePinTab={togglePinTab}
-        onSelectSpace={handleSelectSpace}
-        isOnWebpage={isWebpage}
-      />
+      {/* Notification-Style Tab Stack System (Mounted on demand, unmounts after exit anim) */}
+      {isTabsDrawerMounted && (
+        <Suspense fallback={null}>
+          <NotificationTabs
+            tabs={state.tabs}
+            activeTabId={state.activeTabId}
+            spaces={state.spaces}
+            activeSpaceId={state.activeSpaceId}
+            isOpen={isNotificationTabsOpen}
+            onToggle={(open) => setIsNotificationTabsOpen(typeof open === 'boolean' ? open : !isNotificationTabsOpen)}
+            onSelectTab={selectTab}
+            onCloseTab={closeTab}
+            onCreateTab={createTab}
+            onTogglePinTab={togglePinTab}
+            onSelectSpace={handleSelectSpace}
+            isOnWebpage={isWebpage}
+          />
+        </Suspense>
+      )}
 
       {/* Edge-to-Edge Web Canvas Viewport (pulled down on web pages so site controls never collide) */}
       <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${spaceTransitionClass}`}>
@@ -890,120 +927,154 @@ export function App() {
 
       {/* Floating Media Player (PiP) */}
       {shouldShowMiniPlayer && (
-        <MediaPlayer
-          mediaState={activeMediaState}
-          onPlayPause={handleMediaPlayPause}
-          onSeek={handleMediaSeek}
-          onVolume={handleMediaVolume}
-          onGoToTab={handleGoToMediaTab}
-          onClose={handleCloseMediaPlayer}
-        />
+        <Suspense fallback={null}>
+          <MediaPlayer
+            mediaState={activeMediaState}
+            onPlayPause={handleMediaPlayPause}
+            onSeek={handleMediaSeek}
+            onVolume={handleMediaVolume}
+            onGoToTab={handleGoToMediaTab}
+            onClose={handleCloseMediaPlayer}
+          />
+        </Suspense>
       )}
 
       {/* Centered Floating Command Bar (Ctrl+T / Ctrl+K / Ctrl+L) */}
-      <CommandBar
-        isOpen={isCommandBarOpen}
-        tabs={state.tabs}
-        spaces={state.spaces}
-        onClose={() => setIsCommandBarOpen(false)}
-        onNavigate={navigate}
-        onSelectTab={selectTab}
-        onCreateTab={createTab}
-        onZenOptimize={zenOptimize}
-        onToggleShields={toggleShields}
-        onSelectSpace={handleSelectSpace}
-        onToggleTheme={toggleDarkMode}
-        onOpenMcp={() => setIsMcpModalOpen(true)}
-        onOpenTheme={() => setIsThemeModalOpen(true)}
-        onOpenShields={() => setIsShieldModalOpen(true)}
-        searchEngine={settings.searchEngine}
-        onOpenSettings={openSettings}
-        onOpenHistory={() => setIsHistoryModalOpen(true)}
-        onOpenVpn={() => setIsVpnModalOpen(true)}
-        activeTabUrl={activeTabUrl}
-        isActiveSiteExcluded={isActiveSiteExcluded}
-        onToggleSiteDarkMode={handleToggleSiteDarkMode}
-      />
+      {isCommandBarOpen && (
+        <Suspense fallback={null}>
+          <CommandBar
+            isOpen={isCommandBarOpen}
+            tabs={state.tabs}
+            spaces={state.spaces}
+            onClose={() => setIsCommandBarOpen(false)}
+            onNavigate={navigate}
+            onSelectTab={selectTab}
+            onCreateTab={createTab}
+            onZenOptimize={zenOptimize}
+            onToggleShields={toggleShields}
+            onSelectSpace={handleSelectSpace}
+            onToggleTheme={toggleDarkMode}
+            onOpenMcp={() => setIsMcpModalOpen(true)}
+            onOpenTheme={() => setIsThemeModalOpen(true)}
+            onOpenShields={() => setIsShieldModalOpen(true)}
+            searchEngine={settings.searchEngine}
+            onOpenSettings={openSettings}
+            onOpenHistory={() => setIsHistoryModalOpen(true)}
+            onOpenVpn={() => setIsVpnModalOpen(true)}
+            activeTabUrl={activeTabUrl}
+            isActiveSiteExcluded={isActiveSiteExcluded}
+            onToggleSiteDarkMode={handleToggleSiteDarkMode}
+          />
+        </Suspense>
+      )}
 
       {/* Built-in VPN / Privacy Tunnel Modal */}
-      <VpnModal
-        isOpen={isVpnModalOpen}
-        onClose={() => setIsVpnModalOpen(false)}
-        status={vpnStatus}
-        onConnect={handleVpnConnect}
-        onDisconnect={handleVpnDisconnect}
-        onUpdateConfig={handleVpnUpdateConfig}
-        onCheckIp={handleVpnCheckIp}
-        isCheckingIp={isCheckingVpnIp}
-        ipCheckError={vpnIpError}
-      />
+      {isVpnModalOpen && (
+        <Suspense fallback={null}>
+          <VpnModal
+            isOpen={isVpnModalOpen}
+            onClose={() => setIsVpnModalOpen(false)}
+            status={vpnStatus}
+            onConnect={handleVpnConnect}
+            onDisconnect={handleVpnDisconnect}
+            onUpdateConfig={handleVpnUpdateConfig}
+            onCheckIp={handleVpnCheckIp}
+            isCheckingIp={isCheckingVpnIp}
+            ipCheckError={vpnIpError}
+          />
+        </Suspense>
+      )}
 
       {/* Browsing History Modal */}
-      <HistoryModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => setIsHistoryModalOpen(false)}
-        entries={historyEntries}
-        onOpenUrl={handleOpenHistoryUrl}
-        onDeleteEntry={handleDeleteHistoryEntry}
-        onClearHistory={handleClearHistory}
-      />
+      {isHistoryModalOpen && (
+        <Suspense fallback={null}>
+          <HistoryModal
+            isOpen={isHistoryModalOpen}
+            onClose={() => setIsHistoryModalOpen(false)}
+            entries={historyEntries}
+            onOpenUrl={handleOpenHistoryUrl}
+            onDeleteEntry={handleDeleteHistoryEntry}
+            onClearHistory={handleClearHistory}
+          />
+        </Suspense>
+      )}
 
       {/* Shield Modal Flyout */}
-      <ShieldModal
-        isOpen={isShieldModalOpen}
-        onClose={() => setIsShieldModalOpen(false)}
-        stats={state.shieldStats}
-        blockedItems={blockedTrackers}
-        onToggleShields={toggleShields}
-        enabled={settings.adblockEnabled}
-      />
+      {isShieldModalOpen && (
+        <Suspense fallback={null}>
+          <ShieldModal
+            isOpen={isShieldModalOpen}
+            onClose={() => setIsShieldModalOpen(false)}
+            stats={state.shieldStats}
+            blockedItems={blockedTrackers}
+            onToggleShields={toggleShields}
+            enabled={settings.adblockEnabled}
+          />
+        </Suspense>
+      )}
 
       {/* Browser Settings Panel (gear / Ctrl+, / Command Bar / neutrino://settings) */}
-      <SettingsPanel
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onUpdateSettings={updateSettings}
-        isDarkMode={isDarkMode}
-        onSetDarkMode={setDarkMode}
-        onOpenThemeStudio={() => setIsThemeModalOpen(true)}
-        activeTabUrl={activeTabUrl}
-        userName={userProfile?.name ?? ''}
-        onUserNameChange={handleUserNameChange}
-      />
+      {isSettingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            settings={settings}
+            onUpdateSettings={updateSettings}
+            isDarkMode={isDarkMode}
+            onSetDarkMode={setDarkMode}
+            onOpenThemeStudio={() => setIsThemeModalOpen(true)}
+            activeTabUrl={activeTabUrl}
+            userName={userProfile?.name ?? ''}
+            onUserNameChange={handleUserNameChange}
+          />
+        </Suspense>
+      )}
 
       {/* MCP Drawer (Right-Side) */}
-      <McpModal
-        isOpen={isMcpModalOpen}
-        onClose={() => setIsMcpModalOpen(false)}
-        activeTab={activeTab}
-        onNavigate={navigate}
-        initialTab={mcpInitialTab}
-      />
+      {isMcpModalOpen && (
+        <Suspense fallback={null}>
+          <McpModal
+            isOpen={isMcpModalOpen}
+            onClose={() => setIsMcpModalOpen(false)}
+            activeTab={activeTab}
+            onNavigate={navigate}
+            initialTab={mcpInitialTab}
+          />
+        </Suspense>
+      )}
 
       {/* Theme Studio Popover */}
-      <ThemeCustomizerModal
-        isOpen={isThemeModalOpen}
-        onClose={() => setIsThemeModalOpen(false)}
-        activeSpace={activeSpace}
-        spaceTheme={activeSpaceTheme}
-        onChangeSpaceTheme={handleChangeSpaceTheme}
-        onResetSpaceTheme={handleResetSpaceTheme}
-        isDarkMode={isDarkMode}
-        onSetDarkMode={setDarkMode}
-        persistedCustomTheme={
-          settings.customTheme && typeof settings.customTheme === 'object'
-            ? (settings.customTheme as { themeId: string; accent: string })
-            : undefined
-        }
-        onPersistCustomTheme={(customTheme) => void updateSettings({ customTheme })}
-      />
+      {isThemeModalOpen && (
+        <Suspense fallback={null}>
+          <ThemeCustomizerModal
+            isOpen={isThemeModalOpen}
+            onClose={() => setIsThemeModalOpen(false)}
+            activeSpace={activeSpace}
+            spaceTheme={activeSpaceTheme}
+            onChangeSpaceTheme={handleChangeSpaceTheme}
+            onResetSpaceTheme={handleResetSpaceTheme}
+            isDarkMode={isDarkMode}
+            onSetDarkMode={setDarkMode}
+            persistedCustomTheme={
+              settings.customTheme && typeof settings.customTheme === 'object'
+                ? (settings.customTheme as { themeId: string; accent: string })
+                : undefined
+            }
+            onPersistCustomTheme={(customTheme) => void updateSettings({ customTheme })}
+          />
+        </Suspense>
+      )}
 
       {/* Welcome / Onboarding Flow for First Launch */}
-      <WelcomeModal
-        isOpen={isWelcomeOpen}
-        onComplete={handleWelcomeComplete}
-      />
+      {isWelcomeOpen && (
+        <Suspense fallback={null}>
+          <WelcomeModal
+            isOpen={isWelcomeOpen}
+            onComplete={handleWelcomeComplete}
+          />
+        </Suspense>
+      )}
 
       {/* Startup Splash Animation */}
       {isStartingUp && (

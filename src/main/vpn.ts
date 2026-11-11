@@ -37,6 +37,8 @@ export class VpnController {
   private resolvedTorPort = 9050;
   private listeners = new Set<(status: VpnStatus) => void>();
   private partitions: readonly string[];
+  private cachedAdapters: ReturnType<typeof detectOsVpnAdapters> | null = null;
+  private adaptersCachedAt = 0;
 
   constructor(filePath: string | null, partitions: readonly string[]) {
     this.store = new VpnConfigStore(filePath);
@@ -72,7 +74,12 @@ export class VpnController {
   }
 
   public getStatus(): VpnStatus {
-    const adapters = detectOsVpnAdapters();
+    const now = Date.now();
+    if (!this.cachedAdapters || now - this.adaptersCachedAt > 4000) {
+      this.cachedAdapters = detectOsVpnAdapters();
+      this.adaptersCachedAt = now;
+    }
+    const adapters = this.cachedAdapters;
     return {
       state: this.state,
       config: normalizeVpnConfig(this.config),
@@ -123,7 +130,13 @@ export class VpnController {
     if (this.config.enabled) {
       return this.applyConfig(this.config);
     }
-    await this.applyDisconnectedState();
+    // Cold-boot Chromium sessions already start with system proxy, off DoH, and default WebRTC.
+    this.state = 'disconnected';
+    this.activeProxyRule = null;
+    this.activeDnsUrl = null;
+    this.webrtcProtected = false;
+    this.connectedSince = null;
+    this.emitStatus();
     return this.getStatus();
   }
 

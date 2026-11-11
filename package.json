@@ -1,6 +1,6 @@
 {
   "name": "neutrino-browser",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local-first, high-speed Chromium desktop browser with Brave-level ad-blocking, Zen-level low resource usage, Arc-level customizability, and native MCP capability.",
   "main": "dist-main/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "npm run build:renderer && npm run build:main",
     "start": "npm run build && (set ELECTRON_RUN_AS_NODE=& electron .)",
     "start:packaged": "cmd /c \"set ELECTRON_RUN_AS_NODE=& release\\Neutrino-win32-x64\\Neutrino.exe\"",
-    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true --icon=assets/icon.ico",
+    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true --icon=assets/icon.ico --ignore=^/tests --ignore=^/docs --ignore=^/scratch --ignore=^/app --ignore=^/native --ignore=^/\\.kiro --ignore=^/\\.github",
     "test": "vitest --run"
   },
   "dependencies": {

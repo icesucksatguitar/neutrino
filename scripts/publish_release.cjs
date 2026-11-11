@@ -125,48 +125,46 @@ async function main() {
   }
   console.log(`Authenticated as GitHub user: ${userRes.body.login}`);
 
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const tagName = `v${pkg.version}`;
+  const assetName = `Neutrino-${tagName}-win32-x64.zip`;
+
   const releasePayload = {
-    tag_name: 'v0.2.0',
+    tag_name: tagName,
     target_commitish: 'main',
-    name: 'Neutrino v0.2.0 - Second Release',
-    body: `## Neutrino Browser v0.2.0 (Second Release)
+    name: `Neutrino ${tagName} - Release 2.1`,
+    body: `## Neutrino Browser ${tagName} (Release 2.1)
 
-A high-speed, local-first, distraction-free desktop browser engineered with the philosophy that the web page is the product.
+A local-first, high-speed Chromium desktop browser engineered with low memory usage, privacy controls, and per-Space customizability.
 
-### What's New in v0.2.0
+### What's New in ${tagName}
 
-- **Cinematic Startup Splash Animation**:
-  - Smooth centered reveal featuring the *Neutrino* wordmark in italic Claude Serif.
-  - Ambient particle orbital ring with quantum neutrino rotation.
-  - Butter-smooth fade-in and fade-out transition into the active browser UI with instant click/key skip.
+- **Arc-Style Per-Space Theme Editor**:
+  - Customizable 2- and 3-point radial gradients, intensity, grain overlay, and per-Space Light / Dark / Auto mode.
+  - Smooth Space transitions, presets, accessible keyboard/pointer color wheel, and debounced live persistence.
 
-- **Zen Mode Sleeping Tab Overhaul**:
-  - Replaced unstyled sleeping placeholders with a centered, monochromatic frosted obsidian glass card.
-  - Zero collision with macOS traffic lights or top-left window controls.
-  - Animated moon orbit, RAM memory savings indicator, domain badge, and instant full-screen or button wake.
+- **Persistent User Settings & Caching**:
+  - Atomic settings persistence across restarts for Spaces, themes, modes, font scale, and browser preferences.
 
-- **Opaque macOS Traffic Light Window Controls**:
-  - Native-style window controls positioned cleanly on the top-left edge.
-  - Auto-hides when browsing active sites to maintain 100% web page usability and eliminate interface obstructions.
+- **Built-In Browsing History Viewer**:
+  - Searchable local history drawer with timestamps, filtering, and quick navigation.
 
-- **Universal Forced Dark Mode (DarkReader Engine)**:
-  - Integrated local DarkReader engine delivering client-side dark themes for all websites.
-  - Instant live toggle between pure pitch black and warm light atmospheres.
+- **Built-In VPN & DNS-over-HTTPS (DoH)**:
+  - Integrated local proxy / DoH privacy routing with server presets, connection verification, and kill-switch support.
 
-- **Universal Website Sign-in & Authentication**:
-  - Clean desktop Chrome user-agent spoofing across all sessions and webviews.
-  - Unpartitioned cookies and session routing resolving Google OAuth ("This browser or app may not be secure"), GitHub, Claude, and Cloudflare Turnstile barriers.
+- **Faster Forced Dark Mode & Idle RAM Optimization**:
+  - Reduced initial dark-mode injection latency and optimized idle memory footprint via lazy-loaded modals/splash and lean Electron startup configuration.
 
-- **Tactile Space Switcher Slider**:
-  - Interactive spring slider for seamlessly transitioning between Study, Work, and Leisure spaces.
+- **Google Sign-In & OAuth Reliability**:
+  - Consistent browser identity and user-agent derivation, single-pass tab navigation to prevent OAuth callback replays, and external browser handoff when needed.
 
 ### Download for Windows (x64)
-Download and extract \`Neutrino-v0.2.0-win32-x64.zip\` and run \`Neutrino.exe\`.`,
+Download and extract \`${assetName}\` and run \`Neutrino.exe\`.`,
     draft: false,
     prerelease: false,
   };
 
-  console.log('Creating GitHub release v0.2.0...');
+  console.log(`Creating GitHub release ${tagName}...`);
   const createRes = await httpsRequest(
     {
       hostname: 'api.github.com',
@@ -190,16 +188,17 @@ Download and extract \`Neutrino-v0.2.0-win32-x64.zip\` and run \`Neutrino.exe\`.
   const release = createRes.body;
   console.log(`Release created successfully: ${release.html_url}`);
 
-  const zipPath = path.join(__dirname, '..', 'release', 'Neutrino-v0.2.0-win32-x64.zip');
+  const zipPath = path.join(__dirname, '..', 'release', assetName);
   if (fs.existsSync(zipPath)) {
     const uploadRes = await uploadAsset(release.upload_url, zipPath, token);
     console.log('Upload result:', uploadRes.status);
     console.log(`Asset URL: ${uploadRes.body.browser_download_url || uploadRes.body.url}`);
   } else {
     console.error(`Zip file not found at: ${zipPath}`);
+    process.exit(1);
   }
 
-  console.log('--- Release v0.2.0 Published Successfully! ---');
+  console.log(`--- Release ${tagName} Published Successfully! ---`);
 }
 
 main().catch((err) => {

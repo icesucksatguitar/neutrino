@@ -3508,11 +3508,13 @@ input:focus-visible {
   position: fixed;
   left: 16px;
   top: 48px;
-  bottom: 20px;
-  width: 328px;
+  bottom: 16px;
+  width: min(320px, calc(100vw - 32px));
   z-index: 180;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
   pointer-events: auto;
   transform: translateX(0);
   opacity: 1;
@@ -3537,9 +3539,9 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 320px;
-  margin: 0 0 14px 4px;
-  padding: 0 2px;
+  width: 100%;
+  margin: 0 0 12px 0;
+  padding: 0;
   box-sizing: border-box;
   flex-shrink: 0;
 }
@@ -3672,46 +3674,59 @@ input:focus-visible {
 
 .pinned-tabs-grid {
   display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 12px 0;
+  padding: 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
+.pinned-tab-square,
 .pinned-notification-card {
-  width: 58px;
-  height: 58px;
-  border-radius: 14px;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   position: relative;
+  box-sizing: border-box;
+  flex-shrink: 0;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.pinned-tab-square:hover,
 .pinned-notification-card:hover {
   background: rgba(255, 255, 255, 0.12);
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+.pinned-tab-square.active,
 .pinned-notification-card.active {
   border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 14px rgba(255, 255, 255, 0.15);
 }
 
+.pinned-favicon,
 .pinned-fav-img {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  object-fit: contain;
 }
 
+.pinned-placeholder-fav,
 .pinned-fav-fallback {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #FFFFFF;
 }
@@ -3721,23 +3736,23 @@ input:focus-visible {
 .notification-card-stack.mini-windows-stack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   position: relative;
   flex: 1 1 0;
   min-height: 0;
+  width: calc(100% + 8px);
+  margin: 0 0 0 -4px;
+  padding: 4px 4px 12px 4px;
+  box-sizing: border-box;
   overflow-y: auto !important;
   overflow-x: hidden;
-  padding: 4px 8px 16px 4px;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
 
 .notification-card-stack::-webkit-scrollbar,
 .notification-card-stack.mini-window-deck::-webkit-scrollbar,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar {
   width: 5px;
-  width: 6px;
 }
 
 .notification-card-stack::-webkit-scrollbar-track,
@@ -3749,10 +3764,14 @@ input:focus-visible {
 .notification-card-stack::-webkit-scrollbar-thumb,
 .notification-card-stack.mini-window-deck::-webkit-scrollbar-thumb,
 .notification-card-stack.mini-windows-stack::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.20);
+  border-radius: 999px;
+}
+
+[data-theme="light"] .notification-card-stack::-webkit-scrollbar-thumb,
+[data-theme="light"] .notification-card-stack.mini-window-deck::-webkit-scrollbar-thumb,
+[data-theme="light"] .notification-card-stack.mini-windows-stack::-webkit-scrollbar-thumb {
+  background: rgba(28, 25, 23, 0.22);
 }
 
 .notification-card-stack::-webkit-scrollbar-thumb:hover,
@@ -3766,8 +3785,9 @@ input:focus-visible {
    ========================================================================== */
 .mini-window-card,
 .mini-window-tab-card {
-  width: 320px;
-  height: 180px;
+  width: 100%;
+  height: 176px;
+  box-sizing: border-box;
   border-radius: 14px;
   background: rgba(18, 18, 22, 0.94);
   backdrop-filter: blur(28px);
@@ -4253,15 +4273,7 @@ input:focus-visible {
 /* ==========================================================================
    SMOOTH HORIZONTAL SPACES SLIDER ON BOTTOM LEFT (Only when tabs open)
    ========================================================================== */
-.spaces-bottom-left-slider-container {
-  margin-top: auto;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding-top: 14px;
-}
+/* Legacy smooth slider styles (container defined in bottom-left slider section below) */
 
 .spaces-smooth-slider {
   position: relative;
@@ -4376,12 +4388,30 @@ input:focus-visible {
   color: #fff;
 }
 
-/* Space-theme aware notification cards */
+/* Space-theme aware notification cards & pinned tabs */
 [data-theme="light"] .notification-tab-card,
+[data-theme="light"] .pinned-tab-square,
 [data-theme="light"] .pinned-notification-card {
-  background: var(--theme-surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-md);
+  background: var(--theme-surface-solid, #FFFFFF);
+  border-color: var(--border-strong, rgba(60, 50, 40, 0.16));
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(50, 40, 30, 0.06));
+}
+
+[data-theme="light"] .pinned-tab-square:hover,
+[data-theme="light"] .pinned-notification-card:hover {
+  background: var(--surface-solid, #FFFFFF);
+  border-color: rgba(28, 25, 23, 0.28);
+}
+
+[data-theme="light"] .pinned-tab-square.active,
+[data-theme="light"] .pinned-notification-card.active {
+  border-color: var(--theme-c1, #1C1917);
+  box-shadow: 0 0 0 1px var(--theme-c1, #1C1917), var(--shadow-md);
+}
+
+[data-theme="light"] .pinned-placeholder-fav,
+[data-theme="light"] .pinned-fav-fallback {
+  color: var(--theme-fg, #1C1917);
 }
 
 [data-theme="light"] .tab-headline {
@@ -6546,17 +6576,18 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
    ========================================================================== */
 .spaces-bottom-left-slider-container {
   position: relative;
+  display: block;
   margin-top: auto;
   left: 0;
-  width: 320px;
+  width: 100%;
   z-index: 120;
   box-sizing: border-box;
   flex-shrink: 0;
-  padding-top: 10px;
+  padding: 10px 0 0 0;
 }
 
 .proper-space-slider-wrap {
-  width: 320px;
+  width: 100%;
   box-sizing: border-box;
   padding: 10px 14px 12px 14px;
   border-radius: 16px;
@@ -6570,7 +6601,9 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
 .proper-slider-header-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
+  min-height: 24px;
   margin-bottom: 8px;
 }
 
@@ -6580,7 +6613,7 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   align-items: center;
   flex: 1;
   min-width: 0;
-  padding: 0 2px;
+  padding: 0;
   gap: 4px;
 }
 
@@ -6588,6 +6621,9 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   justify-content: flex-start;
   overflow-x: auto;
   scrollbar-width: none;
+  padding-inline: 4px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
 }
 
 .proper-slider-labels.scrollable::-webkit-scrollbar {
@@ -6599,13 +6635,16 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
+  height: 24px;
+  box-sizing: border-box;
   font-size: 11.5px;
   font-weight: 500;
+  line-height: 1;
   color: #71717A;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
-  padding: 3px 7px;
+  padding: 0 6px;
   border-radius: 6px;
   max-width: 112px;
 }
@@ -6621,6 +6660,7 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.3;
 }
 
 .proper-space-delete-btn {
@@ -9692,6 +9732,7 @@ html[data-reduced-effects="on"] .proper-space-slider-wrap,
 html[data-reduced-effects="on"] .spaces-smooth-slider,
 html[data-reduced-effects="on"] .mini-window-card,
 html[data-reduced-effects="on"] .mini-window-tab-card,
+html[data-reduced-effects="on"] .pinned-tab-square,
 html[data-reduced-effects="on"] .pinned-notification-card {
   background-color: var(--theme-surface-solid, var(--theme-bg-canvas)) !important;
 }

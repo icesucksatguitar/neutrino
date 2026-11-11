@@ -135,7 +135,7 @@ export function useBrowser() {
           shieldStats: { ...prev.shieldStats, ...stats },
         }));
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     const handleMockTabs = (e: any) => {
       if (e.detail?.tabs) {
@@ -158,13 +158,24 @@ export function useBrowser() {
   }, []);
 
   const navigate = useCallback((url: string) => {
-    // neutrino://settings opens the Settings panel and leaves the Active_Tab URL unchanged.
-    if (typeof url === 'string' && url.trim().toLowerCase() === 'neutrino://settings') {
-      window.dispatchEvent(new CustomEvent('neutrino:open-settings'));
-      return;
-    }
-    window.neutrino?.navigate(url);
-  }, []);
+      if (typeof url === 'string') {
+        const normalized = url.trim().toLowerCase();
+        // neutrino://settings, neutrino://history, neutrino://vpn open panels without changing Active_Tab URL.
+        if (normalized === 'neutrino://settings') {
+          window.dispatchEvent(new CustomEvent('neutrino:open-settings'));
+          return;
+        }
+        if (normalized === 'neutrino://history') {
+          window.dispatchEvent(new CustomEvent('neutrino:open-history'));
+          return;
+        }
+        if (normalized === 'neutrino://vpn') {
+          window.dispatchEvent(new CustomEvent('neutrino:open-vpn'));
+          return;
+        }
+      }
+      window.neutrino?.navigate(url);
+    }, []);
 
   const createTab = useCallback((url?: string, spaceId?: string) => {
     return window.neutrino?.createTab(url, spaceId);

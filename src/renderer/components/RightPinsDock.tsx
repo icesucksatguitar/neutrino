@@ -19,10 +19,20 @@ const DEFAULT_PINS: PinnedSite[] = [
 interface RightPinsDockProps {
   onNavigate: (url: string) => void;
   isOnWebpage?: boolean;
+  persistedPins?: PinnedSite[];
+  onPersistPins?: (pins: PinnedSite[]) => void;
 }
 
-export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate, isOnWebpage = false }) => {
+export const RightPinsDock: React.FC<RightPinsDockProps> = ({
+  onNavigate,
+  isOnWebpage = false,
+  persistedPins,
+  onPersistPins,
+}) => {
   const [pins, setPins] = useState<PinnedSite[]>(() => {
+    if (Array.isArray(persistedPins) && persistedPins.length > 0) {
+      return persistedPins;
+    }
     try {
       const saved = localStorage.getItem('neutrino_pinned_sites');
       if (saved) {
@@ -32,6 +42,15 @@ export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate, isOnWe
     } catch {}
     return DEFAULT_PINS;
   });
+
+  useEffect(() => {
+    if (Array.isArray(persistedPins) && persistedPins.length > 0) {
+      setPins(persistedPins);
+      try {
+        localStorage.setItem('neutrino_pinned_sites', JSON.stringify(persistedPins));
+      } catch {}
+    }
+  }, [persistedPins]);
 
   const [scales, setScales] = useState<{ [id: string]: number }>({});
   const [isHoveredDock, setIsHoveredDock] = useState(false);
@@ -48,6 +67,7 @@ export const RightPinsDock: React.FC<RightPinsDockProps> = ({ onNavigate, isOnWe
     try {
       localStorage.setItem('neutrino_pinned_sites', JSON.stringify(updated));
     } catch {}
+    onPersistPins?.(updated);
   };
 
   // macOS Dock Fish-Eye Magnification physics

@@ -57,6 +57,7 @@ export class AuthHandoffController {
       this.tracker.registerPopup(win.webContents.id, id, contents.getURL());
     });
     contents.on('did-navigate', (_event, url) => this.onNavigation(contents, url));
+    contents.on('did-redirect-navigation', (_event, url) => this.onNavigation(contents, url));
     contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
       if (isMainFrame) this.onNavigation(contents, url);
     });

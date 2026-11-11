@@ -65,4 +65,100 @@ describe('LocalStorageManager.saveSettings', () => {
       errSpy.mockRestore();
     }
   });
+
+  it('serves subsequent reads from the in-memory cache without hitting disk', () => {
+    const storage = new LocalStorageManager();
+    storage.saveSettings({
+      adblockEnabled: false,
+      zenSleepEnabled: true,
+      searchEngine: 'brave',
+      theme: 'light',
+      darkModeExclusions: ['example.com'],
+    });
+
+    const readSpy = vi.spyOn(fs, 'readFileSync');
+    try {
+      const first = storage.loadState();
+      const second = storage.loadState();
+      expect(readSpy).not.toHaveBeenCalled();
+      expect(first).toEqual(second);
+    } finally {
+      readSpy.mockRestore();
+    }
+  });
+
+  it('deep-clones cached state so caller mutations never corrupt the cache', () => {
+    const storage = new LocalStorageManager();
+    storage.saveSettings({
+      darkModeExclusions: ['youtube.com'],
+      windowBounds: { width: 1200, height: 800, x: 50, y: 60, isMaximized: false },
+    });
+
+    const state = storage.loadState();
+    (state.settings.darkModeExclusions as string[]).push('evil.example');
+    (state.settings.windowBounds as { width: number }).width = 9999;
+    state.spaces[0].name = 'Mutated';
+
+    const clean = storage.loadState();
+    expect(clean.settings.darkModeExclusions).toEqual(['youtube.com']);
+    expect((clean.settings.windowBounds as { width: number }).width).toBe(1200);
+    expect(clean.spaces[0].name).toBe('Study');
+  });
+
+  it('does not poison the in-memory cache if a disk write fails', () => {
+    const storage = new LocalStorageManager();
+    storage.saveSettings({ searchEngine: 'duckduckgo', theme: 'light' });
+
+    const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+      throw new Error('disk full');
+    });
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      storage.saveSettings({ searchEngine: 'bing', theme: 'dark' });
+    } finally {
+      writeSpy.mockRestore();
+      errSpy.mockRestore();
+    }
+
+    const afterFail = storage.loadState();
+    expect(afterFail.settings).toEqual({ searchEngine: 'duckduckgo', theme: 'light' });
+  });
+
+  it('remembers patched settings (theme, windowBounds, userProfile, customTheme, pinnedSites, activeSpaceId) across restarts', () => {
+    const firstLaunch = new LocalStorageManager();
+    firstLaunch.saveSettings({
+      adblockEnabled: true,
+      zenSleepEnabled: false,
+      searchEngine: 'brave',
+      darkModeExclusions: ['github.com'],
+    });
+    firstLaunch.patchSettings({
+      theme: 'light',
+      activeSpaceId: 'space-work',
+      windowBounds: { width: 1280, height: 760, x: 40, y: 30, isMaximized: false },
+      customTheme: { themeId: 'clean-light', accent: '#38bdf8' },
+      userProfile: { name: 'Yash', email: null, isGuest: true, theme: 'obsidian', mode: 'minimal' },
+      onboardingCompleted: true,
+      pinnedSites: [{ id: 'pin-gh', title: 'GitHub', url: 'https://github.com' }],
+    });
+    // Subsequent patch must not clobber earlier settings
+    firstLaunch.patchSettings({ zenSleepEnabled: true });
+
+    // Simulate brand-new browser launch (new LocalStorageManager instance reads from disk)
+    const nextLaunch = new LocalStorageManager();
+    const restored = nextLaunch.loadState().settings;
+    expect(restored).toEqual({
+      adblockEnabled: true,
+      zenSleepEnabled: true,
+      searchEngine: 'brave',
+      darkModeExclusions: ['github.com'],
+      theme: 'light',
+      activeSpaceId: 'space-work',
+      windowBounds: { width: 1280, height: 760, x: 40, y: 30, isMaximized: false },
+      customTheme: { themeId: 'clean-light', accent: '#38bdf8' },
+      userProfile: { name: 'Yash', email: null, isGuest: true, theme: 'obsidian', mode: 'minimal' },
+      onboardingCompleted: true,
+      pinnedSites: [{ id: 'pin-gh', title: 'GitHub', url: 'https://github.com' }],
+    });
+  });
 });

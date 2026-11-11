@@ -3,6 +3,7 @@ import { BraveShieldEngine } from './adblock/engine';
 import { ZenResourceManager } from './resourceManager';
 import { McpServer } from './mcp/server';
 import { LocalStorageManager, Space, TabData } from './sync/storage';
+import { HistoryManager, isRecordableHistoryUrl } from './history';
 
 export interface TabState {
   id: string;
@@ -29,6 +30,7 @@ export class BrowserManager {
   private resourceManager: ZenResourceManager;
   private mcpServer: McpServer;
   private storage: LocalStorageManager;
+  private historyManager?: HistoryManager;
   private mainWindow: BrowserWindow | null = null;
   private activeMediaTabs: Set<string> = new Set();
 
@@ -36,17 +38,21 @@ export class BrowserManager {
     adblockEngine: BraveShieldEngine,
     resourceManager: ZenResourceManager,
     mcpServer: McpServer,
-    storage: LocalStorageManager
+    storage: LocalStorageManager,
+    historyManager?: HistoryManager
   ) {
     this.adblockEngine = adblockEngine;
     this.resourceManager = resourceManager;
     this.mcpServer = mcpServer;
     this.storage = storage;
+    this.historyManager = historyManager;
 
     const savedState = this.storage.loadState();
     this.spaces = savedState.spaces;
     if (this.spaces.length > 0) {
-      this.activeSpaceId = this.spaces[0].id;
+      const savedActiveSpaceId = savedState.settings?.activeSpaceId;
+      const validSaved = typeof savedActiveSpaceId === 'string' && this.spaces.some((s) => s.id === savedActiveSpaceId);
+      this.activeSpaceId = validSaved ? savedActiveSpaceId : this.spaces[0].id;
     }
 
     this.setupResourceEvents();
@@ -66,7 +72,12 @@ export class BrowserManager {
   }
 
   public setActiveSpace(spaceId: string) {
-    this.activeSpaceId = spaceId;
+    if (this.spaces.some((s) => s.id === spaceId)) {
+      this.activeSpaceId = spaceId;
+      this.storage.patchSettings({ activeSpaceId: spaceId });
+    } else {
+      this.activeSpaceId = spaceId;
+    }
     // Find first tab in this space or create one
     const spaceTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === spaceId);
     if (spaceTabs.length > 0) {
@@ -95,6 +106,7 @@ export class BrowserManager {
     }
     if (this.activeSpaceId === spaceId) {
       this.activeSpaceId = this.spaces[0].id;
+      this.storage.patchSettings({ activeSpaceId: this.activeSpaceId });
       const remainingTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === this.activeSpaceId);
       if (remainingTabs.length > 0) {
         this.activeTabId = remainingTabs[0].id;
@@ -146,15 +158,20 @@ export class BrowserManager {
     return this.activeTabId ? this.tabs.get(this.activeTabId) || null : null;
   }
 
+  public setHistoryManager(hm: HistoryManager): void {
+    this.historyManager = hm;
+  }
+
   public createTab(url: string = 'neutrino://newtab', spaceId?: string, isPinned: boolean = false): TabState {
     const finalSpaceId = spaceId || this.activeSpaceId;
     const tabId = 'tab-' + Math.random().toString(36).substring(2, 9);
+    const cleanedUrl = this.adblockEngine.cleanUrl(url);
 
     const newTab: TabState = {
       id: tabId,
       spaceId: finalSpaceId,
       title: 'New Tab',
-      url: this.adblockEngine.cleanUrl(url),
+      url: cleanedUrl,
       isLoading: false,
       canGoBack: false,
       canGoForward: false,
@@ -165,6 +182,13 @@ export class BrowserManager {
 
     this.tabs.set(tabId, newTab);
     this.resourceManager.registerTab(tabId);
+    if (this.historyManager && isRecordableHistoryUrl(cleanedUrl)) {
+      this.historyManager.recordVisit({
+        url: cleanedUrl,
+        title: newTab.title,
+        spaceId: finalSpaceId,
+      });
+    }
     this.setActiveTab(tabId);
     this.notifyState();
     return newTab;
@@ -208,7 +232,23 @@ export class BrowserManager {
   public updateTab(tabId: string, partial: Partial<TabState>) {
     const tab = this.tabs.get(tabId);
     if (tab) {
+      const prevUrl = tab.url;
       Object.assign(tab, partial);
+      if (this.historyManager) {
+        if (partial.url && partial.url !== prevUrl && isRecordableHistoryUrl(partial.url)) {
+          this.historyManager.recordVisit({
+            url: partial.url,
+            title: partial.title ?? (partial.url === prevUrl ? tab.title : undefined),
+            favicon: partial.favicon ?? (partial.url === prevUrl ? tab.favicon : undefined),
+            spaceId: tab.spaceId,
+          });
+        } else if ((partial.title || partial.favicon) && isRecordableHistoryUrl(tab.url)) {
+          this.historyManager.updateMetadata(tab.url, {
+            title: partial.title,
+            favicon: partial.favicon,
+          });
+        }
+      }
       this.notifyState();
     }
   }

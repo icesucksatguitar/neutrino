@@ -35,7 +35,6 @@ interface AssistantConfig {
   url: string;
   partition: string;
   color: string;
-  badge?: string;
 }
 
 const ASSISTANTS: AssistantConfig[] = [
@@ -45,7 +44,6 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://claude.ai',
     partition: 'persist:neutrino',
     color: '#d97706',
-    badge: '3.5',
   },
   {
     id: 'chatgpt',
@@ -53,7 +51,6 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://chatgpt.com',
     partition: 'persist:neutrino',
     color: '#10b981',
-    badge: '4o',
   },
   {
     id: 'gemini',
@@ -61,7 +58,6 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://gemini.google.com',
     partition: 'persist:neutrino',
     color: '#2563eb',
-    badge: 'Flash',
   },
   {
     id: 'deepseek',
@@ -69,7 +65,6 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://chat.deepseek.com',
     partition: 'persist:neutrino',
     color: '#06b6d4',
-    badge: 'R1',
   },
   {
     id: 'perplexity',
@@ -77,7 +72,6 @@ const ASSISTANTS: AssistantConfig[] = [
     url: 'https://www.perplexity.ai',
     partition: 'persist:neutrino',
     color: '#A1A1AA',
-    badge: 'Search',
   },
 ];
 
@@ -155,8 +149,9 @@ export const McpModal: React.FC<McpModalProps> = ({
   }, [getGreeting]);
 
   // Draggable & Resizable Window State (Comfortable compact width & height)
-  const defaultWidth = 480;
-  const defaultHeight = Math.min(680, window.innerHeight - 70);
+  const defaultWidth = Math.min(640, Math.max(420, window.innerWidth - 40));
+  const defaultHeight = Math.min(680, window.innerHeight - 84);
+  const defaultTop = 48;
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>({
     width: defaultWidth,
@@ -176,27 +171,32 @@ export const McpModal: React.FC<McpModalProps> = ({
     initialW: 0,
     initialH: 0,
   });
+  const rafFrameRef = useRef<number | null>(null);
 
   // Reset to default right-anchored position on first open
   useEffect(() => {
     if (isOpen && position === null) {
       const initialX = Math.max(20, window.innerWidth - size.width - 24);
-      const initialY = 24;
-      setPosition({ x: initialX, y: initialY });
+      setPosition({ x: initialX, y: defaultTop });
     }
   }, [isOpen, size.width, position]);
 
-  // Handle Dragging via Header
-  const handleHeaderMouseDown = (e: React.MouseEvent) => {
-    // Prevent drag if clicking on interactive controls
+  // Handle Dragging via Header (Pointer Events + capture + RAF)
+  const handleHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     const target = e.target as HTMLElement;
     if (target.closest('button') || target.closest('input') || target.closest('select')) {
       return;
     }
     e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore synthetic events without active pointerId
+    }
     setIsDragging(true);
     const curX = position ? position.x : Math.max(20, window.innerWidth - size.width - 24);
-    const curY = position ? position.y : 24;
+    const curY = position ? position.y : defaultTop;
     dragStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
@@ -206,9 +206,15 @@ export const McpModal: React.FC<McpModalProps> = ({
   };
 
   // Handle Corner Resizing
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     e.preventDefault();
     e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore synthetic events without active pointerId
+    }
     setIsResizing(true);
     resizeStartRef.current = {
       mouseX: e.clientX,
@@ -222,33 +228,51 @@ export const McpModal: React.FC<McpModalProps> = ({
   useEffect(() => {
     if (!isDragging && !isResizing) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        const dx = e.clientX - dragStartRef.current.mouseX;
-        const dy = e.clientY - dragStartRef.current.mouseY;
-        const newX = Math.max(10, Math.min(window.innerWidth - size.width - 10, dragStartRef.current.initialX + dx));
-        const newY = Math.max(10, Math.min(window.innerHeight - 80, dragStartRef.current.initialY + dy));
-        setPosition({ x: newX, y: newY });
-      } else if (isResizing) {
-        const dx = e.clientX - resizeStartRef.current.mouseX;
-        const dy = e.clientY - resizeStartRef.current.mouseY;
-        const newW = Math.max(360, Math.min(window.innerWidth - (position?.x || 0) - 10, resizeStartRef.current.initialW + dx));
-        const newH = Math.max(400, Math.min(window.innerHeight - (position?.y || 0) - 10, resizeStartRef.current.initialH + dy));
-        setSize({ width: newW, height: newH });
+    const handlePointerMove = (e: PointerEvent) => {
+      if (rafFrameRef.current !== null) {
+        cancelAnimationFrame(rafFrameRef.current);
       }
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      rafFrameRef.current = requestAnimationFrame(() => {
+        rafFrameRef.current = null;
+        if (isDragging) {
+          const dx = clientX - dragStartRef.current.mouseX;
+          const dy = clientY - dragStartRef.current.mouseY;
+          const newX = Math.max(10, Math.min(window.innerWidth - size.width - 10, dragStartRef.current.initialX + dx));
+          const newY = Math.max(10, Math.min(window.innerHeight - 80, dragStartRef.current.initialY + dy));
+          setPosition({ x: newX, y: newY });
+        } else if (isResizing) {
+          const dx = clientX - resizeStartRef.current.mouseX;
+          const dy = clientY - resizeStartRef.current.mouseY;
+          const newW = Math.max(360, Math.min(window.innerWidth - (position?.x || 0) - 10, resizeStartRef.current.initialW + dx));
+          const newH = Math.max(400, Math.min(window.innerHeight - (position?.y || 0) - 10, resizeStartRef.current.initialH + dy));
+          setSize({ width: newW, height: newH });
+        }
+      });
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
+      if (rafFrameRef.current !== null) {
+        cancelAnimationFrame(rafFrameRef.current);
+        rafFrameRef.current = null;
+      }
       setIsDragging(false);
       setIsResizing(false);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      if (rafFrameRef.current !== null) {
+        cancelAnimationFrame(rafFrameRef.current);
+        rafFrameRef.current = null;
+      }
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [isDragging, isResizing, size.width, size.height, position?.x, position?.y]);
 
@@ -450,7 +474,7 @@ export const McpModal: React.FC<McpModalProps> = ({
 
   const currentAssistant = ASSISTANTS.find((a) => a.id === selectedAssistant) || ASSISTANTS[0];
   const posX = position ? position.x : Math.max(20, window.innerWidth - size.width - 24);
-  const posY = position ? position.y : 24;
+  const posY = position ? position.y : defaultTop;
 
   return (
     <>
@@ -459,7 +483,7 @@ export const McpModal: React.FC<McpModalProps> = ({
 
       {/* Right-Anchored, Moveable & Resizable AI Panel */}
       <aside
-        className={`mcp-drawer floating-panel ${isDragging ? 'is-dragging' : ''}`}
+        className={`mcp-drawer floating-panel ${isDragging ? 'is-dragging' : ''} ${isResizing ? 'is-resizing' : ''}`}
         style={{
           position: 'fixed',
           left: `${posX}px`,
@@ -468,13 +492,13 @@ export const McpModal: React.FC<McpModalProps> = ({
           height: `${size.height}px`,
           right: 'auto',
           bottom: 'auto',
-          zIndex: 1000,
+          zIndex: 10100,
         }}
       >
         {/* Header - Interactive Drag Grip */}
         <div
           className="mcp-drawer-header draggable-header"
-          onMouseDown={handleHeaderMouseDown}
+          onPointerDown={handleHeaderPointerDown}
           title="Click and drag to move panel"
         >
           <div className="mcp-drawer-title-group">
@@ -490,9 +514,10 @@ export const McpModal: React.FC<McpModalProps> = ({
 
           <div className="mcp-header-actions">
             <button
+              type="button"
               className="mcp-drawer-header-btn"
               onClick={() => {
-                setPosition({ x: Math.max(20, window.innerWidth - defaultWidth - 24), y: 24 });
+                setPosition({ x: Math.max(20, window.innerWidth - defaultWidth - 24), y: defaultTop });
                 setSize({ width: defaultWidth, height: defaultHeight });
               }}
               title="Reset Position"
@@ -562,17 +587,18 @@ export const McpModal: React.FC<McpModalProps> = ({
                 {ASSISTANTS.map((asst) => (
                   <button
                     key={asst.id}
+                    type="button"
                     className={`assistant-chip ${selectedAssistant === asst.id ? 'selected' : ''}`}
                     onClick={() => setSelectedAssistant(asst.id)}
                     title={`Switch to ${asst.name}`}
                   >
                     <span className="assistant-chip-dot" style={{ backgroundColor: asst.color }}>●</span>
                     <span className="assistant-chip-name">{asst.name}</span>
-                    {asst.badge && <span className="assistant-chip-badge">{asst.badge}</span>}
                   </button>
                 ))}
 
                 <button
+                  type="button"
                   className="assistant-chip local-switch-btn"
                   onClick={() => setActiveTabType('local')}
                   title="Switch to Local Models (Ollama / LM Studio)"
@@ -585,6 +611,7 @@ export const McpModal: React.FC<McpModalProps> = ({
 
                 {activeTab?.url && (
                   <button
+                    type="button"
                     className="assistant-action-chip"
                     onClick={handleSendCurrentPage}
                     title="Send active tab URL and title to assistant"
@@ -595,16 +622,21 @@ export const McpModal: React.FC<McpModalProps> = ({
                 )}
 
                 <button
-                  className="assistant-action-chip"
+                  type="button"
+                  className="assistant-action-chip assistant-action-icon-only"
                   onClick={() => onNavigate?.(currentAssistant.url)}
                   title="Open in active browser tab"
+                  aria-label="Open in active browser tab"
                 >
                   <ExternalLink size={12} />
                 </button>
               </div>
 
               {/* Embedded Assistant Webview */}
-              <div className="assistant-webview-frame">
+              <div
+                className="assistant-webview-frame"
+                style={{ pointerEvents: isDragging || isResizing ? 'none' : 'auto' }}
+              >
                 {React.createElement('webview', {
                   ref: assistantWebviewRef,
                   src: currentAssistant.url,
@@ -854,7 +886,7 @@ export const McpModal: React.FC<McpModalProps> = ({
         {/* Interactive Bottom-Right Resize Grip Handle */}
         <div
           className="mcp-resize-handle"
-          onMouseDown={handleResizeMouseDown}
+          onPointerDown={handleResizePointerDown}
           title="Drag to resize panel"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">

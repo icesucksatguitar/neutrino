@@ -10,13 +10,24 @@ import { ThemeCustomizerModal } from './components/ThemeCustomizerModal';
 import { MediaPlayer } from './components/MediaPlayer';
 import { WelcomeModal, UserProfile } from './components/WelcomeModal';
 import { StartupSplash } from './components/StartupSplash';
-import { RightPinsDock } from './components/RightPinsDock';
+import { RightPinsDock, type PinnedSite } from './components/RightPinsDock';
 import { SettingsPanel } from './components/SettingsPanel';
+import { HistoryModal } from './components/HistoryModal';
+import { VpnModal } from './components/VpnModal';
 import { AuthHandoffNotice } from './components/AuthHandoffNotice';
 import { useSettings } from './hooks/useSettings';
-import { isHostExcluded, toggleSiteExclusion } from '../main/settings';
-import { Shield, Moon, Sun, Sparkles, Palette, Settings } from 'lucide-react';
-import { TabState, ActiveMediaState } from './types';
+import { isHostExcluded, resolveSpaceTheme, toggleSiteExclusion } from '../main/settings';
+import { type SpaceTheme, getDefaultSpaceTheme } from '../main/spaceTheme';
+import { applySpaceThemeToRoot, getOsPrefersDark } from './utils/applySpaceTheme';
+import { Shield, Moon, Sun, Sparkles, Palette, Settings, History, Lock } from 'lucide-react';
+import {
+  TabState,
+  ActiveMediaState,
+  HistoryEntry,
+  HistoryClearRange,
+  VpnConfig,
+  VpnStatus,
+} from './types';
 import './styles/theme.css';
 
 export function App() {
@@ -45,9 +56,16 @@ export function App() {
     zenOptimize,
   } = useBrowser();
 
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, isLoaded: settingsLoaded } = useSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setIsSettingsOpen(true), []);
+
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [isVpnModalOpen, setIsVpnModalOpen] = useState(false);
+  const [vpnStatus, setVpnStatus] = useState<VpnStatus | null>(null);
+  const [isCheckingVpnIp, setIsCheckingVpnIp] = useState(false);
+  const [vpnIpError, setVpnIpError] = useState<string | null>(null);
 
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isNotificationTabsOpen, setIsNotificationTabsOpen] = useState(false);
@@ -76,27 +94,36 @@ export function App() {
   const handleWelcomeComplete = (profile: UserProfile) => {
     setUserProfile(profile);
     setIsWelcomeOpen(false);
+    void updateSettings({
+      userProfile: profile,
+      onboardingCompleted: true,
+      theme: isDarkMode ? 'dark' : 'light',
+    });
   };
 
   // Display name edited in the Settings panel; same key and shape WelcomeModal writes.
-  const handleUserNameChange = useCallback((name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setUserProfile((prev) => {
-      const base: UserProfile = prev ?? {
-        name: trimmed,
-        email: null,
-        isGuest: true,
-        theme: 'obsidian',
-        mode: 'minimal',
-      };
-      const next: UserProfile = { ...base, name: trimmed };
-      try {
-        localStorage.setItem('neutrino_user_profile', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  }, []);
+  const handleUserNameChange = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setUserProfile((prev) => {
+        const base: UserProfile = prev ?? {
+          name: trimmed,
+          email: null,
+          isGuest: true,
+          theme: 'obsidian',
+          mode: 'minimal',
+        };
+        const next: UserProfile = { ...base, name: trimmed };
+        try {
+          localStorage.setItem('neutrino_user_profile', JSON.stringify(next));
+        } catch { }
+        void updateSettings({ userProfile: next });
+        return next;
+      });
+    },
+    [updateSettings]
+  );
 
   // Automated background memory compression (Zen backend); skipped while Zen auto-sleep is off.
   // Manual Zen commands (Command Bar) call zenOptimize directly and are unaffected.
@@ -121,7 +148,40 @@ export function App() {
 
   const shouldShowTopBar = !isHtmlFullscreen;
 
-  // Persistent Dark Theme state (default dark mode per brief: #0A0A0B)
+  // Track OS dark/light preference for Spaces configured in 'auto' mode
+  const [osPrefersDark, setOsPrefersDark] = useState<boolean>(() => getOsPrefersDark());
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setOsPrefersDark(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const activeSpace = state.spaces.find((s) => s.id === state.activeSpaceId) || state.spaces[0];
+  const activeSpaceTheme = resolveSpaceTheme(settings, state.activeSpaceId);
+
+  const themeTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerThemeCrossFade = useCallback(() => {
+    if (themeTransitionTimerRef.current !== null) {
+      clearTimeout(themeTransitionTimerRef.current);
+    }
+    document.documentElement.classList.add('space-theme-transitioning');
+    themeTransitionTimerRef.current = setTimeout(() => {
+      themeTransitionTimerRef.current = null;
+      document.documentElement.classList.remove('space-theme-transitioning');
+    }, 320);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (themeTransitionTimerRef.current !== null) {
+        clearTimeout(themeTransitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Persistent Dark Theme state (kept in sync with active Space theme effective mode)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('neutrino_dark_theme');
@@ -131,54 +191,141 @@ export function App() {
     }
   });
 
-  // Persist and apply a theme mode; shared by the top-bar toggle, Command Bar and Settings panel.
-  const applyDarkModeSideEffects = (next: boolean) => {
+  const lastIpcThemeModeRef = useRef<string | null>(null);
+  useEffect(() => {
+    const palette = applySpaceThemeToRoot(activeSpaceTheme, osPrefersDark);
+    const nextDark = palette.effectiveMode === 'dark';
+    setIsDarkMode((prev) => (prev === nextDark ? prev : nextDark));
     try {
-      localStorage.setItem('neutrino_dark_theme', next ? 'true' : 'false');
-    } catch {}
-    if (next) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.classList.add('dark-mode');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.body.classList.remove('dark-mode');
-    }
-  };
+      localStorage.setItem('neutrino_dark_theme', nextDark ? 'true' : 'false');
+    } catch { }
 
-  const setDarkMode = useCallback((next: boolean) => {
-    applyDarkModeSideEffects(next);
-    setIsDarkMode(next);
-  }, []);
+    const desiredIpcMode: 'dark' | 'light' | 'system' =
+      activeSpaceTheme.mode === 'auto' ? 'system' : nextDark ? 'dark' : 'light';
+    if (lastIpcThemeModeRef.current !== desiredIpcMode) {
+      lastIpcThemeModeRef.current = desiredIpcMode;
+      void window.neutrino?.setThemeMode?.(desiredIpcMode);
+    }
+  }, [activeSpaceTheme, osPrefersDark]);
+
+  const handleChangeSpaceTheme = useCallback(
+    (nextTheme: SpaceTheme, options?: { immediateSave?: boolean; animateTransition?: boolean }) => {
+      if (options?.animateTransition) {
+        triggerThemeCrossFade();
+      }
+      const palette = applySpaceThemeToRoot(nextTheme, osPrefersDark);
+      if (options?.immediateSave !== false) {
+        void updateSettings({
+          theme: palette.effectiveMode,
+          spaceThemes: {
+            ...(settings.spaceThemes || {}),
+            [state.activeSpaceId]: nextTheme,
+          },
+        });
+      }
+    },
+    [osPrefersDark, settings.spaceThemes, state.activeSpaceId, triggerThemeCrossFade, updateSettings]
+  );
+
+  const handleResetSpaceTheme = useCallback(() => {
+    triggerThemeCrossFade();
+    const fallbackTheme = getDefaultSpaceTheme(state.activeSpaceId);
+    const palette = applySpaceThemeToRoot(fallbackTheme, osPrefersDark);
+    void updateSettings({
+      theme: palette.effectiveMode,
+      spaceThemes: {
+        ...(settings.spaceThemes || {}),
+        [state.activeSpaceId]: fallbackTheme,
+      },
+    });
+  }, [osPrefersDark, settings.spaceThemes, state.activeSpaceId, triggerThemeCrossFade, updateSettings]);
+
+  // Persist and apply a theme mode for the active Space; shared by top-bar toggle & Settings panel.
+  const setDarkMode = useCallback(
+    (next: boolean) => {
+      triggerThemeCrossFade();
+      const updatedTheme: SpaceTheme = {
+        ...activeSpaceTheme,
+        mode: next ? 'dark' : 'light',
+      };
+      applySpaceThemeToRoot(updatedTheme, osPrefersDark);
+      setIsDarkMode(next);
+      void window.neutrino?.setThemeMode?.(next ? 'dark' : 'light');
+      void updateSettings({
+        theme: next ? 'dark' : 'light',
+        spaceThemes: {
+          ...(settings.spaceThemes || {}),
+          [state.activeSpaceId]: updatedTheme,
+        },
+      });
+    },
+    [activeSpaceTheme, osPrefersDark, settings.spaceThemes, state.activeSpaceId, triggerThemeCrossFade, updateSettings]
+  );
 
   const toggleDarkMode = () => {
-    setIsDarkMode((prev) => {
-      const next = !prev;
-      applyDarkModeSideEffects(next);
-      return next;
-    });
+    setDarkMode(!isDarkMode);
   };
 
+  // Reconcile cached main-process settings (`browser-state.json`) once loaded on startup
+  const hydratedFromMainRef = useRef(false);
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.classList.add('dark-mode');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.body.classList.remove('dark-mode');
-    }
-    window.neutrino?.setThemeMode?.(isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+    if (!settingsLoaded || hydratedFromMainRef.current) return;
+    hydratedFromMainRef.current = true;
 
-  // Clean up any legacy zoom locks or bad themes
+    const migrationPatch: Record<string, unknown> = {};
+
+    if (settings.theme !== 'dark' && settings.theme !== 'light') {
+      migrationPatch.theme = isDarkMode ? 'dark' : 'light';
+    }
+
+    const persistedProfile = settings.userProfile as UserProfile | undefined;
+    if (persistedProfile && typeof persistedProfile === 'object' && typeof persistedProfile.name === 'string') {
+      setUserProfile(persistedProfile);
+      setIsWelcomeOpen(false);
+      try {
+        localStorage.setItem('neutrino_user_profile', JSON.stringify(persistedProfile));
+        localStorage.setItem('neutrino_onboarding_completed', 'true');
+      } catch { }
+    } else if (settings.onboardingCompleted === true) {
+      setIsWelcomeOpen(false);
+      try {
+        localStorage.setItem('neutrino_onboarding_completed', 'true');
+      } catch { }
+    } else if (userProfile) {
+      migrationPatch.userProfile = userProfile;
+      migrationPatch.onboardingCompleted = true;
+    }
+
+    if (!settings.customTheme) {
+      try {
+        const savedTheme = localStorage.getItem('neutrino_simple_theme_v5');
+        if (savedTheme) migrationPatch.customTheme = JSON.parse(savedTheme);
+      } catch { }
+    }
+
+    if (!Array.isArray(settings.pinnedSites)) {
+      try {
+        const savedPins = localStorage.getItem('neutrino_pinned_sites');
+        if (savedPins) migrationPatch.pinnedSites = JSON.parse(savedPins);
+      } catch { }
+    }
+
+    if (Object.keys(migrationPatch).length > 0) {
+      void updateSettings(migrationPatch);
+    }
+  }, [settingsLoaded, settings, isDarkMode, userProfile, updateSettings]);
+
+  // Clean up any legacy zoom locks or invalid custom themes
   useEffect(() => {
     try {
       localStorage.removeItem('neutrino_browser_zoom');
       localStorage.removeItem('neutrino_homescreen_scale');
+      const validAccents = new Set(['#FFFFFF', '#1C1917', '#E4E4E7', '#71717A', '#38BDF8', '#10B981']);
       const savedTheme = localStorage.getItem('neutrino_simple_theme_v5');
       if (savedTheme) {
         try {
           const parsed = JSON.parse(savedTheme);
-          if (parsed.accent && parsed.accent !== '#FFFFFF' && parsed.accent !== '#1C1917' && parsed.accent !== '#E4E4E7' && parsed.accent !== '#71717A') {
+          if (parsed.accent && !validAccents.has(String(parsed.accent).toUpperCase())) {
             localStorage.removeItem('neutrino_simple_theme_v5');
           }
         } catch {
@@ -186,7 +333,7 @@ export function App() {
         }
       }
       document.documentElement.style.zoom = '';
-    } catch {}
+    } catch { }
   }, []);
 
   // Persistent Media Player state (PiP when backgrounded)
@@ -217,6 +364,8 @@ export function App() {
     const currentIdx = state.spaces.findIndex((s) => s.id === state.activeSpaceId);
     const nextIdx = state.spaces.findIndex((s) => s.id === spaceId);
     const nextSpace = state.spaces.find((s) => s.id === spaceId);
+
+    triggerThemeCrossFade();
 
     const dirClass = nextIdx >= currentIdx ? 'space-transition-left' : 'space-transition-right';
     setSpaceTransitionClass(dirClass);
@@ -266,15 +415,25 @@ export function App() {
       setIsNotificationTabsOpen(false);
       setIsCommandBarOpen(false);
       setIsSettingsOpen(false);
+      setIsThemeModalOpen(false);
+      setIsHistoryModalOpen(false);
+      setIsVpnModalOpen(false);
     });
     // Ctrl+Comma while a webview has focus (main process before-input-event)
     const unsubIpcSettings = window.neutrino?.onOpenSettings?.(() => {
       setIsSettingsOpen(true);
     });
-    // neutrino://settings from useBrowser.navigate
+    const unsubIpcHistory = window.neutrino?.onOpenHistory?.(() => {
+      setIsHistoryModalOpen(true);
+    });
+    // neutrino://settings, neutrino://history, neutrino://vpn from useBrowser.navigate
     const handleOpenSettingsEvent = () => setIsSettingsOpen(true);
+    const handleOpenHistoryEvent = () => setIsHistoryModalOpen(true);
+    const handleOpenVpnEvent = () => setIsVpnModalOpen(true);
 
     window.addEventListener('neutrino:open-settings', handleOpenSettingsEvent);
+    window.addEventListener('neutrino:open-history', handleOpenHistoryEvent);
+    window.addEventListener('neutrino:open-vpn', handleOpenVpnEvent);
     window.addEventListener('neutrino:open-command-bar', handleOpenCommandBar);
     window.addEventListener('neutrino:close-command-bar', handleCloseCommandBar);
     window.addEventListener('neutrino:toggle-tabs', handleToggleTabs);
@@ -298,7 +457,10 @@ export function App() {
       unsubIpcCmd?.();
       unsubIpcEsc?.();
       unsubIpcSettings?.();
+      unsubIpcHistory?.();
       window.removeEventListener('neutrino:open-settings', handleOpenSettingsEvent);
+      window.removeEventListener('neutrino:open-history', handleOpenHistoryEvent);
+      window.removeEventListener('neutrino:open-vpn', handleOpenVpnEvent);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('neutrino:open-command-bar', handleOpenCommandBar);
       window.removeEventListener('neutrino:close-command-bar', handleCloseCommandBar);
@@ -306,6 +468,42 @@ export function App() {
       window.removeEventListener('neutrino:close-active-tab', handleCloseActiveTab);
     };
   }, [state.activeTabId, state.spaces, activeTab, closeTab, handleSelectSpace, setIsCommandBarOpen]);
+
+  // History & Built-in VPN state hydration and live IPC subscriptions
+  useEffect(() => {
+    void window.neutrino?.getHistory?.({ limit: 500 }).then((list) => {
+      if (Array.isArray(list)) setHistoryEntries(list);
+    });
+    const unsubHistory = window.neutrino?.onHistoryUpdated?.((entries) => {
+      if (Array.isArray(entries)) setHistoryEntries(entries);
+    });
+
+    void window.neutrino?.getVpnStatus?.().then((status) => {
+      if (status) setVpnStatus(status);
+    });
+    const unsubVpn = window.neutrino?.onVpnStatusUpdated?.((status) => {
+      if (status) setVpnStatus(status);
+    });
+
+    return () => {
+      unsubHistory?.();
+      unsubVpn?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHistoryModalOpen) return;
+    void window.neutrino?.getHistory?.({ limit: 500 }).then((list) => {
+      if (Array.isArray(list)) setHistoryEntries(list);
+    });
+  }, [isHistoryModalOpen]);
+
+  useEffect(() => {
+    if (!isVpnModalOpen) return;
+    void window.neutrino?.getVpnStatus?.().then((status) => {
+      if (status) setVpnStatus(status);
+    });
+  }, [isVpnModalOpen]);
 
   // Listen for media commands from MCP or external calls
   useEffect(() => {
@@ -352,7 +550,7 @@ export function App() {
       dismissedMediaTabsRef.current.add(activeMediaState.tabId);
       try {
         setMediaCommand({ action: 'pause', tabId: activeMediaState.tabId, timestamp: Date.now() });
-      } catch {}
+      } catch { }
     }
     setActiveMediaState(null);
   };
@@ -396,6 +594,12 @@ export function App() {
           e.stopImmediatePropagation();
           setIsCommandBarOpen(false);
           setIsSettingsOpen(true);
+        } else if (key === 'h') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          setIsCommandBarOpen(false);
+          setIsHistoryModalOpen((prev) => !prev);
         }
       }
     };
@@ -419,6 +623,57 @@ export function App() {
   const shieldsBlockedCount =
     state.shieldStats.totalBlocked || (state.shieldStats.trackersBlocked + state.shieldStats.adsBlocked);
 
+  const handleOpenHistoryUrl = useCallback(
+    (url: string, options?: { newTab?: boolean }) => {
+      if (options?.newTab || !activeTab) {
+        void createTab(url, state.activeSpaceId);
+      } else {
+        navigate(url);
+      }
+    },
+    [activeTab, createTab, navigate, state.activeSpaceId],
+  );
+
+  const handleDeleteHistoryEntry = useCallback(async (entry: HistoryEntry) => {
+    await window.neutrino?.deleteHistoryEntry?.({
+      id: entry.id,
+      url: entry.url,
+      timestamp: entry.timestamp,
+    });
+  }, []);
+
+  const handleClearHistory = useCallback(async (range: HistoryClearRange) => {
+    await window.neutrino?.clearHistory?.(range);
+  }, []);
+
+  const handleVpnConnect = useCallback(async (patch?: Partial<VpnConfig>) => {
+    const next = await window.neutrino?.connectVpn?.(patch);
+    if (next) setVpnStatus(next);
+  }, []);
+
+  const handleVpnDisconnect = useCallback(async () => {
+    const next = await window.neutrino?.disconnectVpn?.();
+    if (next) setVpnStatus(next);
+  }, []);
+
+  const handleVpnUpdateConfig = useCallback(async (patch: Partial<VpnConfig>) => {
+    const next = await window.neutrino?.updateVpnConfig?.(patch);
+    if (next) setVpnStatus(next);
+  }, []);
+
+  const handleVpnCheckIp = useCallback(async () => {
+    setIsCheckingVpnIp(true);
+    setVpnIpError(null);
+    try {
+      const res = await window.neutrino?.checkVpnIp?.();
+      if (res && 'error' in res) {
+        setVpnIpError(res.error);
+      }
+    } finally {
+      setIsCheckingVpnIp(false);
+    }
+  }, []);
+
   const shouldShowMiniPlayer =
     activeMediaState &&
     activeMediaState.isPlaying &&
@@ -426,6 +681,7 @@ export function App() {
 
   return (
     <div className="arc-app-shell radical-minimalism-shell">
+      <div className="space-grain-overlay" aria-hidden="true" />
       {/* Frameless Top Drag Bar */}
       {!isHtmlFullscreen && (
         <div className={`macos-window-drag-bar ${isWebpage ? 'on-webpage' : ''}`} />
@@ -504,6 +760,22 @@ export function App() {
         {/* Top Right Controls: Modern Vector Icons (Monochromatic) */}
         <div className="minimal-top-right-cluster">
           <button
+            className={`minimal-pill-btn vpn-top-pill ${vpnStatus?.state === 'connected' ? 'vpn-connected' : vpnStatus?.state === 'error' ? 'vpn-error' : ''}`}
+            onClick={() => setIsVpnModalOpen(!isVpnModalOpen)}
+            title={
+              vpnStatus?.state === 'connected'
+                ? `VPN Tunnel Active (${vpnStatus.activeProxyRule || vpnStatus.config.mode})`
+                : vpnStatus?.state === 'error'
+                  ? `VPN Error: ${vpnStatus.lastError || 'Check tunnel'}`
+                  : 'Built-in VPN & Privacy Tunnel'
+            }
+            aria-label="Built-in VPN"
+          >
+            <Lock size={13} className="modern-btn-icon" />
+            <span>{vpnStatus?.state === 'connected' ? 'VPN ON' : 'VPN'}</span>
+          </button>
+
+          <button
             className="minimal-pill-btn"
             onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
             title={
@@ -515,6 +787,15 @@ export function App() {
           >
             <Shield size={14} className="modern-btn-icon" />
             <span>{shieldsBlockedCount}</span>
+          </button>
+
+          <button
+            className="minimal-icon-btn"
+            onClick={() => setIsHistoryModalOpen((prev) => !prev)}
+            title="Browsing History (Ctrl+H)"
+            aria-label="Browsing History"
+          >
+            <History size={15} />
           </button>
 
           <button
@@ -600,7 +881,12 @@ export function App() {
       <AuthHandoffNotice />
 
       {/* Vertical Pinned Websites Dock (Right Side with macOS Magnification) */}
-      <RightPinsDock onNavigate={navigate} isOnWebpage={isWebpage} />
+      <RightPinsDock
+        onNavigate={navigate}
+        isOnWebpage={isWebpage}
+        persistedPins={Array.isArray(settings.pinnedSites) ? (settings.pinnedSites as PinnedSite[]) : undefined}
+        onPersistPins={(pins) => void updateSettings({ pinnedSites: pins })}
+      />
 
       {/* Floating Media Player (PiP) */}
       {shouldShowMiniPlayer && (
@@ -632,9 +918,34 @@ export function App() {
         onOpenShields={() => setIsShieldModalOpen(true)}
         searchEngine={settings.searchEngine}
         onOpenSettings={openSettings}
+        onOpenHistory={() => setIsHistoryModalOpen(true)}
+        onOpenVpn={() => setIsVpnModalOpen(true)}
         activeTabUrl={activeTabUrl}
         isActiveSiteExcluded={isActiveSiteExcluded}
         onToggleSiteDarkMode={handleToggleSiteDarkMode}
+      />
+
+      {/* Built-in VPN / Privacy Tunnel Modal */}
+      <VpnModal
+        isOpen={isVpnModalOpen}
+        onClose={() => setIsVpnModalOpen(false)}
+        status={vpnStatus}
+        onConnect={handleVpnConnect}
+        onDisconnect={handleVpnDisconnect}
+        onUpdateConfig={handleVpnUpdateConfig}
+        onCheckIp={handleVpnCheckIp}
+        isCheckingIp={isCheckingVpnIp}
+        ipCheckError={vpnIpError}
+      />
+
+      {/* Browsing History Modal */}
+      <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        entries={historyEntries}
+        onOpenUrl={handleOpenHistoryUrl}
+        onDeleteEntry={handleDeleteHistoryEntry}
+        onClearHistory={handleClearHistory}
       />
 
       {/* Shield Modal Flyout */}
@@ -670,10 +981,22 @@ export function App() {
         initialTab={mcpInitialTab}
       />
 
-      {/* Theme Studio Modal */}
+      {/* Theme Studio Popover */}
       <ThemeCustomizerModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+        activeSpace={activeSpace}
+        spaceTheme={activeSpaceTheme}
+        onChangeSpaceTheme={handleChangeSpaceTheme}
+        onResetSpaceTheme={handleResetSpaceTheme}
+        isDarkMode={isDarkMode}
+        onSetDarkMode={setDarkMode}
+        persistedCustomTheme={
+          settings.customTheme && typeof settings.customTheme === 'object'
+            ? (settings.customTheme as { themeId: string; accent: string })
+            : undefined
+        }
+        onPersistCustomTheme={(customTheme) => void updateSettings({ customTheme })}
       />
 
       {/* Welcome / Onboarding Flow for First Launch */}

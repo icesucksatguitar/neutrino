@@ -19,6 +19,8 @@ interface CommandBarProps {
   onOpenShields?: () => void;
   searchEngine?: SearchEngineId;
   onOpenSettings?: () => void;
+  onOpenHistory?: () => void;
+  onOpenVpn?: () => void;
   activeTabUrl?: string;
   isActiveSiteExcluded?: boolean;
   onToggleSiteDarkMode?: () => void;
@@ -98,6 +100,8 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   onOpenShields,
   searchEngine = 'google',
   onOpenSettings,
+  onOpenHistory,
+  onOpenVpn,
   activeTabUrl,
   isActiveSiteExcluded,
   onToggleSiteDarkMode,
@@ -239,6 +243,24 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       hint: 'Privacy',
       action: () => {
         onOpenShields?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-history',
+      title: '> View Browsing History',
+      hint: 'Ctrl+H',
+      action: () => {
+        onOpenHistory?.();
+        onClose();
+      },
+    },
+    {
+      id: 'cmd-vpn',
+      title: '> Open Built-in VPN & Privacy Tunnel',
+      hint: 'VPN / DoH',
+      action: () => {
+        onOpenVpn?.();
         onClose();
       },
     },

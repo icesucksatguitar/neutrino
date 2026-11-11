@@ -1,6 +1,16 @@
 // Pure browser-settings rules shared by the main process and the renderer.
 // No Electron import: the renderer imports this module too (Vite resolves it), and tests run it directly.
 
+import {
+  type SpaceTheme,
+  type SpaceThemesMap,
+  getDefaultSpaceTheme,
+  normalizeSpaceThemesMap,
+  validateAndClampSpaceTheme,
+} from './spaceTheme';
+
+export type { SpaceTheme, SpaceThemesMap };
+
 export type SearchEngineId = 'google' | 'duckduckgo' | 'bing' | 'brave';
 
 export const SEARCH_ENGINES: Readonly<Record<SearchEngineId, { readonly label: string; readonly prefix: string }>> =
@@ -16,6 +26,7 @@ export interface BrowserSettings {
   adblockEnabled: boolean;
   zenSleepEnabled: boolean;
   searchEngine: SearchEngineId;
+  spaceThemes?: SpaceThemesMap;
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
 }
 
@@ -181,6 +192,37 @@ function normalizeSearchEngine(value: unknown): SearchEngineId {
   return DEFAULT_SETTINGS.searchEngine;
 }
 
+const DEFAULT_SPACE_IDS = ['space-study', 'space-work', 'space-leisure'] as const;
+
+function buildSpaceThemes(rawMap: unknown, source: Record<string, unknown>): SpaceThemesMap {
+  const hasExplicitLegacyOverride =
+    source.theme === 'light' ||
+    (source.customTheme !== null && typeof source.customTheme === 'object' && !Array.isArray(source.customTheme));
+
+  const legacyContext = hasExplicitLegacyOverride ? source : undefined;
+  const normalized = normalizeSpaceThemesMap(rawMap, legacyContext);
+
+  if (Object.keys(normalized).length === 0) {
+    for (const spaceId of DEFAULT_SPACE_IDS) {
+      normalized[spaceId] = getDefaultSpaceTheme(spaceId, legacyContext);
+    }
+  }
+  return normalized;
+}
+
+export function resolveSpaceTheme(settings: BrowserSettings | Record<string, unknown>, spaceId: string): SpaceTheme {
+  const src = settings as Record<string, unknown>;
+  const hasExplicitLegacyOverride =
+    src.theme === 'light' ||
+    (src.customTheme !== null && typeof src.customTheme === 'object' && !Array.isArray(src.customTheme));
+  const fallback = getDefaultSpaceTheme(spaceId, hasExplicitLegacyOverride ? src : undefined);
+  const map = src.spaceThemes as Record<string, unknown> | undefined;
+  if (map && typeof map === 'object' && !Array.isArray(map) && hasOwn(map, spaceId)) {
+    return validateAndClampSpaceTheme(map[spaceId], fallback);
+  }
+  return fallback;
+}
+
 /** Fills missing or invalid fields with defaults, keeps unknown keys. Idempotent. */
 export function normalizeSettings(raw: unknown): BrowserSettings {
   const source: Record<string, unknown> =
@@ -192,5 +234,6 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
     zenSleepEnabled:
       typeof source.zenSleepEnabled === 'boolean' ? source.zenSleepEnabled : DEFAULT_SETTINGS.zenSleepEnabled,
     searchEngine: normalizeSearchEngine(source.searchEngine),
+    spaceThemes: buildSpaceThemes(source.spaceThemes, source),
   };
 }

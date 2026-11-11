@@ -43,9 +43,38 @@ export interface LocalSyncPayload {
   exportedAt: number;
 }
 
+export interface PersistedState {
+  spaces: Space[];
+  bookmarks: Bookmark[];
+  settings: Record<string, unknown>;
+}
+
+function cloneState<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function writeFileAtomicSync(targetPath: string, data: string): void {
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(tmpPath, data, 'utf-8');
+    fs.renameSync(tmpPath, targetPath);
+  } catch (err) {
+    try {
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+    } catch {
+      // ignore cleanup errors
+    }
+    throw err;
+  }
+}
+
 export class LocalStorageManager {
   private dataDir: string;
   private stateFilePath: string;
+  private cachedState: PersistedState | null = null;
 
   constructor() {
     this.dataDir = path.join(app.getPath('userData'), 'neutrino-data');
@@ -55,11 +84,16 @@ export class LocalStorageManager {
     this.stateFilePath = path.join(this.dataDir, 'browser-state.json');
   }
 
-  public loadState(): {
-    spaces: Space[];
-    bookmarks: Bookmark[];
-    settings: Record<string, unknown>;
-  } {
+  /** Invalidates the in-memory cache so the next loadState() reads from disk. */
+  public invalidateCache(): void {
+    this.cachedState = null;
+  }
+
+  public loadState(): PersistedState {
+    if (this.cachedState) {
+      return cloneState(this.cachedState);
+    }
+
     const defaultSpaces: Space[] = [
       { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' },
       { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' },
@@ -67,16 +101,18 @@ export class LocalStorageManager {
     ];
 
     if (!fs.existsSync(this.stateFilePath)) {
-      return {
+      const initial: PersistedState = {
         spaces: defaultSpaces,
         bookmarks: [],
         settings: {
-          searchEngine: 'https://www.google.com/search?q=',
+          searchEngine: 'google',
           adblockEnabled: true,
           zenSleepEnabled: true,
           theme: 'dark',
         },
       };
+      this.cachedState = cloneState(initial);
+      return cloneState(initial);
     }
 
     try {
@@ -96,17 +132,21 @@ export class LocalStorageManager {
         }
         return sp;
       });
-      return {
+      const state: PersistedState = {
         spaces: rawSpaces,
         bookmarks: parsed.bookmarks || [],
         settings: parsed.settings || {},
       };
+      this.cachedState = cloneState(state);
+      return cloneState(state);
     } catch {
-      return {
+      const fallback: PersistedState = {
         spaces: defaultSpaces,
         bookmarks: [],
         settings: {},
       };
+      this.cachedState = cloneState(fallback);
+      return cloneState(fallback);
     }
   }
 
@@ -117,12 +157,13 @@ export class LocalStorageManager {
   }) {
     try {
       const existing = this.loadState();
-      const payload = {
+      const payload: PersistedState = {
         spaces: state.spaces,
         bookmarks: state.bookmarks || existing.bookmarks,
         settings: state.settings || existing.settings,
       };
-      fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2), 'utf-8');
+      writeFileAtomicSync(this.stateFilePath, JSON.stringify(payload, null, 2));
+      this.cachedState = cloneState(payload);
     } catch (err) {
       console.error('[Storage Error] Failed to persist state:', err);
     }
@@ -132,15 +173,24 @@ export class LocalStorageManager {
   public saveSettings(settings: Record<string, unknown>) {
     try {
       const existing = this.loadState();
-      const payload = {
+      const payload: PersistedState = {
         spaces: existing.spaces,
         bookmarks: existing.bookmarks,
         settings,
       };
-      fs.writeFileSync(this.stateFilePath, JSON.stringify(payload, null, 2), 'utf-8');
+      writeFileAtomicSync(this.stateFilePath, JSON.stringify(payload, null, 2));
+      this.cachedState = cloneState(payload);
     } catch (err) {
       console.error('[Storage Error] Failed to persist settings:', err);
     }
+  }
+
+  /** Merges a partial settings patch into cached settings and persists atomically. */
+  public patchSettings(patch: Record<string, unknown>): Record<string, unknown> {
+    const existing = this.loadState();
+    const merged = { ...existing.settings, ...patch };
+    this.saveSettings(merged);
+    return cloneState(merged);
   }
 
   public exportSyncPackage(): string {

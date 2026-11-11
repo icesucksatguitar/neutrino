@@ -1,5 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Check } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Monitor, Moon, Plus, RotateCcw, Sun, Trash2 } from 'lucide-react';
+import {
+  SPACE_THEME_PRESETS,
+  type SpaceTheme,
+  type SpaceThemeMode,
+  type SpaceThemePoint,
+  cloneSpaceTheme,
+  clamp01,
+  clampWheelPos,
+  colorToWheelPos,
+  getDefaultSpaceTheme,
+  hexToHsl,
+  hslToHex,
+  hueSatToWheelPos,
+  normalizeHex,
+  wheelPosToColorKeepingLightness,
+  wheelPosToHueSat,
+} from '../../main/spaceTheme';
+import { applySpaceThemeToRoot, getOsPrefersDark } from '../utils/applySpaceTheme';
 
 export interface SimpleTheme {
   id: string;
@@ -46,158 +64,589 @@ export const ACCENT_COLORS = [
   { name: 'Emerald', hex: '#10b981' },
 ];
 
+export interface CustomThemePreference {
+  themeId: string;
+  accent: string;
+}
+
 export interface ThemeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  activeSpace?: { id: string; name: string };
+  spaceTheme?: SpaceTheme;
+  onChangeSpaceTheme?: (
+    nextTheme: SpaceTheme,
+    options?: { immediateSave?: boolean; animateTransition?: boolean }
+  ) => void;
+  onResetSpaceTheme?: () => void;
+  isDarkMode?: boolean;
+  onSetDarkMode?: (dark: boolean) => void;
+  persistedCustomTheme?: CustomThemePreference;
+  onPersistCustomTheme?: (customTheme: CustomThemePreference) => void;
 }
 
-export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({ isOpen, onClose }) => {
-  const [selectedThemeId, setSelectedThemeId] = useState('radical-dark');
-  const [selectedAccent, setSelectedAccent] = useState('#FFFFFF');
+export const ThemeCustomizerModal: React.FC<ThemeModalProps> = ({
+  isOpen,
+  onClose,
+  activeSpace = { id: 'space-study', name: 'Study' },
+  spaceTheme,
+  onChangeSpaceTheme,
+  onResetSpaceTheme,
+}) => {
+  const initialTheme = spaceTheme ? cloneSpaceTheme(spaceTheme) : getDefaultSpaceTheme(activeSpace.id);
+  const [draftTheme, setDraftTheme] = useState<SpaceTheme>(initialTheme);
+  const [selectedDotIndex, setSelectedDotIndex] = useState<number>(0);
+  const [hexDraft, setHexDraft] = useState<string>(initialTheme.points[0]?.color || '#0E5E43');
+  const [isWheelDragging, setIsWheelDragging] = useState<boolean>(false);
 
-  const applyTheme = useCallback((theme: SimpleTheme, accent: string) => {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', theme.mode);
-    if (theme.mode === 'dark') {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
+      const wheelRef = useRef<HTMLDivElement | null>(null);
+      const draftRef = useRef<SpaceTheme>(initialTheme);
+      const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+      const pendingCommitThemeRef = useRef<SpaceTheme | null>(null);
+      const dragRafRef = useRef<number | null>(null);
+      const dragDotIndexRef = useRef<number>(0);
+
+      // Keep draft synced when Space or external settings change while not actively dragging
+      useEffect(() => {
+        if (!spaceTheme || isWheelDragging) return;
+        const next = cloneSpaceTheme(spaceTheme);
+        setDraftTheme(next);
+        draftRef.current = next;
+        const clampedIdx = Math.min(selectedDotIndex, next.points.length - 1);
+        setSelectedDotIndex(clampedIdx);
+        setHexDraft(next.points[clampedIdx]?.color || next.points[0].color);
+      }, [spaceTheme, activeSpace.id, isOpen, isWheelDragging, selectedDotIndex]);
+
+      const flushPendingSave = useCallback(() => {
+        if (debounceTimerRef.current !== null) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        if (pendingCommitThemeRef.current) {
+          const toCommit = pendingCommitThemeRef.current;
+          pendingCommitThemeRef.current = null;
+          onChangeSpaceTheme?.(toCommit, { immediateSave: true });
+        }
+      }, [onChangeSpaceTheme]);
+
+      useEffect(() => {
+        return () => {
+          if (dragRafRef.current !== null) {
+            cancelAnimationFrame(dragRafRef.current);
+            dragRafRef.current = null;
+          }
+          flushPendingSave();
+        };
+      }, [flushPendingSave]);
+
+        // Esc closes the floating popover
+        useEffect(() => {
+          if (!isOpen) return;
+          const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              flushPendingSave();
+              onClose();
+            }
+          };
+          window.addEventListener('keydown', onKeyDown, true);
+          return () => window.removeEventListener('keydown', onKeyDown, true);
+        }, [isOpen, flushPendingSave, onClose]);
+
+        const applyLiveAndScheduleSave = useCallback(
+          (nextTheme: SpaceTheme, options?: { immediateSave?: boolean; animateTransition?: boolean }) => {
+            draftRef.current = nextTheme;
+            setDraftTheme(nextTheme);
+            applySpaceThemeToRoot(nextTheme, getOsPrefersDark());
+
+            if (options?.immediateSave) {
+              if (debounceTimerRef.current !== null) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+              }
+              pendingCommitThemeRef.current = null;
+              onChangeSpaceTheme?.(nextTheme, { immediateSave: true, animateTransition: options.animateTransition });
+              return;
+            }
+
+            pendingCommitThemeRef.current = nextTheme;
+            if (debounceTimerRef.current !== null) {
+              clearTimeout(debounceTimerRef.current);
+            }
+            debounceTimerRef.current = setTimeout(() => {
+              debounceTimerRef.current = null;
+              const latest = pendingCommitThemeRef.current;
+              pendingCommitThemeRef.current = null;
+              if (latest) {
+                onChangeSpaceTheme?.(latest, { immediateSave: true });
+              }
+            }, 150);
+          },
+          [onChangeSpaceTheme]
+        );
+
+        const updatePointFromClientXY = useCallback(
+          (clientX: number, clientY: number, pointIndex: number) => {
+            const wheelEl = wheelRef.current;
+            if (!wheelEl) return;
+            const rect = wheelEl.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+
+            const rawX = (clientX - rect.left) / rect.width;
+            const rawY = (clientY - rect.top) / rect.height;
+            const clamped = clampWheelPos(rawX, rawY);
+
+            const cur = draftRef.current;
+            const currentPoint = cur.points[pointIndex];
+            if (!currentPoint) return;
+
+            const nextColor = wheelPosToColorKeepingLightness(clamped.x, clamped.y, currentPoint.color);
+            const nextPoints = cur.points.map((pt, idx) =>
+              idx === pointIndex ? { color: nextColor, x: clamped.x, y: clamped.y } : pt
+            );
+            const nextTheme: SpaceTheme = { ...cur, points: nextPoints };
+            setHexDraft(nextColor);
+            applyLiveAndScheduleSave(nextTheme);
+          },
+          [applyLiveAndScheduleSave]
+        );
+
+        const handleWheelPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+          const dotEl = (e.target as HTMLElement).closest<HTMLElement>('[data-dot-index]');
+          let targetIdx = selectedDotIndex;
+
+          if (dotEl) {
+            targetIdx = Number(dotEl.dataset.dotIndex);
+          } else if (wheelRef.current) {
+            // Clicking empty area on the wheel picks nearest dot to pointer so interaction feels effortless
+            const rect = wheelRef.current.getBoundingClientRect();
+            const relX = (e.clientX - rect.left) / Math.max(1, rect.width);
+            const relY = (e.clientY - rect.top) / Math.max(1, rect.height);
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            draftRef.current.points.forEach((pt, idx) => {
+              const d = Math.hypot(pt.x - relX, pt.y - relY);
+              if (d < bestDist) {
+                bestDist = d;
+                bestIdx = idx;
+              }
+            });
+            targetIdx = bestIdx;
+          }
+
+    setSelectedDotIndex(targetIdx);
+    dragDotIndexRef.current = targetIdx;
+    setIsWheelDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore synthetic events without active pointerId
     }
+    updatePointFromClientXY(e.clientX, e.clientY, targetIdx);
+  };
 
-    root.style.setProperty('--bg', theme.bgApp);
-    root.style.setProperty('--bg-app', theme.bgApp);
-    root.style.setProperty('--bg-sidebar', theme.mode === 'dark' ? 'rgba(18, 18, 22, 0.88)' : 'rgba(245, 245, 247, 0.92)');
-    root.style.setProperty('--surface', theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.88)');
-    root.style.setProperty('--surface-solid', theme.bgCard);
-    root.style.setProperty('--bg-card', theme.bgCard);
-    root.style.setProperty('--bg-input', theme.bgInput);
-    root.style.setProperty('--text', theme.textMain);
-    root.style.setProperty('--text-main', theme.textMain);
-    root.style.setProperty('--text-muted', theme.textMuted);
-    root.style.setProperty('--border', theme.borderSubtle);
-    root.style.setProperty('--accent', accent);
-    root.style.setProperty('--accent-soft', `${accent}25`);
-    root.style.setProperty('--accent-glow', `0 0 20px ${accent}40`);
-    root.style.colorScheme = theme.mode;
+    const handleWheelPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isWheelDragging) return;
+      const cx = e.clientX;
+      const cy = e.clientY;
+      const dotIdx = dragDotIndexRef.current;
 
-    try {
-      localStorage.setItem(
-        'neutrino_simple_theme_v5',
-        JSON.stringify({ themeId: theme.id, accent })
-      );
-      localStorage.setItem('neutrino_dark_theme', theme.mode === 'dark' ? 'true' : 'false');
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('neutrino_simple_theme_v5');
-      if (saved) {
-        const { themeId, accent } = JSON.parse(saved);
-        const validTheme = MAC_THEMES.find((t) => t.id === themeId) || MAC_THEMES[0];
-        const validAccent = accent || '#FFFFFF';
-        setSelectedThemeId(validTheme.id);
-        setSelectedAccent(validAccent);
-        applyTheme(validTheme, validAccent);
+      if (dragRafRef.current !== null) {
+        cancelAnimationFrame(dragRafRef.current);
       }
-    } catch {}
-  }, [applyTheme]);
+      dragRafRef.current = requestAnimationFrame(() => {
+        dragRafRef.current = null;
+        updatePointFromClientXY(cx, cy, dotIdx);
+      });
+    };
 
-  if (!isOpen) return null;
+    const endWheelDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!isWheelDragging) return;
+      if (dragRafRef.current !== null) {
+        cancelAnimationFrame(dragRafRef.current);
+        dragRafRef.current = null;
+      }
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+  } catch {
+    // Ignore
+  }
+  setIsWheelDragging(false);
+};
 
-  const currentTheme = MAC_THEMES.find((t) => t.id === selectedThemeId) || MAC_THEMES[0];
+const handleDotKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+  const step = e.shiftKey ? 0.08 : 0.03;
+  let dx = 0;
+  let dy = 0;
+  if (e.key === 'ArrowLeft') dx = -step;
+  else if (e.key === 'ArrowRight') dx = step;
+  else if (e.key === 'ArrowUp') dy = -step;
+  else if (e.key === 'ArrowDown') dy = step;
+  else return;
 
-  const handleSelectTheme = (t: SimpleTheme) => {
-    setSelectedThemeId(t.id);
-    applyTheme(t, selectedAccent);
+  e.preventDefault();
+  setSelectedDotIndex(idx);
+  const cur = draftRef.current;
+  const pt = cur.points[idx];
+  if (!pt) return;
+
+    const clamped = clampWheelPos(pt.x + dx, pt.y + dy);
+    const nextColor = wheelPosToColorKeepingLightness(clamped.x, clamped.y, pt.color);
+    const nextPoints = cur.points.map((p, i) => (i === idx ? { color: nextColor, x: clamped.x, y: clamped.y } : p));
+    setHexDraft(nextColor);
+    applyLiveAndScheduleSave({ ...cur, points: nextPoints });
   };
 
-  const handleSelectAccent = (hex: string) => {
-    setSelectedAccent(hex);
-    applyTheme(currentTheme, hex);
-  };
+    const handleAddThirdPoint = () => {
+      const cur = draftRef.current;
+      if (cur.points.length >= 3) return;
+      const { h, s } = hexToHsl(cur.points[0].color);
+      const nextHue = (h + 115) % 360;
+      const nextSat = Math.max(42, Math.min(82, s || 64));
+      const lightness = cur.mode === 'light' ? 76 : 46;
+      const color = hslToHex(nextHue, nextSat, lightness);
+      const pos = hueSatToWheelPos(nextHue, nextSat);
+      const newPoint: SpaceThemePoint = { color, x: pos.x, y: pos.y };
+      const nextTheme: SpaceTheme = { ...cur, points: [...cur.points, newPoint] };
+      setSelectedDotIndex(nextTheme.points.length - 1);
+      setHexDraft(color);
+      applyLiveAndScheduleSave(nextTheme, { immediateSave: true });
+    };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="modal-header">
-          <span className="modal-title">Theme & Appearance</span>
-          <button className="close-btn" onClick={onClose} title="Close">
-            <X size={15} />
-          </button>
-        </div>
+    const handleRemovePoint = () => {
+      const cur = draftRef.current;
+      if (cur.points.length <= 2) return;
+      const removeAt = Math.min(selectedDotIndex, cur.points.length - 1);
+      const nextPoints = cur.points.filter((_, i) => i !== removeAt);
+      const nextIdx = Math.max(0, Math.min(removeAt, nextPoints.length - 1));
+      setSelectedDotIndex(nextIdx);
+      setHexDraft(nextPoints[nextIdx].color);
+      applyLiveAndScheduleSave({ ...cur, points: nextPoints }, { immediateSave: true });
+    };
 
-        {/* Theme Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Theme Palette</span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-            {MAC_THEMES.map((t) => {
-              const isSelected = t.id === selectedThemeId;
-              return (
-                <button
-                  key={t.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                    backgroundColor: isSelected ? 'var(--surface-hover)' : 'var(--bg-elevated)',
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+    const handleHexChange = (rawInput: string) => {
+      setHexDraft(rawInput);
+      const normalized = normalizeHex(rawInput, '');
+      if (!normalized) return;
+      const cur = draftRef.current;
+      const pos = colorToWheelPos(normalized);
+      const nextPoints = cur.points.map((p, idx) =>
+        idx === selectedDotIndex ? { color: normalized, x: pos.x, y: pos.y } : p
+      );
+      applyLiveAndScheduleSave({ ...cur, points: nextPoints });
+    };
+
+    const handleHexBlur = () => {
+      const current = draftRef.current.points[selectedDotIndex];
+      if (current) {
+        setHexDraft(current.color);
+      }
+    };
+
+    const handleModeChange = (mode: SpaceThemeMode) => {
+      const cur = draftRef.current;
+      applyLiveAndScheduleSave({ ...cur, mode }, { immediateSave: true, animateTransition: true });
+    };
+
+    const handleSelectPreset = (presetTheme: SpaceTheme) => {
+      const cloned = cloneSpaceTheme(presetTheme);
+      setSelectedDotIndex(0);
+      setHexDraft(cloned.points[0].color);
+      applyLiveAndScheduleSave(cloned, { immediateSave: true, animateTransition: true });
+    };
+
+    const handleReset = () => {
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      pendingCommitThemeRef.current = null;
+      if (onResetSpaceTheme) {
+        onResetSpaceTheme();
+      } else {
+        const def = getDefaultSpaceTheme(activeSpace.id);
+        setSelectedDotIndex(0);
+        setHexDraft(def.points[0].color);
+        applyLiveAndScheduleSave(def, { immediateSave: true, animateTransition: true });
+      }
+    };
+
+    const handleDone = () => {
+      flushPendingSave();
+      onClose();
+    };
+
+    if (!isOpen) return null;
+
+    const activeDotIdx = Math.min(selectedDotIndex, draftTheme.points.length - 1);
+    const wheelBlendBackground =
+      draftTheme.points.length >= 3
+        ? `radial-gradient(circle at ${(draftTheme.points[0].x * 100).toFixed(0)}% ${(draftTheme.points[0].y * 100).toFixed(0)}%, ${draftTheme.points[0].color} 0%, transparent 65%), radial-gradient(circle at ${(draftTheme.points[1].x * 100).toFixed(0)}% ${(draftTheme.points[1].y * 100).toFixed(0)}%, ${draftTheme.points[1].color} 0%, transparent 65%), radial-gradient(circle at ${(draftTheme.points[2].x * 100).toFixed(0)}% ${(draftTheme.points[2].y * 100).toFixed(0)}%, ${draftTheme.points[2].color} 0%, transparent 65%)`
+        : `radial-gradient(circle at ${(draftTheme.points[0].x * 100).toFixed(0)}% ${(draftTheme.points[0].y * 100).toFixed(0)}%, ${draftTheme.points[0].color} 0%, transparent 70%), radial-gradient(circle at ${(draftTheme.points[1].x * 100).toFixed(0)}% ${(draftTheme.points[1].y * 100).toFixed(0)}%, ${draftTheme.points[1].color} 0%, transparent 70%)`;
+
+    return (
+            <div
+              className="theme-popover-backdrop"
+              onClick={() => {
+                flushPendingSave();
+                onClose();
+              }}
+            >
+              <div
+                className="theme-popover-card"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Theme editor for ${activeSpace.name}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="theme-popover-header">
+                  <div className="theme-popover-title-wrap">
+                    <h2 className="theme-popover-title">Space Theme</h2>
+                    <span className="theme-popover-space-badge">{activeSpace.name}</span>
+                  </div>
+
+                  <div className="theme-popover-header-actions">
+                    <button
+                      type="button"
+                      className="theme-popover-btn-ghost"
+                      onClick={handleReset}
+                      title="Reset theme for this Space"
+                      aria-label="Reset Space theme"
+                    >
+                      <RotateCcw size={12} />
+                      <span>Reset</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="theme-popover-btn-done"
+                      onClick={handleDone}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+
+                      {/* Circular Gradient Wheel */ }
+                      <div className="theme-wheel-stage">
+                        <div
+                          ref={wheelRef}
+                          className="theme-color-wheel"
+                          role="group"
+                          aria-label="Gradient color wheel"
+                          onPointerDown={handleWheelPointerDown}
+                          onPointerMove={handleWheelPointerMove}
+                          onPointerUp={endWheelDrag}
+                          onPointerCancel={endWheelDrag}
+                        >
+                          <div
+                            className="theme-wheel-blend-preview"
+                            style={{ background: wheelBlendBackground }}
+                            aria-hidden="true"
+                          />
+                          {draftTheme.points.map((pt, idx) => {
+                            const { hue, saturation } = wheelPosToHueSat(pt.x, pt.y);
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                data-dot-index={idx}
+                                className={`theme-wheel-dot ${idx === activeDotIdx ? 'selected' : ''}`}
+                                style={{
+                                  left: `${(pt.x * 100).toFixed(2)}%`,
+                                  top: `${(pt.y * 100).toFixed(2)}%`,
+                                  backgroundColor: pt.color,
+                                }}
+                  onClick = {(e) => {
+                            e.stopPropagation();
+                          setSelectedDotIndex(idx);
+                          setHexDraft(pt.color);
                   }}
-                  onClick={() => handleSelectTheme(t)}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      backgroundColor: t.bgApp,
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                    }}
-                  />
-                  <span style={{ fontSize: '13px', fontWeight: 500 }}>{t.name}</span>
-                </button>
-              );
+                          onKeyDown={(e) => handleDotKeyDown(e, idx)}
+                          aria-label={`Color stop ${idx + 1}: ${pt.color}, hue ${Math.round(hue)} degrees, saturation ${Math.round(saturation)} percent. Use arrow keys to nudge.`}
+                          aria-pressed={idx === activeDotIdx}
+                />
+                          );
             })}
+                        </div>
+
+          <div className="theme-points-toolbar">
+            <div className="theme-point-pills">
+              {draftTheme.points.map((pt, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`theme-point-pill ${idx === activeDotIdx ? 'selected' : ''}`}
+                  onClick={() => {
+                    setSelectedDotIndex(idx);
+                    setHexDraft(pt.color);
+                  }}
+                >
+                  <span className="theme-point-pill-swatch" style={{ backgroundColor: pt.color }} />
+                  <span>Stop {idx + 1}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="theme-point-actions">
+              {draftTheme.points.length < 3 && (
+                <button
+                  type="button"
+                  className="theme-popover-btn-ghost"
+                  onClick={handleAddThirdPoint}
+                  aria-label="Add third gradient color stop"
+                  title="Add 3rd gradient point"
+                >
+                  <Plus size={12} />
+                </button>
+              )}
+              {draftTheme.points.length > 2 && (
+                <button
+                  type="button"
+                  className="theme-popover-btn-ghost"
+                  onClick={handleRemovePoint}
+                  aria-label={`Remove color stop ${activeDotIdx + 1}`}
+                  title="Remove selected color stop"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="theme-point-hex-row">
+            <label htmlFor="theme-dot-hex-input" className="theme-hex-label">
+              Color {activeDotIdx + 1} Hex
+            </label>
+            <input
+              id="theme-dot-hex-input"
+              type="text"
+              className="theme-hex-input"
+              value={hexDraft}
+              onChange={(e) => handleHexChange(e.target.value)}
+              onBlur={handleHexBlur}
+              maxLength={7}
+              spellCheck={false}
+              aria-label="Selected gradient stop hex color"
+            />
           </div>
         </div>
 
-        {/* Accent Color Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Accent Color</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {ACCENT_COLORS.map((a) => {
-              const isSelected = selectedAccent.toLowerCase() === a.hex.toLowerCase();
-              return (
-                <button
-                  key={a.name}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    backgroundColor: a.hex,
-                    border: isSelected ? '2px solid #ffffff' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: isSelected ? '0 0 8px var(--accent-glow)' : 'none',
-                  }}
-                  onClick={() => handleSelectAccent(a.hex)}
-                  title={a.name}
-                >
-                  {isSelected && <Check size={12} style={{ color: '#ffffff' }} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                        {/* Intensity & Grain Sliders */}
+                        <div className="theme-sliders-group">
+                          <div className="theme-slider-row">
+                            <div className="theme-slider-label-row">
+                              <label htmlFor="theme-intensity-slider">Intensity</label>
+                              <span className="theme-slider-value">{Math.round(draftTheme.intensity * 100)}%</span>
+                            </div>
+                            <input
+                              id="theme-intensity-slider"
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              className="theme-range-input"
+                              value={draftTheme.intensity}
+                              aria-label="Gradient intensity"
+                              onChange={(e) => {
+                                const nextVal = clamp01(parseFloat(e.target.value), draftTheme.intensity);
+                                applyLiveAndScheduleSave({ ...draftRef.current, intensity: nextVal });
+                              }}
+                            />
+                          </div>
+
+                          <div className="theme-slider-row">
+                            <div className="theme-slider-label-row">
+                              <label htmlFor="theme-grain-slider">Grain</label>
+                              <span className="theme-slider-value">{Math.round(draftTheme.grain * 100)}%</span>
+                            </div>
+                            <input
+                              id="theme-grain-slider"
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              className="theme-range-input"
+                              value={draftTheme.grain}
+                              aria-label="Texture grain"
+                              onChange={(e) => {
+                                const nextVal = clamp01(parseFloat(e.target.value), draftTheme.grain);
+                                applyLiveAndScheduleSave({ ...draftRef.current, grain: nextVal });
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Light / Dark / Auto Mode Toggle */}
+                        <div className="theme-mode-segment-row" role="group" aria-label="Space appearance mode">
+                          <button
+                            type="button"
+                            className={`theme-mode-segment-btn ${draftTheme.mode === 'light' ? 'active' : ''}`}
+                            onClick={() => handleModeChange('light')}
+                            aria-pressed={draftTheme.mode === 'light'}
+                          >
+                            <Sun size={12} />
+                            <span>Light</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`theme-mode-segment-btn ${draftTheme.mode === 'dark' ? 'active' : ''}`}
+                            onClick={() => handleModeChange('dark')}
+                            aria-pressed={draftTheme.mode === 'dark'}
+                          >
+                            <Moon size={12} />
+                            <span>Dark</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`theme-mode-segment-btn ${draftTheme.mode === 'auto' ? 'active' : ''}`}
+                            onClick={() => handleModeChange('auto')}
+                            aria-pressed={draftTheme.mode === 'auto'}
+                          >
+                            <Monitor size={12} />
+                            <span>Auto</span>
+                          </button>
+                        </div>
+
+                        {/* Curated Gradient Presets */}
+                        <div className="theme-presets-section">
+                          <div className="theme-presets-header">
+                            <span>Presets</span>
+                            <span>{SPACE_THEME_PRESETS.length} curated</span>
+                          </div>
+                          <div className="theme-presets-grid">
+                            {SPACE_THEME_PRESETS.map((preset) => {
+                              const p1 = preset.theme.points[0].color;
+                              const p2 = preset.theme.points[1].color;
+                              const p3 = preset.theme.points[2]?.color;
+                              const bg = p3
+                                ? `radial-gradient(circle at 24% 28%, ${p1} 0%, transparent 72%), radial-gradient(circle at 80% 74%, ${p2} 0%, transparent 72%), ${p3}`
+                                : `linear-gradient(135deg, ${p1} 0%, ${p2} 100%)`;
+
+                              const isSelected =
+                                draftTheme.mode === preset.theme.mode &&
+                                draftTheme.points.length === preset.theme.points.length &&
+                                draftTheme.points.every((pt, i) => pt.color === preset.theme.points[i].color);
+
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  className={`theme-preset-swatch ${isSelected ? 'active' : ''}`}
+                                  style={{ background: bg }}
+                                  onClick={() => handleSelectPreset(preset.theme)}
+                                  title={`${preset.name} — ${preset.description}`}
+                                  aria-label={`Apply preset ${preset.name}`}
+                                  aria-pressed={isSelected}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
     </div>
-  );
+                  );
 };

@@ -46,7 +46,7 @@ contextBridge.exposeInMainWorld('neutrino', {
   windowControl: (action: 'minimize' | 'maximize' | 'close') => ipcRenderer.invoke('neutrino:window-control', action),
 
   // Theme Controls
-  setThemeMode: (mode: 'dark' | 'light') => ipcRenderer.invoke('neutrino:set-theme-mode', mode),
+  setThemeMode: (mode: 'dark' | 'light' | 'system') => ipcRenderer.invoke('neutrino:set-theme-mode', mode),
 
   // Browser Settings
   getSettings: () => ipcRenderer.invoke('neutrino:get-settings'),
@@ -110,5 +110,35 @@ contextBridge.exposeInMainWorld('neutrino', {
     const handler = () => callback();
     ipcRenderer.on('neutrino:escape-pressed', handler);
     return () => ipcRenderer.removeListener('neutrino:escape-pressed', handler);
+  },
+
+  // Browsing History
+  getHistory: (options?: { query?: string; limit?: number; offset?: number; spaceId?: string }) =>
+    ipcRenderer.invoke('neutrino:get-history', options),
+  deleteHistoryEntry: (target: { id?: string; url?: string; timestamp?: number }) =>
+    ipcRenderer.invoke('neutrino:delete-history-entry', target),
+  clearHistory: (range: 'hour' | 'day' | 'all' = 'all') =>
+    ipcRenderer.invoke('neutrino:clear-history', range),
+  onHistoryUpdated: (callback: (entries: any[]) => void) => {
+    const handler = (_: unknown, entries: any[]) => callback(entries);
+    ipcRenderer.on('neutrino:history-updated', handler);
+    return () => ipcRenderer.removeListener('neutrino:history-updated', handler);
+  },
+  onOpenHistory: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('neutrino:open-history', handler);
+    return () => ipcRenderer.removeListener('neutrino:open-history', handler);
+  },
+
+  // Built-in VPN / Privacy Tunnel
+  getVpnStatus: () => ipcRenderer.invoke('neutrino:get-vpn-status'),
+  connectVpn: (patch?: unknown) => ipcRenderer.invoke('neutrino:connect-vpn', patch),
+  disconnectVpn: () => ipcRenderer.invoke('neutrino:disconnect-vpn'),
+  updateVpnConfig: (patch: unknown) => ipcRenderer.invoke('neutrino:update-vpn-config', patch),
+  checkVpnIp: () => ipcRenderer.invoke('neutrino:check-vpn-ip'),
+  onVpnStatusUpdated: (callback: (status: any) => void) => {
+    const handler = (_: unknown, status: any) => callback(status);
+    ipcRenderer.on('neutrino:vpn-status-updated', handler);
+    return () => ipcRenderer.removeListener('neutrino:vpn-status-updated', handler);
   },
 });

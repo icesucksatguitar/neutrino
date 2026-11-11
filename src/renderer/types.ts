@@ -1,6 +1,7 @@
-import type { BrowserSettings } from '../main/settings';
+import type { BrowserSettings, SpaceTheme, SpaceThemesMap } from '../main/settings';
+import type { SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette } from '../main/spaceTheme';
 
-export type { BrowserSettings };
+export type { BrowserSettings, SpaceTheme, SpaceThemesMap, SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette };
 
 export interface Space {
   id: string;
@@ -92,6 +93,18 @@ export interface AuthHandoffNotice {
   isPopup: boolean;
 }
 
+export type { HistoryEntry, HistoryClearRange, HistoryQueryOptions } from '../main/history';
+export type {
+  VpnMode,
+  DohProviderId,
+  ProxyProtocol,
+  VpnConfig,
+  VpnStatus,
+  VpnIpCheckResult,
+} from '../main/vpnCore';
+import type { HistoryEntry, HistoryClearRange, HistoryQueryOptions } from '../main/history';
+import type { VpnConfig, VpnStatus, VpnIpCheckResult } from '../main/vpnCore';
+
 export type AuthHandoffResult = { ok: true; siteHost: string } | { ok: false; error: string };
 
 declare global {
@@ -122,7 +135,7 @@ declare global {
       mediaControl?: (action: string, params?: any) => Promise<any>;
       captureTabPreview?: (tabUrl: string) => Promise<string | null>;
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
-      setThemeMode?: (mode: 'dark' | 'light') => Promise<{ success: boolean }>;
+      setThemeMode?: (mode: 'dark' | 'light' | 'system') => Promise<{ success: boolean; isDark?: boolean }>;
       getSettings?: () => Promise<BrowserSettings>;
       updateSettings?: (patch: Partial<BrowserSettings>) => Promise<BrowserSettings>;
       onSettingsUpdated?: (cb: (settings: BrowserSettings) => void) => () => void;
@@ -137,6 +150,17 @@ declare global {
       openAuthHandoff?: (handoffId: string) => Promise<AuthHandoffResult>;
       copyAuthHandoffLink?: (handoffId: string) => Promise<AuthHandoffResult>;
       dismissAuthHandoff?: (handoffId: string) => Promise<AuthHandoffResult>;
+      getHistory?: (options?: HistoryQueryOptions) => Promise<HistoryEntry[]>;
+      deleteHistoryEntry?: (target: { id?: string; url?: string; timestamp?: number }) => Promise<boolean>;
+      clearHistory?: (range?: HistoryClearRange) => Promise<number>;
+      onHistoryUpdated?: (cb: (entries: HistoryEntry[]) => void) => () => void;
+      onOpenHistory?: (cb: () => void) => () => void;
+      getVpnStatus?: () => Promise<VpnStatus>;
+      connectVpn?: (patch?: Partial<VpnConfig>) => Promise<VpnStatus>;
+      disconnectVpn?: () => Promise<VpnStatus>;
+      updateVpnConfig?: (patch: Partial<VpnConfig>) => Promise<VpnStatus>;
+      checkVpnIp?: () => Promise<VpnIpCheckResult | { error: string }>;
+      onVpnStatusUpdated?: (cb: (status: VpnStatus) => void) => () => void;
     };
   }
 }

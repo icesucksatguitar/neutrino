@@ -15,18 +15,18 @@ import { applyBrowserIdentity, getBrowserUserAgent } from './browserIdentity';
 import { decideWindowOpen } from './windowOpen';
 import { AuthHandoffController } from './authHandoff';
 
-// Ultra-low-memory Chromium switches for Windows (compatible with YouTube/media tests)
+// Chromium switches: lean memory footprint without sacrificing rendering quality.
+// Removed enable-low-end-device-mode (causes color banding / tile artifacts on pages),
+// in-process-gpu (degrades compositor quality), and num-raster-threads=1 (sequential tile
+// painting makes partial-render seams visible). Kept shader disk cache for smooth rendering.
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('num-raster-threads', '1');
+app.commandLine.appendSwitch('num-raster-threads', '2');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
-app.commandLine.appendSwitch('enable-low-end-device-mode');
-app.commandLine.appendSwitch('in-process-gpu');
 app.commandLine.appendSwitch('renderer-process-limit', '2');
 app.commandLine.appendSwitch('process-per-site');
 app.commandLine.appendSwitch('disk-cache-size', '4194304');
 app.commandLine.appendSwitch('media-cache-size', '4194304');
-app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
 app.commandLine.appendSwitch('disable-domain-reliability');

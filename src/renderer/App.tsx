@@ -91,6 +91,7 @@ export function App() {
     deleteSpace,
     reorderTabs,
     toggleShields,
+    resetShieldStats,
     zenOptimize,
   } = useBrowser();
 
@@ -896,19 +897,47 @@ return (
           <span>{vpnStatus?.state === 'connected' ? 'VPN ON' : 'VPN'}</span>
         </button>
 
-        <button
-          className="minimal-pill-btn"
-          onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
-          title={
-            settings.adblockEnabled
-              ? `Shields active: ${shieldsBlockedCount} blocked`
-              : `Shields off: ${shieldsBlockedCount} blocked`
-          }
-          aria-label="Shields"
-        >
-          <Shield size={14} className="modern-btn-icon" />
-          <span>{shieldsBlockedCount}</span>
-        </button>
+        {(() => {
+          const activeHost = (() => {
+            try {
+              const parsed = activeTab?.url ? new URL(activeTab.url) : null;
+              return parsed && (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+                ? parsed.hostname.toLowerCase()
+                : '';
+            } catch {
+              return '';
+            }
+          })();
+          const isSiteWhitelisted =
+            !!activeHost &&
+            (settings.shieldWhitelist ?? []).some(
+              (allowed) => activeHost === allowed || activeHost.endsWith(`.${allowed}`),
+            );
+          return (
+            <button
+              className="minimal-pill-btn"
+              onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
+              title={
+                !settings.adblockEnabled
+                  ? `Shields off: ${shieldsBlockedCount} blocked`
+                  : isSiteWhitelisted
+                    ? `Shields paused on ${activeHost}`
+                    : `Shields active: ${shieldsBlockedCount} blocked`
+              }
+              aria-label="Shields"
+              style={
+                !settings.adblockEnabled
+                  ? { opacity: 0.55 }
+                  : isSiteWhitelisted
+                    ? { color: '#f59e0b' }
+                    : undefined
+              }
+            >
+              <Shield size={14} className="modern-btn-icon" />
+              <span>{shieldsBlockedCount}</span>
+            </button>
+          );
+        })()}
 
         <button
           className="minimal-icon-btn"
@@ -1105,6 +1134,12 @@ return (
           blockedItems={blockedTrackers}
           onToggleShields={toggleShields}
           enabled={settings.adblockEnabled}
+          activeUrl={activeTab?.url}
+          whitelist={settings.shieldWhitelist ?? []}
+          onToggleSiteWhitelist={(domainOrUrl) => {
+            void window.neutrino?.toggleSiteWhitelist?.(domainOrUrl);
+          }}
+          onResetStats={resetShieldStats}
         />
       </Suspense>
     )}

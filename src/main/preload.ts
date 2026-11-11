@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('neutrino', {
 
   // Adblock & Zen Optimization
   toggleShields: () => ipcRenderer.invoke('neutrino:toggle-shields'),
+  toggleSiteWhitelist: (domainOrUrl: string) => ipcRenderer.invoke('neutrino:toggle-site-whitelist', domainOrUrl),
+  resetShieldStats: () => ipcRenderer.invoke('neutrino:reset-shield-stats'),
   zenOptimize: () => ipcRenderer.invoke('neutrino:zen-optimize'),
   getShieldStats: () => ipcRenderer.invoke('neutrino:get-shield-stats'),
 

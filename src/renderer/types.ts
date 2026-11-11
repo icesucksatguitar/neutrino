@@ -140,6 +140,8 @@ declare global {
       setZoomFactor?: (factor: number) => Promise<void>;
       onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;
       toggleShields: () => Promise<boolean>;
+      toggleSiteWhitelist?: (domainOrUrl: string) => Promise<{ domain: string; whitelisted: boolean; shieldWhitelist: string[] }>;
+      resetShieldStats?: () => Promise<ShieldStats>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;
       getShieldStats: () => Promise<ShieldStats>;
       callMcp: (method: string, params?: unknown) => Promise<any>;

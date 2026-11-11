@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, session, screen, webContents, nativeTheme, Menu, clipboard, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { BraveShieldEngine } from './adblock/engine';
+import { BraveShieldEngine, isHostOrSubdomain, isYouTubePlaybackCritical } from './adblock/engine';
 import { ZenResourceManager } from './resourceManager';
 import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
@@ -74,11 +74,75 @@ let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
 let isDarkMode = settings.theme !== 'light';
 nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
 adblockEngine.setEnabled(settings.adblockEnabled);
+adblockEngine.setWhitelist(settings.shieldWhitelist ?? []);
 resourceManager.setAutoSleepEnabled(settings.zenSleepEnabled);
 
+const trackedWebviews = new Set<Electron.WebContents>();
+const insertedCssKeyByContents = new WeakMap<Electron.WebContents, string>();
+
+function isYouTubePageUrl(urlStr: string): boolean {
+  const host = adblockEngine.extractHost(urlStr);
+  return Boolean(host) && (isHostOrSubdomain(host, 'youtube.com') || isHostOrSubdomain(host, 'youtu.be'));
+}
+
+async function applyShieldsToWebview(contents: Electron.WebContents): Promise<void> {
+  if (!contents || contents.isDestroyed()) return;
+
+  const prevKey = insertedCssKeyByContents.get(contents);
+  if (prevKey) {
+    insertedCssKeyByContents.delete(contents);
+    await contents.removeInsertedCSS(prevKey).catch(() => {});
+  }
+
+  const pageUrl = contents.getURL() || '';
+  if (!pageUrl || pageUrl.startsWith('file://') || pageUrl.startsWith('devtools://')) {
+    return;
+  }
+
+  const activeForPage = adblockEngine.isEnabled() && !adblockEngine.isWhitelisted(pageUrl);
+  await contents.executeJavaScript(`window.__neutrino_shields_active = ${activeForPage ? 'true' : 'false'};`).catch(() => {});
+
+  if (!activeForPage) {
+    return;
+  }
+
+  const nextKey = await contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => undefined);
+  if (nextKey) {
+    insertedCssKeyByContents.set(contents, nextKey);
+  }
+  if (isYouTubePageUrl(pageUrl)) {
+    await contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => {});
+  }
+}
+
+function syncShieldsAcrossWebviews(): void {
+  for (const wc of Array.from(trackedWebviews)) {
+    if (wc.isDestroyed()) {
+      trackedWebviews.delete(wc);
+      continue;
+    }
+    void applyShieldsToWebview(wc);
+  }
+}
+
+function sameStringArray(a: string[] = [], b: string[] = []): boolean {
+  return a.length === b.length && a.every((v, idx) => v === b[idx]);
+}
+
 function applySettings(prev: BrowserSettings, next: BrowserSettings) {
+  let shieldsChanged = false;
   if (prev.adblockEnabled !== next.adblockEnabled) {
     adblockEngine.setEnabled(next.adblockEnabled);
+    shieldsChanged = true;
+  }
+  const prevWhitelist = prev.shieldWhitelist ?? [];
+  const nextWhitelist = next.shieldWhitelist ?? [];
+  if (!sameStringArray(prevWhitelist, nextWhitelist)) {
+    adblockEngine.setWhitelist(nextWhitelist);
+    shieldsChanged = true;
+  }
+  if (shieldsChanged) {
+    syncShieldsAcrossWebviews();
   }
   if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
     resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
@@ -138,19 +202,7 @@ function updateSettings(patch: unknown): BrowserSettings {
           export { isGoogleAuthUrl, isAuthOrSecurityUrl };
 
           export function isMediaStreamingUrl(url: string): boolean {
-            if (!url) return false;
-            const lower = url.toLowerCase();
-            return (
-              lower.includes('googlevideo.com') ||
-              lower.includes('videoplayback') ||
-              lower.includes('youtubei/v1/player') ||
-              lower.includes('youtube.com/api/stats/playback') ||
-              lower.includes('youtube.com/api/stats/watchtime') ||
-              lower.includes('youtube.com/api/stats/delayplay') ||
-              lower.includes('youtube.com/api/stats/atr') ||
-              lower.includes('youtube.com/api/stats/qoe') ||
-              lower.includes('youtube.com/ptracking')
-            );
+            return isYouTubePlaybackCritical(url);
           }
 
           // One honest browser identity for every session (see src/main/userAgent.ts). Set before any
@@ -189,7 +241,25 @@ function updateSettings(patch: unknown): BrowserSettings {
                   return;
                 }
 
-                const decision = adblockEngine.checkUrl(url);
+                let pageUrl = '';
+                if (details.webContents && !details.webContents.isDestroyed()) {
+                  pageUrl = details.webContents.getURL() || '';
+                } else if (typeof details.webContentsId === 'number') {
+                  const wc = webContents.fromId(details.webContentsId);
+                  if (wc && !wc.isDestroyed()) {
+                    pageUrl = wc.getURL() || '';
+                  }
+                }
+                if (!pageUrl) {
+                  pageUrl = details.referrer || '';
+                }
+
+                const decision = adblockEngine.checkRequest({
+                  url,
+                  resourceType: details.resourceType,
+                  pageUrl,
+                  referrer: details.referrer,
+                });
                 if (decision.blocked) {
                   if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.webContents.send('neutrino:tracker-blocked', {
@@ -557,6 +627,29 @@ function updateSettings(patch: unknown): BrowserSettings {
               return adblockEngine.getStats();
             });
 
+            ipcMain.handle('neutrino:toggle-site-whitelist', async (_, domainOrUrl: string) => {
+              const host = adblockEngine.extractHost(domainOrUrl) || String(domainOrUrl || '').trim().toLowerCase();
+              const normalized = host.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].replace(/\.$/, '');
+              if (!normalized) {
+                return { domain: '', whitelisted: false, shieldWhitelist: settings.shieldWhitelist ?? [] };
+              }
+              const current = new Set(settings.shieldWhitelist ?? []);
+              let whitelisted: boolean;
+              if (current.has(normalized)) {
+                current.delete(normalized);
+                whitelisted = false;
+              } else {
+                current.add(normalized);
+                whitelisted = true;
+              }
+              const next = updateSettings({ shieldWhitelist: Array.from(current).sort() });
+              return { domain: normalized, whitelisted, shieldWhitelist: next.shieldWhitelist ?? [] };
+            });
+
+            ipcMain.handle('neutrino:reset-shield-stats', async () => {
+              return adblockEngine.resetStats();
+            });
+
             ipcMain.handle('neutrino:mcp-call', async (_, { method, params }: { method: string; params?: unknown }) => {
               return await mcpServer.handleMessage({ jsonrpc: '2.0', id: Date.now(), method, params });
             });
@@ -683,6 +776,26 @@ app.whenReady().then(() => {
     // Intercept target="_blank" and window.open: sign-in and featured popups stay real child
     // windows (window.opener intact), regular links open as Neutrino tabs. See windowOpen.ts.
     contents.setWindowOpenHandler((details) => {
+      if (adblockEngine.isEnabled() && !isAuthOrSecurityUrl(details.url)) {
+        const openerUrl = contents.getURL() || '';
+        const popupDecision = adblockEngine.checkRequest({
+          url: details.url,
+          resourceType: 'subFrame',
+          pageUrl: openerUrl,
+        });
+        if (popupDecision.blocked) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:tracker-blocked', {
+              url: details.url,
+              domain: popupDecision.domain,
+              category: popupDecision.category,
+              rule: popupDecision.rule || 'Popup Blocked',
+            });
+          }
+          return { action: 'deny' };
+        }
+      }
+
       const decision = decideWindowOpen(details, {
         isAuthOrSecurityUrl,
         mainWindow,
@@ -698,26 +811,28 @@ app.whenReady().then(() => {
     // Enforce VPN WebRTC policy, cosmetic adblock, YouTube skipper, and site context menus.
     vpnController.applyWebRtcPolicy(contents);
     if (contents.getType() === 'webview') {
+      trackedWebviews.add(contents);
+      contents.once('destroyed', () => {
+        trackedWebviews.delete(contents);
+      });
+
       contents.on('dom-ready', async () => {
         try {
-          const tasks: Promise<unknown>[] = [
-            contents.executeJavaScript(`
-              try {
-                if (!window.dataLayer) window.dataLayer = [];
-                if (!window.google_tag_manager) window.google_tag_manager = {};
-                if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
-              } catch(e) {}
-            `).catch(() => { }),
-          ];
-          if (adblockEngine.isEnabled()) {
-            tasks.push(contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => { }));
-            const url = contents.getURL();
-            if (url.includes('youtube.com')) {
-              tasks.push(contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => { }));
-            }
-          }
-          await Promise.allSettled(tasks);
+          await contents.executeJavaScript(`
+            try {
+              if (!window.dataLayer) window.dataLayer = [];
+              if (!window.google_tag_manager) window.google_tag_manager = {};
+              if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
+            } catch(e) {}
+          `).catch(() => { });
+          await applyShieldsToWebview(contents);
         } catch { }
+      });
+
+      contents.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
+        if (isMainFrame) {
+          void applyShieldsToWebview(contents);
+        }
       });
 
       contents.on('context-menu', (_event, params) => {

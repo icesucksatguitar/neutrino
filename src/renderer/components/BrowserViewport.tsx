@@ -551,7 +551,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
         try {
           const factor = tabZoomMap.current[tabId] ?? activeTabRef.current?.zoomFactor ?? 1.0;
           if (webview.setZoomFactor) webview.setZoomFactor(factor);
-          injectAdblocking();
           injectTopHoverDetector();
           injectTrackpadSwipeDetector();
           const caps = readNavCapabilities();
@@ -676,39 +675,6 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
             }, { passive: true });
           })();
         `).catch(() => { });
-        } catch { }
-      };
-
-      const injectAdblocking = () => {
-        try {
-          const u = webview.getURL?.() || '';
-          if (u.includes('youtube.com')) {
-            webview.executeJavaScript(`
-            (() => {
-              if (window.__neutrino_ad_skipper_injected) return;
-              window.__neutrino_ad_skipper_injected = true;
-              let isSkipping = false;
-              const skip = () => {
-                if (isSkipping) return;
-                isSkipping = true;
-                try {
-                  const btns = document.querySelectorAll('.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button.ytp-ad-skip-button, .ytp-ad-overlay-close-button');
-                  btns.forEach((b) => {
-                    if (b && typeof b.click === 'function') b.click();
-                  });
-                  const overlays = document.querySelectorAll('.ytp-ad-overlay-container, ytd-ad-slot-renderer, #player-ads');
-                  overlays.forEach((el) => { if (el && el.style) el.style.display = 'none'; });
-                } catch(e) {}
-                setTimeout(() => { isSkipping = false; }, 800);
-              };
-              const obs = new MutationObserver(skip);
-              if (document.body) {
-                obs.observe(document.body, { childList: true, subtree: true });
-              }
-              setInterval(skip, 1500);
-            })();
-          `).catch(() => { });
-          }
         } catch { }
       };
 

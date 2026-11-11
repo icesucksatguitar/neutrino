@@ -26,6 +26,7 @@ export interface BrowserSettings {
   zenSleepEnabled: boolean;
   searchEngine: SearchEngineId;
   spaceThemes?: SpaceThemesMap;
+  shieldWhitelist?: string[];
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
 }
 
@@ -98,6 +99,28 @@ export function resolveSpaceTheme(settings: BrowserSettings | Record<string, unk
   return fallback;
 }
 
+function normalizeShieldDomain(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+  try {
+    const parsed = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`);
+    return parsed.hostname.replace(/\.$/, '');
+  } catch {
+    return trimmed.replace(/^\.+|\.+$/g, '');
+  }
+}
+
+function normalizeShieldWhitelist(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const host = normalizeShieldDomain(item);
+    if (host) seen.add(host);
+  }
+  return Array.from(seen).sort();
+}
+
 /** Fills missing or invalid fields with defaults, keeps unknown keys. Idempotent. */
 export function normalizeSettings(raw: unknown): BrowserSettings {
   const source: Record<string, unknown> =
@@ -109,5 +132,6 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
       typeof source.zenSleepEnabled === 'boolean' ? source.zenSleepEnabled : DEFAULT_SETTINGS.zenSleepEnabled,
     searchEngine: normalizeSearchEngine(source.searchEngine),
     spaceThemes: buildSpaceThemes(source.spaceThemes, source),
+    shieldWhitelist: normalizeShieldWhitelist(source.shieldWhitelist),
   };
 }

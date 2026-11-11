@@ -92,24 +92,48 @@ export function useBrowser() {
       if (trackerQueue.length === 0) return;
 
       const itemsToFlush = trackerQueue.splice(0, trackerQueue.length);
-      const totalCount = itemsToFlush.length;
-      let adsCount = 0;
-      for (const it of itemsToFlush) {
-        if (it.category === 'Advertising') adsCount++;
-      }
 
       setBlockedTrackers((prev) => [
         ...itemsToFlush.map((it) => ({ ...it, timestamp: it.timestamp || Date.now() })),
         ...prev,
       ].slice(0, 50));
 
+      // Pull authoritative stats from the main engine rather than blindly adding deltas on top of
+      // state-update snapshots (which otherwise double-counted bursts until the next state update).
+      if (window.neutrino?.getShieldStats) {
+        window.neutrino.getShieldStats().then((stats: any) => {
+          if (stats) {
+            setState((prev) => ({
+              ...prev,
+              shieldStats: { ...prev.shieldStats, ...stats },
+            }));
+          }
+        }).catch(() => { });
+        return;
+      }
+
+      const totalCount = itemsToFlush.length;
+      let adsCount = 0;
+      let analyticsCount = 0;
+      let fingerprintersCount = 0;
+      let trackersCount = 0;
+      for (const it of itemsToFlush) {
+        if (it.category === 'Advertising') adsCount++;
+        else if (it.category === 'Analytics' || it.category === 'Telemetry') analyticsCount++;
+        else if (it.category === 'Fingerprinting' || it.category === 'Cryptomining') fingerprintersCount++;
+        else trackersCount++;
+      }
+
       setState((prev) => ({
         ...prev,
         shieldStats: {
           ...prev.shieldStats,
           totalBlocked: prev.shieldStats.totalBlocked + totalCount,
-          trackersBlocked: prev.shieldStats.trackersBlocked + totalCount,
+          trackersBlocked: prev.shieldStats.trackersBlocked + trackersCount,
           adsBlocked: prev.shieldStats.adsBlocked + adsCount,
+          analyticsBlocked: prev.shieldStats.analyticsBlocked + analyticsCount,
+          fingerprintersBlocked: prev.shieldStats.fingerprintersBlocked + fingerprintersCount,
+          dataSavedKb: prev.shieldStats.dataSavedKb + totalCount * 54,
         },
       }));
     };
@@ -300,7 +324,27 @@ export function useBrowser() {
   }, []);
 
   const toggleShields = useCallback(() => {
-    window.neutrino?.toggleShields();
+    return window.neutrino?.toggleShields();
+  }, []);
+
+  const resetShieldStats = useCallback(async () => {
+    setBlockedTrackers([]);
+    if (window.neutrino?.resetShieldStats) {
+      const nextStats = await window.neutrino.resetShieldStats();
+      setState((prev) => ({ ...prev, shieldStats: nextStats }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        shieldStats: {
+          totalBlocked: 0,
+          adsBlocked: 0,
+          trackersBlocked: 0,
+          analyticsBlocked: 0,
+          fingerprintersBlocked: 0,
+          dataSavedKb: 0,
+        },
+      }));
+    }
   }, []);
 
   const zenOptimize = useCallback(() => {
@@ -343,6 +387,7 @@ export function useBrowser() {
     deleteSpace,
     reorderTabs,
     toggleShields,
+    resetShieldStats,
     zenOptimize,
   };
 }

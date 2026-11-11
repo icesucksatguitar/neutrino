@@ -139,21 +139,22 @@ A local-first, high-speed Chromium desktop browser engineered with low memory us
 
 ### What's New in ${tagName}
 
+- **Site Navigation Controls, Trackpad Gestures & Keyboard Shortcuts**:
+  - Top-bar **Back**, **Forward**, **Reload / Stop**, and **Home** controls alongside an enhanced URL pill with HTTPS indicator, loading progress shimmer, Copy URL button, Find trigger, and Zoom badge.
+  - Built-in **Find in Page** (\`Ctrl+F\`), right-click site context menu (**Back**, **Forward**, **Reload**, **Open Link in New Tab**, **Copy Link Address**, **Inspect Element**), and single-dispatch keyboard shortcuts (\`Ctrl+W\` / \`Ctrl+F4\`, \`Ctrl+Shift+T\` reopen closed tab, \`Ctrl+Tab\` / \`Ctrl+Shift+Tab\`, \`Alt+Left\` / \`Alt+Right\`, \`F5\`, \`F6\`).
+  - Two-finger horizontal trackpad swipe Back/Forward navigation with edge indicator chevrons, plus mouse XButton3/4 and OS navigation key support.
+
+- **Customizable Animated Homescreen Ambient Glow**:
+  - Restored silky blurred ambient aura animation with four per-Space styles (**Match Theme**, **Prism** rainbow cycle, **Custom** color picker/hex, **Off**) plus live **Glow Strength**, **Motion Speed**, and **Aura Spread** sliders inside the **Space Theme** editor.
+
 - **Arc-Style Per-Space Theme Editor**:
-  - Customizable 2- and 3-point radial gradients, intensity, grain overlay, and per-Space Light / Dark / Auto mode.
-  - Smooth Space transitions, presets, accessible keyboard/pointer color wheel, and debounced live persistence.
+  - Customizable 2- and 3-point radial gradients, intensity, grain overlay, and per-Space Light / Dark / Auto browser chrome mode with smooth Space transitions and presets.
 
-- **Persistent User Settings & Caching**:
-  - Atomic settings persistence across restarts for Spaces, themes, modes, font scale, and browser preferences.
+- **Native Website Rendering & Idle RAM Optimization**:
+  - Removed forced dark-mode website injection so pages render natively without visual artifacts or CSS slowdown, alongside lazy-loaded modals and lean Electron startup memory usage.
 
-- **Built-In Browsing History Viewer**:
-  - Searchable local history drawer with timestamps, filtering, and quick navigation.
-
-- **Built-In VPN & DNS-over-HTTPS (DoH)**:
-  - Integrated local proxy / DoH privacy routing with server presets, connection verification, and kill-switch support.
-
-- **Faster Forced Dark Mode & Idle RAM Optimization**:
-  - Reduced initial dark-mode injection latency and optimized idle memory footprint via lazy-loaded modals/splash and lean Electron startup configuration.
+- **Persistent User Settings, History & Built-In VPN**:
+  - Atomic settings persistence across restarts, searchable local Browsing History drawer, and integrated DoH / proxy VPN toggle with kill-switch support.
 
 - **Google Sign-In & OAuth Reliability**:
   - Consistent browser identity and user-agent derivation, single-pass tab navigation to prevent OAuth callback replays, and external browser handoff when needed.
@@ -164,7 +165,7 @@ Download and extract \`${assetName}\` and run \`Neutrino.exe\`.`,
     prerelease: false,
   };
 
-  console.log(`Creating GitHub release ${tagName}...`);
+  console.log(`Creating or updating GitHub release ${tagName}...`);
   const createRes = await httpsRequest(
     {
       hostname: 'api.github.com',
@@ -179,14 +180,65 @@ Download and extract \`${assetName}\` and run \`Neutrino.exe\`.`,
     releasePayload
   );
 
-  console.log(`Create release response status: ${createRes.status}`);
-  if (createRes.status !== 201) {
+  let release;
+  if (createRes.status === 201) {
+    release = createRes.body;
+    console.log(`Release created successfully: ${release.html_url}`);
+  } else if (createRes.status === 422) {
+    const existingRes = await httpsRequest({
+      hostname: 'api.github.com',
+      path: `/repos/icesucksatguitar/neutrino/releases/tags/${encodeURIComponent(tagName)}`,
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'Neutrino-Release-Agent',
+      },
+    });
+    if (existingRes.status !== 200 || !existingRes.body?.id) {
+      console.error('Failed to look up existing release:', existingRes);
+      process.exit(1);
+    }
+    const patchRes = await httpsRequest(
+      {
+        hostname: 'api.github.com',
+        path: `/repos/icesucksatguitar/neutrino/releases/${existingRes.body.id}`,
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'Neutrino-Release-Agent',
+          'Content-Type': 'application/json',
+        },
+      },
+      releasePayload
+    );
+    if (patchRes.status !== 200) {
+      console.error('Failed to update existing release:', patchRes);
+      process.exit(1);
+    }
+    release = patchRes.body;
+    console.log(`Existing release updated: ${release.html_url}`);
+
+    const staleAssets = (existingRes.body.assets || []).filter((a) => a.name === assetName);
+    for (const stale of staleAssets) {
+      console.log(`Deleting previous asset ${stale.name} (id ${stale.id})...`);
+      const delRes = await httpsRequest({
+        hostname: 'api.github.com',
+        path: `/repos/icesucksatguitar/neutrino/releases/assets/${stale.id}`,
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'Neutrino-Release-Agent',
+        },
+      });
+      if (delRes.status !== 204 && delRes.status !== 200) {
+        console.error('Failed to delete stale asset:', delRes);
+        process.exit(1);
+      }
+    }
+  } else {
     console.error('Failed to create release:', createRes.body);
     process.exit(1);
   }
-
-  const release = createRes.body;
-  console.log(`Release created successfully: ${release.html_url}`);
 
   const zipPath = path.join(__dirname, '..', 'release', assetName);
   if (fs.existsSync(zipPath)) {

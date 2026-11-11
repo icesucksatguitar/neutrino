@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('neutrino', {
   },
 
   // Tabs & Spaces
+  getState: () => ipcRenderer.invoke('neutrino:get-state'),
   createTab: (url?: string, spaceId?: string) => ipcRenderer.invoke('neutrino:create-tab', { url, spaceId }),
   updateTab: (tabId: string, partial: any) => ipcRenderer.invoke('neutrino:update-tab', { tabId, partial }),
   closeTab: (tabId: string) => ipcRenderer.invoke('neutrino:close-tab', tabId),

@@ -433,6 +433,22 @@ export function App() {
     }, 1100);
   };
 
+  const handleCreateSpace = async (name: string, color?: string) => {
+    const created = await createSpace(name, color);
+    if (created) {
+      triggerThemeCrossFade();
+      setSpaceTransitionClass('space-transition-left');
+      setSpaceOverlay(created.name);
+      setTimeout(() => {
+        setSpaceTransitionClass('');
+      }, 450);
+      setTimeout(() => {
+        setSpaceOverlay(null);
+      }, 1100);
+    }
+    return created;
+  };
+
   // Keyboard shortcuts & events
   useEffect(() => {
     const handleOpenCommandBar = () => setIsCommandBarOpen(true);
@@ -947,6 +963,8 @@ return (
           onCreateTab={createTab}
           onTogglePinTab={togglePinTab}
           onSelectSpace={handleSelectSpace}
+          onCreateSpace={handleCreateSpace}
+          onDeleteSpace={deleteSpace}
           onUndoClose={reopenClosedTab}
           isOnWebpage={isWebpage}
         />

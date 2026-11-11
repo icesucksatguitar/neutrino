@@ -461,16 +461,22 @@ function updateSettings(patch: unknown): BrowserSettings {
               browserManager.toggleSleepTab(tabId);
             });
 
+            ipcMain.handle('neutrino:get-state', async () => {
+              return browserManager.getStateSnapshot();
+            });
+
             ipcMain.handle('neutrino:select-space', async (_, spaceId: string) => {
               browserManager.setActiveSpace(spaceId);
             });
 
-            ipcMain.handle('neutrino:create-space', async (_, { name, color }: { name: string; color?: string }) => {
+            ipcMain.handle('neutrino:create-space', async (_, payload: { name: string; color?: string } | string) => {
+              const name = typeof payload === 'string' ? payload : payload?.name;
+              const color = typeof payload === 'string' ? undefined : payload?.color;
               return browserManager.createSpace(name, color);
             });
 
             ipcMain.handle('neutrino:delete-space', async (_, spaceId: string) => {
-              browserManager.deleteSpace(spaceId);
+              return browserManager.deleteSpace(spaceId);
             });
 
             ipcMain.handle('neutrino:reorder-tabs', async (_, { draggedTabId, targetTabId }: { draggedTabId: string; targetTabId: string }) => {

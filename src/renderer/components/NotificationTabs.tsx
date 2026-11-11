@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TabState, SpaceState } from '../types';
 
+const SPACE_COLOR_SWATCHES = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4'] as const;
+const BUILTIN_SPACE_IDS = new Set(['space-study', 'space-work', 'space-leisure']);
+
 interface NotificationTabsProps {
   tabs: TabState[];
   activeTabId: string | null;
@@ -13,6 +16,8 @@ interface NotificationTabsProps {
   onCreateTab: (url?: string, spaceId?: string) => void;
   onTogglePinTab: (tabId: string) => void;
   onSelectSpace?: (spaceId: string) => void;
+  onCreateSpace?: (name: string, color?: string) => Promise<SpaceState | null> | SpaceState | null | void;
+  onDeleteSpace?: (spaceId: string) => Promise<boolean | void> | boolean | void;
   onUndoClose?: () => void;
   isOnWebpage?: boolean;
 }
@@ -29,6 +34,8 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
   onCreateTab,
   onTogglePinTab,
   onSelectSpace,
+  onCreateSpace,
+  onDeleteSpace,
   onUndoClose,
   isOnWebpage = false,
 }) => {
@@ -37,6 +44,13 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
   const [swipeOffset, setSwipeOffset] = useState<number>(0);
   const [undoToast, setUndoToast] = useState<{ title: string; visible: boolean } | null>(null);
   const [previews, setPreviews] = useState<{ [tabId: string]: string }>({});
+  const [isAddingSpace, setIsAddingSpace] = useState(false);
+  const [newSpaceName, setNewSpaceName] = useState('');
+  const [newSpaceColor, setNewSpaceColor] = useState<string>(SPACE_COLOR_SWATCHES[0]);
+  const [spaceError, setSpaceError] = useState('');
+  const [isSubmittingSpace, setIsSubmittingSpace] = useState(false);
+  const newSpaceInputRef = useRef<HTMLInputElement>(null);
+  const activeSpaceLabelRef = useRef<HTMLDivElement>(null);
 
   // Proper Exit Fade-Out Animation Lifecycle: 'closed' | 'open' | 'closing'
   const [renderStatus, setRenderStatus] = useState<'closed' | 'open' | 'closing'>('closed');
@@ -89,16 +103,32 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isOpen, onToggle]);
 
-  // Keyboard shortcut: Escape to close tabs (Ctrl+E is handled in App.tsx)
+  // Keyboard shortcut: Escape cancels inline space form first, then closes tabs (Ctrl+E is handled in App.tsx)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
+        if (isAddingSpace) {
+          e.preventDefault();
+          setIsAddingSpace(false);
+          setSpaceError('');
+          return;
+        }
         onToggle(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onToggle]);
+  }, [isOpen, isAddingSpace, onToggle]);
+
+  useEffect(() => {
+    if (isAddingSpace) {
+      setTimeout(() => newSpaceInputRef.current?.focus(), 0);
+    }
+  }, [isAddingSpace]);
+
+  useEffect(() => {
+    activeSpaceLabelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }, [activeSpaceId, displaySpaces.length]);
 
   // Capture real webview previews when tab drawer opens
   useEffect(() => {
@@ -125,11 +155,54 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
   const handleMouseLeaveDeck = () => {
     if (!isHovered) return;
     setIsHovered(false);
+    if (isAddingSpace) return;
     if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
     // Auto-dismiss smoothly when mouse leaves the deck after 600ms
     autoCloseTimerRef.current = setTimeout(() => {
       onToggle(false);
     }, 600);
+  };
+
+  const handleOpenAddSpace = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+    setSpaceError('');
+    setNewSpaceColor(SPACE_COLOR_SWATCHES[displaySpaces.length % SPACE_COLOR_SWATCHES.length]);
+    setIsAddingSpace((prev) => !prev);
+  };
+
+  const handleCreateSpaceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const trimmed = newSpaceName.trim();
+    if (!trimmed) {
+      setSpaceError('Enter a space name');
+      newSpaceInputRef.current?.focus();
+      return;
+    }
+    if (!onCreateSpace) {
+      setSpaceError('Space creation unavailable');
+      return;
+    }
+
+    setIsSubmittingSpace(true);
+    setSpaceError('');
+    try {
+      const created = await onCreateSpace(trimmed, newSpaceColor);
+      if (created === null) {
+        setSpaceError('Could not create space');
+        return;
+      }
+      setNewSpaceName('');
+      setIsAddingSpace(false);
+    } catch {
+      setSpaceError('Failed to create space');
+    } finally {
+      setIsSubmittingSpace(false);
+    }
   };
 
   const handleSelectTabAndClose = (tabId: string) => {
@@ -471,26 +544,125 @@ export const NotificationTabs: React.FC<NotificationTabsProps> = ({
           </div>
 
           {/* Proper Interactive Draggable Spaces Slider (Bottom-Left) */}
-          <div className="spaces-bottom-left-slider-container">
+          <div className="spaces-bottom-left-slider-container" data-testid="spaces-sidebar-panel">
             <div className="proper-space-slider-wrap">
-              {/* Labels above slider */}
-              <div className="proper-slider-labels">
-                {displaySpaces.map((sp, idx) => {
-                  const isSelected = idx === currentSpaceIndex;
-                  return (
-                    <span
-                      key={sp.id}
-                      className={`proper-slider-label ${isSelected ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectSpace?.(sp.id);
+              {/* Labels above slider + Add Space trigger */}
+              <div className="proper-slider-header-row">
+                <div className={`proper-slider-labels ${displaySpaces.length > 3 ? 'scrollable' : ''}`}>
+                  {displaySpaces.map((sp, idx) => {
+                    const isSelected = idx === currentSpaceIndex;
+                    const canDelete = Boolean(onDeleteSpace) && displaySpaces.length > 1 && !BUILTIN_SPACE_IDS.has(sp.id);
+                    return (
+                      <div
+                        key={sp.id}
+                        ref={isSelected ? activeSpaceLabelRef : undefined}
+                        className={`proper-slider-label ${isSelected ? 'active' : ''}`}
+                        data-space-id={sp.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectSpace?.(sp.id);
+                        }}
+                        title={sp.name}
+                      >
+                        <span
+                          className="proper-space-dot"
+                          style={{ backgroundColor: sp.color || '#7c9cff' }}
+                        />
+                        <span className="proper-space-name">{sp.name}</span>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="proper-space-delete-btn"
+                            aria-label={`Delete space ${sp.name}`}
+                            title={`Delete ${sp.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSpace?.(sp.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {onCreateSpace && (
+                  <button
+                    type="button"
+                    className={`proper-add-space-btn ${isAddingSpace ? 'active' : ''}`}
+                    onClick={handleOpenAddSpace}
+                    title={isAddingSpace ? 'Cancel new space' : 'Add Space'}
+                    aria-label={isAddingSpace ? 'Cancel new space' : 'Add Space'}
+                    data-testid="add-space-btn"
+                  >
+                    {isAddingSpace ? '×' : '+'}
+                  </button>
+                )}
+              </div>
+
+              {isAddingSpace && (
+                <form
+                  className="proper-add-space-form"
+                  onSubmit={handleCreateSpaceSubmit}
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid="add-space-form"
+                >
+                  <div className="proper-add-space-input-row">
+                    <input
+                      ref={newSpaceInputRef}
+                      type="text"
+                      className="proper-add-space-input"
+                      placeholder="New space name..."
+                      value={newSpaceName}
+                      onChange={(e) => {
+                        setNewSpaceName(e.target.value);
+                        if (spaceError) setSpaceError('');
+                      }}
+                      maxLength={32}
+                      disabled={isSubmittingSpace}
+                      aria-label="New space name"
+                      data-testid="add-space-input"
+                    />
+                    <button
+                      type="submit"
+                      className="proper-add-space-submit"
+                      disabled={isSubmittingSpace}
+                      data-testid="add-space-submit"
+                    >
+                      {isSubmittingSpace ? '...' : 'Add'}
+                    </button>
+                  </div>
+                  <div className="proper-add-space-swatches">
+                    {SPACE_COLOR_SWATCHES.map((swatch) => (
+                      <button
+                        key={swatch}
+                        type="button"
+                        className={`proper-add-space-swatch ${newSpaceColor === swatch ? 'selected' : ''}`}
+                        style={{ backgroundColor: swatch }}
+                        aria-label={`Color ${swatch}`}
+                        onClick={() => setNewSpaceColor(swatch)}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className="proper-add-space-cancel"
+                      onClick={() => {
+                        setIsAddingSpace(false);
+                        setSpaceError('');
                       }}
                     >
-                      {sp.name}
-                    </span>
-                  );
-                })}
-              </div>
+                      Cancel
+                    </button>
+                  </div>
+                  {spaceError && (
+                    <div className="proper-add-space-error" role="alert">
+                      {spaceError}
+                    </div>
+                  )}
+                </form>
+              )}
 
               {/* Slider Track and Tactile Draggable Thumb */}
               <div

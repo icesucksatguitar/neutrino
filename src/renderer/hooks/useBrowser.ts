@@ -48,16 +48,15 @@ export function useBrowser() {
   useEffect(() => {
     if (!window.neutrino) return;
 
-    const unregState = window.neutrino.onStateUpdate((newState) => {
-      // Normalize spaces to Study, Work, Leisure
+    const applyIncomingState = (newState: BrowserAppState) => {
       const normalizedSpaces = (newState.spaces || []).map((sp) => {
-        if (sp.id === 'space-default' || sp.name === 'DEFAULT' || sp.id === 'space-study') {
+        if (sp.id === 'space-default' || sp.id === 'space-study' || (!sp.id?.startsWith('space-') && sp.name === 'DEFAULT')) {
           return { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' };
         }
-        if (sp.id === 'space-plan' || sp.name === 'PLAN' || sp.id === 'space-work') {
+        if (sp.id === 'space-plan' || sp.id === 'space-work' || (!sp.id?.startsWith('space-') && sp.name === 'PLAN')) {
           return { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' };
         }
-        if (sp.id === 'space-max' || sp.name === 'MAX' || sp.id === 'space-leisure') {
+        if (sp.id === 'space-max' || sp.id === 'space-leisure' || (!sp.id?.startsWith('space-') && sp.name === 'MAX')) {
           return { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' };
         }
         return sp;
@@ -68,12 +67,21 @@ export function useBrowser() {
       if (activeSp === 'space-plan') activeSp = 'space-work';
       if (activeSp === 'space-max') activeSp = 'space-leisure';
 
+      const finalSpaces = normalizedSpaces.length > 0 ? normalizedSpaces : INITIAL_STATE.spaces;
       setState({
         ...newState,
-        spaces: normalizedSpaces.length > 0 ? normalizedSpaces : INITIAL_STATE.spaces,
-        activeSpaceId: activeSp || 'space-study',
+        spaces: finalSpaces,
+        activeSpaceId: activeSp || finalSpaces[0]?.id || 'space-study',
       });
-    });
+    };
+
+    const unregState = window.neutrino.onStateUpdate(applyIncomingState);
+
+    window.neutrino.getState?.().then((initial) => {
+      if (initial && Array.isArray(initial.spaces)) {
+        applyIncomingState(initial);
+      }
+    }).catch(() => { });
 
     // High-performance batched tracker updates (prevents UI thread hitching on heavy pages)
     const trackerQueue: BlockedTrackerItem[] = [];
@@ -202,12 +210,72 @@ export function useBrowser() {
     }));
   }, []);
 
-  const createSpace = useCallback((name: string, color?: string) => {
-    return window.neutrino?.createSpace?.(name, color);
+  const createSpace = useCallback(async (name: string, color?: string) => {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) return null;
+
+    if (window.neutrino?.createSpace) {
+      const created = await window.neutrino.createSpace(trimmed, color);
+      if (created) {
+        setState((prev) => ({
+          ...prev,
+          spaces: prev.spaces.some((s) => s.id === created.id) ? prev.spaces : [...prev.spaces, created],
+          activeSpaceId: created.id,
+        }));
+      }
+      return created ?? null;
+    }
+
+    const newSpace = {
+      id: `space-local-${Date.now().toString(36)}`,
+      name: trimmed,
+      icon: 'Sparkles',
+      color: color || '#8B5CF6',
+    };
+    const newTabId = `tab-local-${Date.now().toString(36)}`;
+    setState((prev) => ({
+      ...prev,
+      spaces: [...prev.spaces, newSpace],
+      activeSpaceId: newSpace.id,
+      tabs: [
+        ...prev.tabs,
+        {
+          id: newTabId,
+          spaceId: newSpace.id,
+          title: 'New Tab',
+          url: 'neutrino://newtab',
+          isLoading: false,
+          canGoBack: false,
+          canGoForward: false,
+          isPinned: false,
+          isSleeping: false,
+          blockedCount: 0,
+        },
+      ],
+      activeTabId: newTabId,
+    }));
+    return newSpace;
   }, []);
 
-  const deleteSpace = useCallback((spaceId: string) => {
-    return window.neutrino?.deleteSpace?.(spaceId);
+  const deleteSpace = useCallback(async (spaceId: string) => {
+    if (window.neutrino?.deleteSpace) {
+      return window.neutrino.deleteSpace(spaceId);
+    }
+    setState((prev) => {
+      if (prev.spaces.length <= 1) return prev;
+      const nextSpaces = prev.spaces.filter((s) => s.id !== spaceId);
+      const nextTabs = prev.tabs.filter((t) => t.spaceId !== spaceId);
+      const nextActiveSpaceId = prev.activeSpaceId === spaceId ? nextSpaces[0].id : prev.activeSpaceId;
+      const nextActiveSpaceTabs = nextTabs.filter((t) => t.spaceId === nextActiveSpaceId);
+      return {
+        ...prev,
+        spaces: nextSpaces,
+        tabs: nextTabs,
+        activeSpaceId: nextActiveSpaceId,
+        activeTabId: prev.activeSpaceId === spaceId ? (nextActiveSpaceTabs[0]?.id ?? null) : prev.activeTabId,
+      };
+    });
+    return true;
   }, []);
 
   const reorderTabs = useCallback((draggedTabId: string, targetTabId: string) => {

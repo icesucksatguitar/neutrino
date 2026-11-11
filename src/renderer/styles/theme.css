@@ -6479,23 +6479,197 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.proper-slider-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .proper-slider-labels {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 2px;
+  gap: 4px;
+}
+
+.proper-slider-labels.scrollable {
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.proper-slider-labels.scrollable::-webkit-scrollbar {
+  display: none;
 }
 
 .proper-slider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
   font-size: 11.5px;
   font-weight: 500;
   color: #71717A;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
-  padding: 2px 6px;
+  padding: 3px 7px;
   border-radius: 6px;
+  max-width: 112px;
+}
+
+.proper-space-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.proper-space-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proper-space-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.proper-space-delete-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.proper-add-space-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #D4D4D8;
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.proper-add-space-btn:hover,
+.proper-add-space-btn.active {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #FFFFFF;
+}
+
+.proper-add-space-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.proper-add-space-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.proper-add-space-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.35);
+  color: #FFFFFF;
+  font-size: 12px;
+  outline: none;
+}
+
+.proper-add-space-input:focus {
+  border-color: rgba(124, 156, 255, 0.8);
+}
+
+.proper-add-space-submit {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: none;
+  background: #FFFFFF;
+  color: #111115;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.proper-add-space-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.proper-add-space-swatches {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.proper-add-space-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.proper-add-space-swatch.selected {
+  border-color: #FFFFFF;
+  transform: scale(1.15);
+}
+
+.proper-add-space-cancel {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #A1A1AA;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.proper-add-space-cancel:hover {
+  color: #FFFFFF;
+}
+
+.proper-add-space-error {
+  font-size: 11px;
+  color: #F87171;
 }
 
 .proper-slider-label:hover {
@@ -6591,6 +6765,51 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
 }
 
 [data-theme="light"] .proper-slider-label.active {
+  color: #1C1917;
+}
+
+[data-theme="light"] .proper-space-delete-btn:hover {
+  background: rgba(60, 50, 40, 0.10);
+}
+
+[data-theme="light"] .proper-add-space-btn {
+  border-color: rgba(60, 50, 40, 0.14);
+  background: rgba(60, 50, 40, 0.05);
+  color: #44403C;
+}
+
+[data-theme="light"] .proper-add-space-btn:hover,
+[data-theme="light"] .proper-add-space-btn.active {
+  background: rgba(60, 50, 40, 0.12);
+  border-color: rgba(60, 50, 40, 0.25);
+  color: #1C1917;
+}
+
+[data-theme="light"] .proper-add-space-form {
+  background: rgba(60, 50, 40, 0.04);
+  border-color: rgba(60, 50, 40, 0.10);
+}
+
+[data-theme="light"] .proper-add-space-input {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(60, 50, 40, 0.16);
+  color: #1C1917;
+}
+
+[data-theme="light"] .proper-add-space-submit {
+  background: #1C1917;
+  color: #FFFFFF;
+}
+
+[data-theme="light"] .proper-add-space-swatch.selected {
+  border-color: #1C1917;
+}
+
+[data-theme="light"] .proper-add-space-cancel {
+  color: #78716C;
+}
+
+[data-theme="light"] .proper-add-space-cancel:hover {
   color: #1C1917;
 }
 

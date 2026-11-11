@@ -119,15 +119,15 @@ export class LocalStorageManager {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
       const parsed = JSON.parse(content);
       let rawSpaces: Space[] = parsed.spaces || defaultSpaces;
-      // Seamlessly migrate legacy spaces (DEFAULT/PLAN/MAX -> Study/Work/Leisure)
+      // Seamlessly migrate legacy spaces (DEFAULT/PLAN/MAX -> Study/Work/Leisure) without clobbering custom spaces
       rawSpaces = rawSpaces.map((sp) => {
-        if (sp.id === 'space-default' || sp.name === 'DEFAULT' || sp.id === 'space-study') {
+        if (sp.id === 'space-default' || sp.id === 'space-study' || (!sp.id?.startsWith('space-') && sp.name === 'DEFAULT')) {
           return { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' };
         }
-        if (sp.id === 'space-plan' || sp.name === 'PLAN' || sp.id === 'space-work') {
+        if (sp.id === 'space-plan' || sp.id === 'space-work' || (!sp.id?.startsWith('space-') && sp.name === 'PLAN')) {
           return { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' };
         }
-        if (sp.id === 'space-max' || sp.name === 'MAX' || sp.id === 'space-leisure') {
+        if (sp.id === 'space-max' || sp.id === 'space-leisure' || (!sp.id?.startsWith('space-') && sp.name === 'MAX')) {
           return { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' };
         }
         return sp;

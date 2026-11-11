@@ -10,6 +10,8 @@ export interface Space {
   color: string;
 }
 
+export type SpaceState = Space;
+
 export interface TabState {
   id: string;
   spaceId: string;
@@ -124,6 +126,7 @@ declare global {
       openExternalUrl?: (url: string) => Promise<boolean>;
       onSiteAction?: (cb: (payload: { action: SiteAction; source?: string }) => void) => () => void;
       onSpaceSwitched?: (cb: (payload: { spaceId: string; spaceName: string }) => void) => () => void;
+      getState?: () => Promise<BrowserAppState>;
       createTab: (url?: string, spaceId?: string) => Promise<TabState>;
       updateTab?: (tabId: string, partial: Partial<TabState>) => Promise<void>;
       closeTab: (tabId: string) => Promise<void>;
@@ -131,8 +134,8 @@ declare global {
       togglePinTab: (tabId: string) => Promise<void>;
       toggleSleepTab: (tabId: string) => Promise<void>;
       selectSpace: (spaceId: string) => Promise<void>;
-      createSpace?: (name: string, color?: string) => Promise<Space>;
-      deleteSpace?: (spaceId: string) => Promise<void>;
+      createSpace?: (name: string, color?: string) => Promise<Space | null>;
+      deleteSpace?: (spaceId: string) => Promise<boolean | void>;
       reorderTabs?: (draggedTabId: string, targetTabId: string) => Promise<void>;
       setZoomFactor?: (factor: number) => Promise<void>;
       onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;

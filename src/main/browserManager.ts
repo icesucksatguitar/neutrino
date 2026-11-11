@@ -21,11 +21,21 @@ export interface TabState {
   zoomFactor?: number;
 }
 
+const CUSTOM_SPACE_PALETTE = [
+  { color: '#8B5CF6', icon: 'Sparkles' },
+  { color: '#3B82F6', icon: 'Compass' },
+  { color: '#10B981', icon: 'Leaf' },
+  { color: '#F59E0B', icon: 'Sun' },
+  { color: '#EC4899', icon: 'Flame' },
+  { color: '#06B6D4', icon: 'Globe' },
+] as const;
+
 export class BrowserManager {
   private tabs: Map<string, TabState> = new Map();
   private activeTabId: string | null = null;
   private activeSpaceId: string = 'space-study';
   private spaces: Space[] = [];
+  private spaceSequence: number = 0;
   private adblockEngine: BraveShieldEngine;
   private resourceManager: ZenResourceManager;
   private mcpServer: McpServer;
@@ -89,34 +99,63 @@ export class BrowserManager {
     this.notifyState();
   }
 
-  public createSpace(name: string, color: string = '#7c9cff'): Space {
-    const id = `space-${Date.now()}`;
-    const newSpace: Space = { id, name, icon: 'Folder', color };
+  public createSpace(name: string, color?: string): Space | null {
+    const trimmed = typeof name === 'string' ? name.trim().slice(0, 32) : '';
+    if (!trimmed) {
+      return null;
+    }
+
+    const id = `space-${Date.now().toString(36)}-${++this.spaceSequence}`;
+    const paletteEntry = CUSTOM_SPACE_PALETTE[this.spaces.length % CUSTOM_SPACE_PALETTE.length];
+    const resolvedColor =
+      typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color.trim())
+        ? color.trim()
+        : paletteEntry.color;
+
+    const newSpace: Space = {
+      id,
+      name: trimmed,
+      icon: paletteEntry.icon,
+      color: resolvedColor,
+    };
+
     this.spaces.push(newSpace);
     this.storage.saveState({ spaces: this.spaces });
     this.setActiveSpace(id);
     return newSpace;
   }
 
-  public deleteSpace(spaceId: string) {
-    if (this.spaces.length <= 1) return;
+  public deleteSpace(spaceId: string): boolean {
+    if (this.spaces.length <= 1) return false;
+    if (!this.spaces.some((s) => s.id === spaceId)) return false;
+
     this.spaces = this.spaces.filter((s) => s.id !== spaceId);
     const toRemove = Array.from(this.tabs.values()).filter((t) => t.spaceId === spaceId);
     for (const t of toRemove) {
       this.tabs.delete(t.id);
     }
-    if (this.activeSpaceId === spaceId) {
-      this.activeSpaceId = this.spaces[0].id;
-      this.storage.patchSettings({ activeSpaceId: this.activeSpaceId });
-      const remainingTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === this.activeSpaceId);
-      if (remainingTabs.length > 0) {
-        this.activeTabId = remainingTabs[0].id;
-      } else {
-        this.createTab('neutrino://newtab', this.activeSpaceId);
-      }
-    }
     this.storage.saveState({ spaces: this.spaces });
-    this.notifyState();
+
+    if (this.activeSpaceId === spaceId) {
+      this.setActiveSpace(this.spaces[0].id);
+    } else {
+      this.notifyState();
+    }
+    return true;
+  }
+
+  public getStateSnapshot() {
+    return {
+      spaces: this.spaces,
+      activeSpaceId: this.activeSpaceId,
+      tabs: Array.from(this.tabs.values()),
+      activeTabId: this.activeTabId,
+      shieldStats: this.adblockEngine.getStats(),
+      resourceStats: {
+        memorySavedMb: this.resourceManager.getTotalMemorySavedMb(),
+        sleepingCount: this.resourceManager.getSleepingTabsCount(),
+      },
+    };
   }
 
   public reorderTabs(draggedTabId: string, targetTabId: string) {

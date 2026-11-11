@@ -956,10 +956,12 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 : {
                   display: 'none',
                   position: 'absolute',
-                  left: '-9999px',
-                  width: '1px',
-                  height: '1px',
-                  opacity: 0,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: '100%',
+                  height: '100%',
                   pointerEvents: 'none',
                   zIndex: 0,
                 }
@@ -985,7 +987,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                 minHeight: '100%',
                 border: 'none',
                 outline: 'none',
-                backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
+                backgroundColor: '#ffffff',
               },
             })}
           </div>

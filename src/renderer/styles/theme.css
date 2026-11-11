@@ -1437,7 +1437,6 @@ button:hover:not(:disabled) .pixel-art-icon,
   overflow: hidden;
   min-width: 0;
   min-height: 0;
-  transition: padding var(--transition-base);
 }
 
 .arc-viewport-container.with-sidebar {
@@ -1523,8 +1522,7 @@ button:hover:not(:disabled) .pixel-art-icon,
   min-width: 100% !important;
   min-height: 100% !important;
   overflow: hidden !important;
-  contain: strict;
-  transform: translateZ(0);
+  contain: layout;
 }
 
 .tab-webview-wrapper.active {
@@ -1554,11 +1552,10 @@ webview,
   min-height: 100% !important;
   border: none !important;
   outline: none !important;
-  background-color: var(--bg-app);
+  background-color: #ffffff;
   margin: 0 !important;
   padding: 0 !important;
-  contain: strict;
-  transform: translateZ(0);
+  contain: layout;
 }
 
 /* Space Name Overlay (macOS-inspired desktop slide) */
@@ -5272,7 +5269,6 @@ input:focus-visible {
   position: absolute;
   inset: 0;
   z-index: 1;
-  transition: top 0.18s cubic-bezier(0.16, 1, 0.3, 1), height 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Offset web canvas below top header so window controls & tabs never collide with website navigation */
@@ -5330,7 +5326,7 @@ input:focus-visible {
   pointer-events: none;
 }
 
-/* Dedicated Glass Top Bar on Webpages: Reads active Space theme variables */
+/* Dedicated Solid Header on Webpages: eliminates translucent compositing bleed over OOP webviews */
 .floating-top-chrome-capsule.on-webpage {
   position: fixed;
   top: 0;
@@ -5339,11 +5335,11 @@ input:focus-visible {
   height: 44px;
   padding: 0 14px;
   gap: 10px;
-  background: var(--theme-surface);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--theme-bg-canvas);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transform: translateY(0) !important;
   opacity: 1 !important;
   pointer-events: none;
@@ -5351,9 +5347,9 @@ input:focus-visible {
 }
 
 [data-theme="light"] .floating-top-chrome-capsule.on-webpage {
-  background: var(--theme-surface);
+  background: var(--theme-bg-canvas);
   border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .floating-top-chrome-capsule.on-webpage .top-floating-url-pill {
@@ -6062,10 +6058,10 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
 /* Right edge hover trigger on active web pages */
 .right-pins-edge-hover-zone {
   position: fixed;
-  top: 0;
+  top: 44px;
   right: 0;
   bottom: 0;
-  width: 16px;
+  width: 6px;
   z-index: 149;
   pointer-events: auto;
 }
@@ -7450,10 +7446,10 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
    ========================================================================== */
 .left-edge-hover-zone {
   position: fixed;
-  top: 0;
+  top: 44px;
   left: 0;
   bottom: 0;
-  width: 14px;
+  width: 6px;
   z-index: 135;
   background: transparent;
   pointer-events: auto;

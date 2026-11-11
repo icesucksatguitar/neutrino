@@ -42,10 +42,9 @@ app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
-app.commandLine.appendSwitch('renderer-process-limit', '2');
 app.commandLine.appendSwitch('process-per-site');
-app.commandLine.appendSwitch('disk-cache-size', '4194304');
-app.commandLine.appendSwitch('media-cache-size', '4194304');
+app.commandLine.appendSwitch('disk-cache-size', '67108864');
+app.commandLine.appendSwitch('media-cache-size', '33554432');
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
 app.commandLine.appendSwitch('disable-domain-reliability');
@@ -56,6 +55,8 @@ app.commandLine.appendSwitch(
   'disable-features',
   'Vulkan,BackForwardCache,SpareRendererForSitePerProcess,AutofillServerCommunication,OptimizationHints,MediaRouter,CertificateTransparencyComponentUpdater'
 );
+
+let gpuProcessCrashed = false;
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -146,11 +147,11 @@ function getPerformanceStatus(): PerformanceStatus {
   const softwareRasterized = isSoftwareGpuStatus(rawStatus);
   const reducedEffectsMode = normalizeReducedEffectsMode(settings.reducedEffectsMode);
   return {
-    hardwareAcceleration: !gpuDisabled && !softwareRasterized,
-    gpuDisabledFlag: gpuDisabled,
+    hardwareAcceleration: !gpuDisabled && !gpuProcessCrashed && !softwareRasterized,
+    gpuDisabledFlag: gpuDisabled || gpuProcessCrashed,
     softwareRasterized,
     reducedEffectsMode,
-    reducedEffectsActive: resolveReducedEffectsActive(reducedEffectsMode, gpuDisabled, rawStatus),
+    reducedEffectsActive: resolveReducedEffectsActive(reducedEffectsMode, gpuDisabled || gpuProcessCrashed, rawStatus),
     gpuFeatureStatus: rawStatus,
   };
 }
@@ -799,6 +800,15 @@ app.whenReady().then(() => {
   app.on('gpu-info-update', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
+    }
+  });
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU' && details.reason !== 'clean-exit') {
+      console.warn('[GPU] child-process-gone:', details.reason, 'exitCode=', details.exitCode);
+      gpuProcessCrashed = true;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
+      }
     }
   });
   if (process.platform === 'darwin') {

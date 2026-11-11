@@ -485,8 +485,12 @@ export function App() {
     const unsubIpcHistory = window.neutrino?.onOpenHistory?.(() => {
       setIsHistoryModalOpen(true);
     });
-    const unsubIpcSpaceSwitched = window.neutrino?.onSpaceSwitched?.(() => {
+    const unsubIpcSpaceSwitched = window.neutrino?.onSpaceSwitched?.((payload) => {
       triggerThemeCrossFade();
+      if (payload?.spaceName) {
+        setSpaceOverlay(payload.spaceName);
+        setTimeout(() => setSpaceOverlay(null), 1100);
+      }
     });
     // neutrino://settings, neutrino://history, neutrino://vpn from useBrowser.navigate
     const handleOpenSettingsEvent = () => setIsSettingsOpen(true);
@@ -504,7 +508,7 @@ export function App() {
     // Fallback when running renderer standalone outside Electron (main process owns shortcuts in Electron)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (window.neutrino?.isElectron) return;
-      if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
+      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         const idx = parseInt(e.key, 10) - 1;
         if (state.spaces[idx]) {
@@ -803,8 +807,16 @@ return (
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
             <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
-          <span className="macos-tabs-label">Tabs</span>
-          <span className="macos-tabs-count">{state.tabs.length}</span>
+          <span
+            className="macos-tabs-space-dot"
+            style={{ backgroundColor: activeSpace?.color || '#E4E4E7' }}
+          />
+          <span className="macos-tabs-space-name" data-testid="active-space-indicator">
+            {activeSpace?.name || 'Study'}
+          </span>
+          <span className="macos-tabs-count" data-testid="active-space-tab-count">
+            {currentSpaceTabs.length}
+          </span>
         </button>
 
         {/* Compact Site Navigation Controls */}
@@ -952,7 +964,7 @@ return (
     {isTabsDrawerMounted && (
       <Suspense fallback={null}>
         <NotificationTabs
-          tabs={state.tabs}
+          tabs={currentSpaceTabs}
           activeTabId={state.activeTabId}
           spaces={state.spaces}
           activeSpaceId={state.activeSpaceId}
@@ -960,7 +972,7 @@ return (
           onToggle={(open) => setIsNotificationTabsOpen(typeof open === 'boolean' ? open : !isNotificationTabsOpen)}
           onSelectTab={selectTab}
           onCloseTab={closeTab}
-          onCreateTab={createTab}
+          onCreateTab={(url, spaceId) => createTab(url, spaceId ?? state.activeSpaceId)}
           onTogglePinTab={togglePinTab}
           onSelectSpace={handleSelectSpace}
           onCreateSpace={handleCreateSpace}

@@ -34,8 +34,10 @@ export class BrowserManager {
   private tabs: Map<string, TabState> = new Map();
   private activeTabId: string | null = null;
   private activeSpaceId: string = 'space-study';
+  private activeTabBySpace: Map<string, string> = new Map();
   private spaces: Space[] = [];
   private spaceSequence: number = 0;
+  private tabsSaveTimer: NodeJS.Timeout | null = null;
   private adblockEngine: BraveShieldEngine;
   private resourceManager: ZenResourceManager;
   private mcpServer: McpServer;
@@ -66,8 +68,95 @@ export class BrowserManager {
       this.activeSpaceId = validSaved ? savedActiveSpaceId : this.spaces[0].id;
     }
 
+    const validSpaceIds = new Set(this.spaces.map((s) => s.id));
+    if (Array.isArray(savedState.tabs)) {
+      const ordered = [...savedState.tabs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      for (const savedTab of ordered) {
+        if (!savedTab || typeof savedTab.id !== 'string' || !validSpaceIds.has(savedTab.spaceId)) continue;
+        const url = typeof savedTab.url === 'string' && savedTab.url.trim().length > 0 ? savedTab.url : 'neutrino://newtab';
+        if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://') && url !== 'neutrino://newtab') {
+          continue;
+        }
+        const restored: TabState = {
+          id: savedTab.id,
+          spaceId: savedTab.spaceId,
+          title: typeof savedTab.title === 'string' && savedTab.title.length > 0 ? savedTab.title : 'New Tab',
+          url,
+          favicon: typeof savedTab.favicon === 'string' ? savedTab.favicon : undefined,
+          isLoading: false,
+          canGoBack: false,
+          canGoForward: false,
+          isPinned: Boolean(savedTab.isPinned),
+          isSleeping: Boolean(savedTab.isSleeping),
+          blockedCount: 0,
+          ...(typeof savedTab.zoomFactor === 'number' ? { zoomFactor: savedTab.zoomFactor } : {}),
+        };
+        this.tabs.set(restored.id, restored);
+        this.resourceManager.registerTab(restored.id);
+      }
+    }
+
+    if (savedState.activeTabBySpace && typeof savedState.activeTabBySpace === 'object') {
+      for (const [spId, tabId] of Object.entries(savedState.activeTabBySpace)) {
+        const candidate = this.tabs.get(tabId);
+        if (candidate && candidate.spaceId === spId) {
+          this.activeTabBySpace.set(spId, tabId);
+        }
+      }
+    }
+
+    const activeSpaceTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === this.activeSpaceId);
+    const remembered = this.activeTabBySpace.get(this.activeSpaceId);
+    if (remembered && this.tabs.has(remembered) && this.tabs.get(remembered)!.spaceId === this.activeSpaceId) {
+      this.activeTabId = remembered;
+      this.tabs.get(remembered)!.isSleeping = false;
+    } else if (activeSpaceTabs.length > 0) {
+      this.activeTabId = activeSpaceTabs[0].id;
+      activeSpaceTabs[0].isSleeping = false;
+      this.activeTabBySpace.set(this.activeSpaceId, this.activeTabId);
+    }
+
     this.setupResourceEvents();
     this.registerMcpTools();
+  }
+
+  private persistSessionTabsNow() {
+    if (this.tabsSaveTimer) {
+      clearTimeout(this.tabsSaveTimer);
+      this.tabsSaveTimer = null;
+    }
+    const serializedTabs: TabData[] = Array.from(this.tabs.values()).map((t, idx) => ({
+      id: t.id,
+      spaceId: t.spaceId,
+      title: t.title,
+      url: t.url,
+      ...(t.favicon ? { favicon: t.favicon } : {}),
+      isPinned: t.isPinned,
+      isSleeping: t.isSleeping,
+      ...(typeof t.zoomFactor === 'number' ? { zoomFactor: t.zoomFactor } : {}),
+      order: idx,
+    }));
+    this.storage.saveState({
+      spaces: this.spaces,
+      tabs: serializedTabs,
+      activeTabBySpace: Object.fromEntries(this.activeTabBySpace.entries()),
+    });
+  }
+
+  private schedulePersistSessionTabs() {
+    if (this.tabsSaveTimer) clearTimeout(this.tabsSaveTimer);
+    this.tabsSaveTimer = setTimeout(() => {
+      this.tabsSaveTimer = null;
+      this.persistSessionTabsNow();
+    }, 250);
+  }
+
+  public flushSessionState() {
+    this.persistSessionTabsNow();
+  }
+
+  public sendInitialState() {
+    this.notifyState();
   }
 
   public setMainWindow(win: BrowserWindow) {
@@ -82,21 +171,28 @@ export class BrowserManager {
     return this.activeSpaceId;
   }
 
-  public setActiveSpace(spaceId: string) {
-    if (this.spaces.some((s) => s.id === spaceId)) {
-      this.activeSpaceId = spaceId;
-      this.storage.patchSettings({ activeSpaceId: spaceId });
-    } else {
-      this.activeSpaceId = spaceId;
+  public setActiveSpace(spaceId: string): boolean {
+    if (!this.spaces.some((s) => s.id === spaceId)) {
+      return false;
     }
-    // Find first tab in this space or create one
+    this.activeSpaceId = spaceId;
+    this.storage.patchSettings?.({ activeSpaceId: spaceId });
+
+    // Restore this Space's last active tab, falling back to its first tab or creating a new one
+    const rememberedId = this.activeTabBySpace.get(spaceId);
+    const rememberedTab = rememberedId ? this.tabs.get(rememberedId) : undefined;
+    if (rememberedTab && rememberedTab.spaceId === spaceId) {
+      this.setActiveTab(rememberedTab.id);
+      return true;
+    }
+
     const spaceTabs = Array.from(this.tabs.values()).filter((t) => t.spaceId === spaceId);
     if (spaceTabs.length > 0) {
       this.setActiveTab(spaceTabs[0].id);
     } else {
       this.createTab('neutrino://newtab', spaceId);
     }
-    this.notifyState();
+    return true;
   }
 
   public createSpace(name: string, color?: string): Space | null {
@@ -130,11 +226,12 @@ export class BrowserManager {
     if (!this.spaces.some((s) => s.id === spaceId)) return false;
 
     this.spaces = this.spaces.filter((s) => s.id !== spaceId);
+    this.activeTabBySpace.delete(spaceId);
     const toRemove = Array.from(this.tabs.values()).filter((t) => t.spaceId === spaceId);
     for (const t of toRemove) {
       this.tabs.delete(t.id);
     }
-    this.storage.saveState({ spaces: this.spaces });
+    this.persistSessionTabsNow();
 
     if (this.activeSpaceId === spaceId) {
       this.setActiveSpace(this.spaces[0].id);
@@ -221,6 +318,7 @@ export class BrowserManager {
     };
 
     this.tabs.set(tabId, newTab);
+    this.activeTabBySpace.set(finalSpaceId, tabId);
     this.resourceManager.registerTab(tabId);
     if (this.historyManager && isRecordableHistoryUrl(cleanedUrl)) {
       this.historyManager.recordVisit({
@@ -230,7 +328,6 @@ export class BrowserManager {
       });
     }
     this.setActiveTab(tabId);
-    this.notifyState();
     return newTab;
   }
 
@@ -257,11 +354,20 @@ export class BrowserManager {
     }
     this.tabs.delete(tabId);
 
+    const remainingInSpace = Array.from(this.tabs.values()).filter((t) => t.spaceId === currentSpaceId);
+    if (this.activeTabBySpace.get(currentSpaceId) === tabId) {
+      if (remainingInSpace.length > 0) {
+        this.activeTabBySpace.set(currentSpaceId, remainingInSpace[remainingInSpace.length - 1].id);
+      } else {
+        this.activeTabBySpace.delete(currentSpaceId);
+      }
+    }
+
     // If closing active tab, activate next available tab in this space
     if (this.activeTabId === tabId) {
-      const remainingInSpace = Array.from(this.tabs.values()).filter((t) => t.spaceId === currentSpaceId);
       if (remainingInSpace.length > 0) {
         this.activeTabId = remainingInSpace[remainingInSpace.length - 1].id;
+        this.activeTabBySpace.set(currentSpaceId, this.activeTabId);
         this.resourceManager.wakeTab(this.activeTabId);
       } else {
         // create new tab in space
@@ -270,6 +376,7 @@ export class BrowserManager {
       }
     }
 
+    this.persistSessionTabsNow();
     this.notifyState();
   }
 
@@ -306,8 +413,14 @@ export class BrowserManager {
       this.activeTabId = tabId;
       const tab = this.tabs.get(tabId)!;
       tab.isSleeping = false;
+      const spaceChanged = this.activeSpaceId !== tab.spaceId;
       this.activeSpaceId = tab.spaceId;
+      this.activeTabBySpace.set(tab.spaceId, tabId);
+      if (spaceChanged) {
+        this.storage.patchSettings?.({ activeSpaceId: tab.spaceId });
+      }
       this.resourceManager.wakeTab(tabId);
+      this.persistSessionTabsNow();
       this.notifyState();
     }
   }
@@ -332,6 +445,11 @@ export class BrowserManager {
           });
         }
       }
+      if (partial.url !== undefined || partial.isPinned !== undefined || partial.isSleeping !== undefined) {
+        this.persistSessionTabsNow();
+      } else if (partial.title !== undefined || partial.favicon !== undefined || partial.zoomFactor !== undefined) {
+        this.schedulePersistSessionTabs();
+      }
       this.notifyState();
     }
   }
@@ -340,6 +458,7 @@ export class BrowserManager {
     const tab = this.tabs.get(tabId);
     if (tab) {
       tab.isPinned = !tab.isPinned;
+      this.persistSessionTabsNow();
       this.notifyState();
     }
   }

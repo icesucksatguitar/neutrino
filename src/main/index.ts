@@ -7,7 +7,7 @@ import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 import { isGoogleAuthUrl, isAuthOrSecurityUrl } from './urlClassifier';
-import { BrowserSettings, normalizeSettings } from './settings';
+import { BrowserSettings, normalizeSettings, resolveSpaceTheme } from './settings';
 import { resolveShortcut } from './shortcuts';
 import { HistoryManager, HistoryClearRange, HistoryQueryOptions } from './history';
 import { VpnController } from './vpn';
@@ -375,10 +375,16 @@ function updateSettings(patch: unknown): BrowserSettings {
               else if (direction === 'right') sendSiteAction('forward', 'swipe');
             });
 
-            // Create initial tabs (renderer stays at native 100% standard desktop scale)
+            // Restore persisted Space tabs or create an initial new tab for the active Space
             mainWindow.webContents.once('did-finish-load', () => {
               mainWindow!.webContents.setZoomFactor(1.0);
-              browserManager.createTab('neutrino://newtab', browserManager.getActiveSpaceId());
+              const activeSpaceId = browserManager.getActiveSpaceId();
+              const hasActiveSpaceTabs = browserManager.getTabs().some((t) => t.spaceId === activeSpaceId);
+              if (!hasActiveSpaceTabs) {
+                browserManager.createTab('neutrino://newtab', activeSpaceId);
+              } else {
+                browserManager.sendInitialState();
+              }
               scheduleIdleTrim(3200);
             });
 
@@ -470,9 +476,26 @@ function updateSettings(patch: unknown): BrowserSettings {
             });
 
             ipcMain.handle('neutrino:create-space', async (_, payload: { name: string; color?: string } | string) => {
+              const previousSpaceId = browserManager.getActiveSpaceId();
               const name = typeof payload === 'string' ? payload : payload?.name;
               const color = typeof payload === 'string' ? undefined : payload?.color;
-              return browserManager.createSpace(name, color);
+              const created = browserManager.createSpace(name, color);
+              if (created) {
+                const base = resolveSpaceTheme(settings, previousSpaceId);
+                updateSettings({
+                  spaceThemes: {
+                    ...(settings.spaceThemes || {}),
+                    [created.id]: {
+                      ...base,
+                      points: [
+                        { x: 0.28, y: 0.3, color: created.color, intensity: 0.72 },
+                        { x: 0.72, y: 0.72, color: base.points[1]?.color || created.color, intensity: 0.56 },
+                      ],
+                    },
+                  },
+                });
+              }
+              return created;
             });
 
             ipcMain.handle('neutrino:delete-space', async (_, spaceId: string) => {
@@ -926,11 +949,13 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  browserManager.flushSessionState();
   historyManager.destroy();
   void vpnController.cleanupOnQuit();
 });
 
 app.on('window-all-closed', () => {
+  browserManager.flushSessionState();
   historyManager.destroy();
   void vpnController.cleanupOnQuit();
   resourceManager.destroy();

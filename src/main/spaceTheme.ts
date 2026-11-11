@@ -552,7 +552,16 @@ export function getDefaultSpaceTheme(spaceId: string, rawSettings?: Record<strin
   if (rawSettings && (rawSettings.theme === 'light' || rawSettings.customTheme !== undefined)) {
     return migrateLegacyThemeSettings(rawSettings);
   }
-  const presetId = SPACE_DEFAULT_PRESET_MAP[spaceId] || 'evergreen-mist';
+  let presetId = SPACE_DEFAULT_PRESET_MAP[spaceId];
+  if (!presetId) {
+    // Give custom Spaces distinct default aesthetics deterministically instead of collapsing all of them to one preset.
+    let hash = 0;
+    for (let i = 0; i < spaceId.length; i++) {
+      hash = (hash * 31 + spaceId.charCodeAt(i)) >>> 0;
+    }
+    const preset = SPACE_THEME_PRESETS[hash % SPACE_THEME_PRESETS.length] || SPACE_THEME_PRESETS[0];
+    return cloneSpaceTheme(preset.theme);
+  }
   const preset = SPACE_THEME_PRESETS.find((p) => p.id === presetId) || SPACE_THEME_PRESETS[0];
   return cloneSpaceTheme(preset.theme);
 }

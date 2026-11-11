@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserAppState, BlockedTrackerItem, TabState } from '../types';
 
 const INITIAL_STATE: BrowserAppState = {
@@ -150,6 +150,15 @@ export function useBrowser() {
     };
   }, []);
 
+  const activeTabBySpaceRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    const tab = state.tabs.find((t) => t.id === state.activeTabId);
+    if (tab) {
+      activeTabBySpaceRef.current[tab.spaceId] = tab.id;
+    }
+  }, [state.tabs, state.activeTabId]);
+
   const navigate = useCallback((url: string) => {
     if (typeof url === 'string') {
       const normalized = url.trim().toLowerCase();
@@ -204,10 +213,18 @@ export function useBrowser() {
 
   const selectSpace = useCallback((spaceId: string) => {
     window.neutrino?.selectSpace(spaceId);
-    setState((prev) => ({
-      ...prev,
-      activeSpaceId: spaceId,
-    }));
+    setState((prev) => {
+      if (!prev.spaces.some((s) => s.id === spaceId)) return prev;
+      const spaceTabs = prev.tabs.filter((t) => t.spaceId === spaceId);
+      const remembered = activeTabBySpaceRef.current[spaceId];
+      const nextActiveTab =
+        (remembered ? spaceTabs.find((t) => t.id === remembered) : undefined) || spaceTabs[0];
+      return {
+        ...prev,
+        activeSpaceId: spaceId,
+        activeTabId: nextActiveTab ? nextActiveTab.id : prev.activeTabId,
+      };
+    });
   }, []);
 
   const createSpace = useCallback(async (name: string, color?: string) => {
@@ -290,12 +307,15 @@ export function useBrowser() {
     window.neutrino?.zenOptimize();
   }, []);
 
-  const activeTab: TabState | undefined =
-    state.tabs.find((t) => t.id === state.activeTabId) || state.tabs[0];
-
   const currentSpaceTabs = state.tabs.filter(
     (t) => t.spaceId === state.activeSpaceId
   );
+
+  const activeTab: TabState | undefined =
+    currentSpaceTabs.find((t) => t.id === state.activeTabId) ||
+    currentSpaceTabs[0] ||
+    state.tabs.find((t) => t.id === state.activeTabId) ||
+    state.tabs[0];
 
   return {
     state,

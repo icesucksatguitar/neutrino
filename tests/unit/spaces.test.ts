@@ -141,5 +141,58 @@ describe('Spaces creation, deletion, and persistence (Issue #1)', () => {
     expect(bm.deleteSpace(bm.getSpaces()[0].id)).toBe(false);
     expect(bm.getSpaces()).toHaveLength(1);
   });
+
+  it('isolates tabs per Space, remembers each Space active tab when switching, and persists session tabs across restarts (Issue #2)', () => {
+    const storage1 = new LocalStorageManager();
+    const collabs1 = createCollaborators();
+    const bm1 = new BrowserManager(
+      collabs1.adblockEngine,
+      collabs1.resourceManager,
+      collabs1.mcpServer,
+      storage1
+    );
+
+    const studyTab1 = bm1.createTab('https://example.com/study-1', 'space-study');
+    const studyTab2 = bm1.createTab('https://example.com/study-2', 'space-study');
+    bm1.updateTab(studyTab2.id, { title: 'Study Docs' });
+    // Study active tab is now studyTab2
+
+    // Switch to Work and create 2 tabs, make workTab1 active
+    expect(bm1.setActiveSpace('space-work')).toBe(true);
+    const workTab1 = bm1.createTab('https://example.com/work-1', 'space-work');
+    const workTab2 = bm1.createTab('https://example.com/work-2', 'space-work');
+    bm1.setActiveTab(workTab1.id);
+    expect(bm1.getActiveSpaceId()).toBe('space-work');
+    expect(bm1.getActiveTab()?.id).toBe(workTab1.id);
+
+    // Switching back to Study must restore studyTab2 (not reset to studyTab1 / [0])
+    expect(bm1.setActiveSpace('space-study')).toBe(true);
+    expect(bm1.getActiveSpaceId()).toBe('space-study');
+    expect(bm1.getActiveTab()?.id).toBe(studyTab2.id);
+
+    // Switching to Work again must restore workTab1 (not workTab2)
+    expect(bm1.setActiveSpace('space-work')).toBe(true);
+    expect(bm1.getActiveTab()?.id).toBe(workTab1.id);
+    bm1.flushSessionState();
+
+    // Restart browser with fresh LocalStorageManager & BrowserManager
+    const storage2 = new LocalStorageManager();
+    const collabs2 = createCollaborators();
+    const bm2 = new BrowserManager(
+      collabs2.adblockEngine,
+      collabs2.resourceManager,
+      collabs2.mcpServer,
+      storage2
+    );
+
+    expect(bm2.getActiveSpaceId()).toBe('space-work');
+    expect(bm2.getActiveTab()?.id).toBe(workTab1.id);
+    expect(bm2.getTabs().filter((t) => t.spaceId === 'space-study').map((t) => t.url)).toContain(
+      'https://example.com/study-2'
+    );
+    expect(bm2.setActiveSpace('space-study')).toBe(true);
+    expect(bm2.getActiveTab()?.id).toBe(studyTab2.id);
+    expect(bm2.getActiveTab()?.title).toBe('Study Docs');
+  });
 });
 

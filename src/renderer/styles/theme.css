@@ -7433,9 +7433,31 @@ html[data-glow-style="prism"] .ambient-glow-color-cycle {
   font-weight: 600;
 }
 
+.macos-tabs-space-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.macos-tabs-space-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--theme-fg-muted);
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .macos-tabs-toggle-pill.active .macos-tabs-count {
   background: var(--theme-accent-soft);
   color: var(--theme-surface-solid);
+}
+
+.macos-tabs-toggle-pill.active .macos-tabs-space-name {
+  color: inherit;
+  opacity: 0.9;
 }
 
 [data-theme="light"] .macos-tabs-toggle-pill {

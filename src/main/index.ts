@@ -38,215 +38,92 @@ app.commandLine.appendSwitch(
   'Vulkan,BackForwardCache,SpareRendererForSitePerProcess,AutofillServerCommunication,OptimizationHints,MediaRouter,CertificateTransparencyComponentUpdater'
 );
 
-    let mainWindow: BrowserWindow | null = null;
+let mainWindow: BrowserWindow | null = null;
 
-    type MainSiteAction = 'back' | 'forward' | 'reload' | 'hard-reload' | 'stop' | 'home' | 'open-find';
+type MainSiteAction = 'back' | 'forward' | 'reload' | 'hard-reload' | 'stop' | 'home' | 'open-find';
 
-    function sendSiteAction(action: MainSiteAction, source?: string): void {
+function sendSiteAction(action: MainSiteAction, source?: string): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('neutrino:site-action', { action, source });
+  }
+}
+
+// Initialize Core Subsystems
+const adblockEngine = new BraveShieldEngine();
+const resourceManager = new ZenResourceManager();
+const mcpServer = new McpServer();
+const storage = new LocalStorageManager();
+const dataDir = path.join(app.getPath('userData'), 'neutrino-data');
+const historyManager = new HistoryManager(path.join(dataDir, 'history.json'));
+const vpnController = new VpnController(path.join(dataDir, 'vpn-config.json'), ['persist:neutrino']);
+const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpServer, storage, historyManager);
+
+mcpServer.start();
+
+// Browser settings: load, fill defaults, and apply the parts owned by the main process.
+let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
+let isDarkMode = settings.theme !== 'light';
+nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
+adblockEngine.setEnabled(settings.adblockEnabled);
+resourceManager.setAutoSleepEnabled(settings.zenSleepEnabled);
+
+function applySettings(prev: BrowserSettings, next: BrowserSettings) {
+  if (prev.adblockEnabled !== next.adblockEnabled) {
+    adblockEngine.setEnabled(next.adblockEnabled);
+  }
+  if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
+    resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
+  }
+}
+
+/** Merges a patch from the renderer, re-validates it, applies, saves and broadcasts the result. */
+function updateSettings(patch: unknown): BrowserSettings {
+  const safePatch =
+    patch !== null && typeof patch === 'object' && !Array.isArray(patch) ? (patch as Record<string, unknown>) : {};
+  const prev = settings;
+  const latest = storage.loadState().settings;
+  const mergedRaw: Record<string, unknown> = { ...prev, ...latest, ...safePatch };
+  if (
+    safePatch.spaceThemes !== null &&
+    typeof safePatch.spaceThemes === 'object' &&
+    !Array.isArray(safePatch.spaceThemes)
+  ) {
+    const prevThemes =
+      prev.spaceThemes && typeof prev.spaceThemes === 'object' && !Array.isArray(prev.spaceThemes)
+        ? prev.spaceThemes
+        : {};
+    const latestThemes =
+      latest.spaceThemes && typeof latest.spaceThemes === 'object' && !Array.isArray(latest.spaceThemes)
+        ? (latest.spaceThemes as Record<string, unknown>)
+        : {};
+    mergedRaw.spaceThemes = {
+      ...prevThemes,
+      ...latestThemes,
+      ...(safePatch.spaceThemes as Record<string, unknown>),
+    };
+  }
+  const next = normalizeSettings(mergedRaw);
+  settings = next;
+  if (
+    Object.prototype.hasOwnProperty.call(safePatch, 'theme') &&
+    (next.theme === 'light' || next.theme === 'dark')
+  ) {
+    const nextDark = next.theme !== 'light';
+    if (nextDark !== isDarkMode) {
+      isDarkMode = nextDark;
+      nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('neutrino:site-action', { action, source });
+        mainWindow.setBackgroundColor(isDarkMode ? '#000000' : '#FAF7F2');
       }
-      cachedDarkReaderCode = '';
-      return cachedDarkReaderCode;
     }
-
-    let mainWindow: BrowserWindow | null = null;
-
-    // Initialize Core Subsystems
-    const adblockEngine = new BraveShieldEngine();
-    const resourceManager = new ZenResourceManager();
-    const mcpServer = new McpServer();
-    const storage = new LocalStorageManager();
-    const dataDir = path.join(app.getPath('userData'), 'neutrino-data');
-    const historyManager = new HistoryManager(path.join(dataDir, 'history.json'));
-    const vpnController = new VpnController(path.join(dataDir, 'vpn-config.json'), ['persist:neutrino']);
-    const browserManager = new BrowserManager(adblockEngine, resourceManager, mcpServer, storage, historyManager);
-
-    mcpServer.start();
-
-    // Browser settings: load, fill defaults, and apply the parts owned by the main process.
-    let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
-    let isDarkMode = settings.theme !== 'light';
-    nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
-    adblockEngine.setEnabled(settings.adblockEnabled);
-    resourceManager.setAutoSleepEnabled(settings.zenSleepEnabled);
-
-    function getWebviewContents(): WebContents[] {
-      return webContents.getAllWebContents().filter((wc) => !wc.isDestroyed() && wc.getType() === 'webview');
-    }
-
-    const prepaintCssKeys = new WeakMap<WebContents, Set<string>>();
-    const prepaintInFlight = new WeakMap<WebContents, Promise<void>>();
-    const darkReaderLibLoaded = new WeakSet<WebContents>();
-
-    async function applyPrepaintDarkCss(wc: WebContents): Promise<void> {
-      if (wc.isDestroyed()) return;
-      const inflight = prepaintInFlight.get(wc);
-      if (inflight) {
-        await inflight;
-        return;
-        function applySettings(prev: BrowserSettings, next: BrowserSettings) {
-          if (prev.adblockEnabled !== next.adblockEnabled) {
-            adblockEngine.setEnabled(next.adblockEnabled);
-          }
-          const existing = prepaintCssKeys.get(wc);
-          if (existing && existing.size > 0) return;
-
-          const task = (async () => {
-            try {
-              const key = await wc.insertCSS(INSTANT_DARK_PREPAINT_CSS);
-              if (wc.isDestroyed()) return;
-              let stillEligible = false;
-              try {
-                stillEligible = isDarkMode && shouldInjectDarkReader(wc.getURL(), settings.darkModeExclusions);
-              } catch { }
-              if (!stillEligible) {
-                await wc.removeInsertedCSS(key).catch(() => { });
-                return;
-              }
-              let keys = prepaintCssKeys.get(wc);
-              if (!keys) {
-                keys = new Set<string>();
-                prepaintCssKeys.set(wc, keys);
-              }
-              keys.add(key);
-            } catch {
-            } finally {
-              prepaintInFlight.delete(wc);
-            }
-          })();
-          prepaintInFlight.set(wc, task);
-          await task;
-        }
-
-        async function removePrepaintDarkCss(wc: WebContents): Promise<void> {
-          if (wc.isDestroyed()) return;
-          const inflight = prepaintInFlight.get(wc);
-          if (inflight) {
-            await inflight;
-            if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
-              resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
-            }
-            const keys = prepaintCssKeys.get(wc);
-            if (!keys || keys.size === 0) return;
-            prepaintCssKeys.delete(wc);
-            await Promise.all(
-              Array.from(keys).map((key) => wc.removeInsertedCSS(key).catch(() => { })),
-            );
-          }
-
-          /**
-           * The only code that loads DarkReader into webviews. Injects instant pre-paint CSS early,
-           * enables DarkReader on eligible pages in one IPC roundtrip while dark mode is on, and disables
-           * it everywhere else without reloading the page.
-           */
-          async function applyDarkMode(wc: WebContents): Promise<void> {
-            if (wc.isDestroyed()) return;
-            const run = (code: string) => wc.executeJavaScript(code).catch(() => undefined);
-
-            let url = '';
-            try {
-              url = wc.getURL();
-            } catch {
-              return;
-            }
-            const eligible = shouldInjectDarkReader(url, settings.darkModeExclusions);
-
-            if (isDarkMode && eligible) {
-              const darkReaderCode = getDarkReaderCode();
-              if (darkReaderCode) {
-                const prepaintPromise = applyPrepaintDarkCss(wc);
-                const includeLib = !darkReaderLibLoaded.has(wc);
-                const jsPromise = run(buildDarkModeEnableScript(darkReaderCode, includeLib)).then((res) => {
-                  if (res !== undefined && !wc.isDestroyed()) {
-                    darkReaderLibLoaded.add(wc);
-                  }
-                });
-                await Promise.allSettled([prepaintPromise, jsPromise]);
-                // DarkReader now owns the page dark palette; remove temporary pre-paint stylesheet.
-                await removePrepaintDarkCss(wc);
-                return;
-              }
-            }
-
-            const removePromise = removePrepaintDarkCss(wc);
-            if (darkReaderLibLoaded.has(wc) || !isDarkMode) {
-              const disablePromise = run(buildDarkModeDisableScript(!isDarkMode && eligible));
-              await Promise.allSettled([removePromise, disablePromise]);
-              return;
-            }
-            await removePromise;
-          }
-
-          async function applyDarkModeToAllWebviews(): Promise<void> {
-            await Promise.all(getWebviewContents().map((wc) => applyDarkMode(wc).catch(() => undefined)));
-          }
-
-          function sameList(a: readonly string[], b: readonly string[]): boolean {
-            return a.length === b.length && a.every((item, i) => item === b[i]);
-          }
-
-          function applySettings(prev: BrowserSettings, next: BrowserSettings) {
-            if (prev.adblockEnabled !== next.adblockEnabled) {
-              adblockEngine.setEnabled(next.adblockEnabled);
-            }
-            if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
-              resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
-            }
-            if (!sameList(prev.darkModeExclusions, next.darkModeExclusions)) {
-              void applyDarkModeToAllWebviews();
-            }
-          }
-
-          /** Merges a patch from the renderer, re-validates it, applies, saves and broadcasts the result. */
-          function updateSettings(patch: unknown): BrowserSettings {
-            const safePatch =
-              patch !== null && typeof patch === 'object' && !Array.isArray(patch) ? (patch as Record<string, unknown>) : {};
-            const prev = settings;
-            const latest = storage.loadState().settings;
-            const mergedRaw: Record<string, unknown> = { ...prev, ...latest, ...safePatch };
-            if (
-              safePatch.spaceThemes !== null &&
-              typeof safePatch.spaceThemes === 'object' &&
-              !Array.isArray(safePatch.spaceThemes)
-            ) {
-              const prevThemes =
-                prev.spaceThemes && typeof prev.spaceThemes === 'object' && !Array.isArray(prev.spaceThemes)
-                  ? prev.spaceThemes
-                  : {};
-              const latestThemes =
-                latest.spaceThemes && typeof latest.spaceThemes === 'object' && !Array.isArray(latest.spaceThemes)
-                  ? (latest.spaceThemes as Record<string, unknown>)
-                  : {};
-              mergedRaw.spaceThemes = {
-                ...prevThemes,
-                ...latestThemes,
-                ...(safePatch.spaceThemes as Record<string, unknown>),
-              };
-            }
-            const next = normalizeSettings(mergedRaw);
-            settings = next;
-            if (
-              Object.prototype.hasOwnProperty.call(safePatch, 'theme') &&
-              (next.theme === 'light' || next.theme === 'dark')
-            ) {
-              const nextDark = next.theme !== 'light';
-              if (nextDark !== isDarkMode) {
-                isDarkMode = nextDark;
-                nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
-                void applyDarkModeToAllWebviews();
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.setBackgroundColor(isDarkMode ? '#000000' : '#FAF7F2');
-                }
-              }
-            }
-            applySettings(prev, next);
-            storage.saveSettings(next);
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('neutrino:settings-updated', next);
-            }
-            return next;
-          }
+  }
+  applySettings(prev, next);
+  storage.saveSettings(next);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('neutrino:settings-updated', next);
+  }
+  return next;
+}
 
           // Re-exported so existing imports from index (e.g. tests requiring dist-main/index.js) keep working.
           export { isGoogleAuthUrl, isAuthOrSecurityUrl };
@@ -665,7 +542,6 @@ app.commandLine.appendSwitch(
               nativeTheme.themeSource = requested;
               isDarkMode = requested === 'system' ? nativeTheme.shouldUseDarkColors : requested === 'dark';
 
-              await applyDarkModeToAllWebviews();
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.setBackgroundColor(isDarkMode ? '#000000' : '#FAF7F2');
               }
@@ -677,7 +553,6 @@ app.commandLine.appendSwitch(
                 const nextDark = nativeTheme.shouldUseDarkColors;
                 if (nextDark !== isDarkMode) {
                   isDarkMode = nextDark;
-                  void applyDarkModeToAllWebviews();
                   if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.setBackgroundColor(isDarkMode ? '#000000' : '#FAF7F2');
                   }
@@ -750,443 +625,301 @@ app.commandLine.appendSwitch(
             });
           }
 
-          app.whenReady().then(() => {
-            if (process.platform === 'darwin') {
-              Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }]));
-            } else {
-              Menu.setApplicationMenu(null);
-            }
-            setupNetworkInterception();
-            vpnController.attachLoginHandler(app);
-            setupIpcHandlers();
-            createWindow();
-            void vpnController.initialize();
+app.whenReady().then(() => {
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }]));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
+  setupNetworkInterception();
+  vpnController.attachLoginHandler(app);
+  setupIpcHandlers();
 
-            // Configure newly created browser windows (including OAuth popups)
-            app.on('browser-window-created', (_, win) => {
-              if (win !== mainWindow) {
-                win.show();
-                win.focus();
-              }
-            });
+  // Universal handlers for all WebContents (host UI & webview tabs) — registered
+  // BEFORE createWindow() so mainWindow.webContents receives before-input-event.
+  app.on('web-contents-created', (_, contents) => {
+    authHandoff.attach(contents);
 
-            // Universal handlers for all WebContents (browser UI & webview tabs)
-            // Universal handlers for all WebContents (host UI & webview tabs) — registered
-            // BEFORE createWindow() so mainWindow.webContents receives before-input-event.
-            app.on('web-contents-created', (_, contents) => {
-              authHandoff.attach(contents);
+    // Intercept target="_blank" and window.open: sign-in and featured popups stay real child
+    // windows (window.opener intact), regular links open as Neutrino tabs. See windowOpen.ts.
+    contents.setWindowOpenHandler((details) => {
+      const decision = decideWindowOpen(details, {
+        isAuthOrSecurityUrl,
+        mainWindow,
+        activeTab: browserManager.getActiveTab(),
+      });
+      if (decision.action === 'allow') {
+        return { action: 'allow', overrideBrowserWindowOptions: decision.overrideBrowserWindowOptions };
+      }
+      browserManager.createTab(decision.createTab.url, decision.createTab.spaceId);
+      return { action: 'deny' };
+    });
 
-              // Intercept target="_blank" and window.open: sign-in and featured popups stay real child
-              // windows (window.opener intact), regular links open as Neutrino tabs. See windowOpen.ts.
-              contents.setWindowOpenHandler((details) => {
-                const decision = decideWindowOpen(details, {
-                  isAuthOrSecurityUrl,
-                  mainWindow,
-                  activeTab: browserManager.getActiveTab(),
-                });
-                if (decision.action === 'allow') {
-                  return { action: 'allow', overrideBrowserWindowOptions: decision.overrideBrowserWindowOptions };
-                }
-                browserManager.createTab(decision.createTab.url, decision.createTab.spaceId);
-                return { action: 'deny' };
-              });
-
-              // Auto-inject pre-paint dark CSS immediately on navigation commit, plus parallel cosmetic
-              // adblock, YouTube skipper, and single-roundtrip DarkReader on dom-ready.
-              // Enforce VPN WebRTC policy, cosmetic adblock, YouTube skipper, and site context menus.
-              vpnController.applyWebRtcPolicy(contents);
-              if (contents.getType() === 'webview') {
-                contents.on('did-frame-navigate', (_event, navUrl, _httpCode, _httpText, isMainFrame) => {
-                  if (!isMainFrame) return;
-                  darkReaderLibLoaded.delete(contents);
-                  prepaintCssKeys.delete(contents);
-                  if (isDarkMode && shouldInjectDarkReader(navUrl, settings.darkModeExclusions)) {
-                    void applyPrepaintDarkCss(contents);
-                  }
-                });
-
-                contents.on('did-navigate-in-page', (_event, navUrl, isMainFrame) => {
-                  if (!isMainFrame) return;
-                  if (isDarkMode && shouldInjectDarkReader(navUrl, settings.darkModeExclusions)) {
-                    if (!darkReaderLibLoaded.has(contents)) {
-                      void applyDarkMode(contents);
-                    }
-                  } else {
-                    void applyDarkMode(contents);
-                  }
-                });
-
-                contents.on('dom-ready', async () => {
-                  try {
-                    const tasks: Promise<unknown>[] = [
-                      applyDarkMode(contents),
-                      contents.executeJavaScript(`
+    // Enforce VPN WebRTC policy, cosmetic adblock, YouTube skipper, and site context menus.
+    vpnController.applyWebRtcPolicy(contents);
+    if (contents.getType() === 'webview') {
+      contents.on('dom-ready', async () => {
+        try {
+          const tasks: Promise<unknown>[] = [
+            contents.executeJavaScript(`
               try {
                 if (!window.dataLayer) window.dataLayer = [];
                 if (!window.google_tag_manager) window.google_tag_manager = {};
                 if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
               } catch(e) {}
             `).catch(() => { }),
-                    ];
-                    if (adblockEngine.isEnabled()) {
-                      tasks.push(contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => { }));
-                      const url = contents.getURL();
-                      if (url.includes('youtube.com')) {
-                        tasks.push(contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => { }));
-                      }
-                    }
-                    await Promise.allSettled(tasks);
-                  } catch { }
-                });
-
-                contents.on('context-menu', (_event, params) => {
-                  const template: Electron.MenuItemConstructorOptions[] = [
-                    {
-                      label: 'Back',
-                      enabled: contents.canGoBack(),
-                      click: () => {
-                        if (!contents.isDestroyed() && contents.canGoBack()) contents.goBack();
-                      },
-                    },
-                    {
-                      label: 'Forward',
-                      enabled: contents.canGoForward(),
-                      click: () => {
-                        if (!contents.isDestroyed() && contents.canGoForward()) contents.goForward();
-                      },
-                    },
-                    {
-                      label: 'Reload',
-                      click: () => {
-                        if (!contents.isDestroyed()) contents.reload();
-                      },
-                    },
-                    { type: 'separator' },
-                  ];
-
-                  if (params.linkURL) {
-                    template.push(
-                      {
-                        label: 'Open Link in New Tab',
-                        click: () => {
-                          browserManager.createTab(params.linkURL, browserManager.getActiveSpaceId());
-                        },
-                      },
-                      {
-                        label: 'Copy Link Address',
-                        click: () => clipboard.writeText(params.linkURL),
-                      },
-                      { type: 'separator' },
-                    );
-                  }
-
-                  if (params.isEditable) {
-                    template.push(
-                      { role: 'cut' },
-                      { role: 'copy' },
-                      { role: 'paste' },
-                      { role: 'selectAll' },
-                      { type: 'separator' },
-                    );
-                  } else if (params.selectionText) {
-                    template.push(
-                      { role: 'copy' },
-                      { type: 'separator' },
-                    );
-                  }
-
-                  const pageUrl = contents.getURL();
-                  if (pageUrl && pageUrl.startsWith('http')) {
-                    template.push({
-                      label: 'Copy Page Address',
-                      click: () => clipboard.writeText(pageUrl),
-                    });
-                  }
-
-                  template.push({
-                    label: 'Inspect Element',
-                    click: () => {
-                      if (!contents.isDestroyed()) {
-                        contents.inspectElement(params.x, params.y);
-                      }
-                    },
-                  });
-
-                  const menu = Menu.buildFromTemplate(template);
-                  if (mainWindow && !mainWindow.isDestroyed()) {
-                    menu.popup({ window: mainWindow });
-                  }
-                });
-              }
-
-              contents.on('before-input-event', (event, input) => {
-                if (input.type === 'keyDown') {
-                  if (input.key === 'Escape') {
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                      mainWindow.webContents.send('neutrino:escape-pressed');
-                    }
-                    return;
-                    const isWebview = contents.getType() === 'webview';
-                    const action = resolveShortcut(input, { isWebview });
-                    if (!action) return;
-
-                    if (action.type === 'escape') {
-                      if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('neutrino:escape-pressed');
-                      }
-                      return;
-                    }
-
-                    if (input.control || input.meta) {
-                      const key = input.key.toLowerCase();
-                      event.preventDefault();
-
-                      // Ctrl+Comma -> Open Settings (also covers focus inside a webview)
-                      if (key === ',') {
-                        event.preventDefault();
-                        if (mainWindow && !mainWindow.isDestroyed()) {
-                          mainWindow.webContents.send('neutrino:open-settings');
-                        }
-                        return;
-                        switch (action.type) {
-                          case 'close-tab': {
-                            const active = browserManager.getActiveTab();
-                            if (active) {
-                              browserManager.closeTab(active.id);
-                            }
-
-                            // Ctrl+W -> Close active tab
-                            if (key === 'w') {
-                              event.preventDefault();
-                              const active = browserManager.getActiveTab();
-                              if (active) {
-                                browserManager.closeTab(active.id);
-                              }
-                              if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('neutrino:close-active-tab');
-                              }
-                              return;
-                              break;
-                            }
-          case 'reopen-closed-tab':
-                            browserManager.reopenLastClosedTab();
-                            break;
-                          case 'new-tab': {
-                            const space = browserManager.getActiveSpaceId();
-                            browserManager.createTab('neutrino://newtab', space);
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:open-command-bar');
-                            }
-
-                            // Ctrl+T -> New Tab & Open Command Bar
-                            if (key === 't') {
-                              event.preventDefault();
-                              const space = browserManager.getActiveSpaceId();
-                              browserManager.createTab('neutrino://newtab', space);
-                              if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('neutrino:open-command-bar');
-                                break;
-                              }
-          case 'next-tab':
-                            browserManager.cycleTab(1);
-                            break;
-                          case 'prev-tab':
-                            browserManager.cycleTab(-1);
-                            break;
-                          case 'select-space': {
-                            if (browserManager.selectSpaceByIndex(action.index) && mainWindow && !mainWindow.isDestroyed()) {
-                              const activeSpaceId = browserManager.getActiveSpaceId();
-                              const space = browserManager.getSpaces().find((s) => s.id === activeSpaceId);
-                              if (space) {
-                                mainWindow.webContents.send('neutrino:space-switched', { spaceId: space.id, spaceName: space.name });
-                              }
-                              return;
-                            }
-
-                            // Ctrl+K or Ctrl+L -> Open Command Bar
-                            if (key === 'k' || key === 'l') {
-                              event.preventDefault();
-                              if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('neutrino:open-command-bar');
-                              }
-                              return;
-                              break;
-                            }
-          case 'go-back':
-                            sendSiteAction('back', 'shortcut');
-                            break;
-                          case 'go-forward':
-                            sendSiteAction('forward', 'shortcut');
-                            break;
-                          case 'go-home':
-                            sendSiteAction('home', 'shortcut');
-                            break;
-                          case 'reload':
-                            sendSiteAction('reload', 'shortcut');
-                            break;
-                          case 'hard-reload':
-                            sendSiteAction('hard-reload', 'shortcut');
-                            break;
-                          case 'stop':
-                            sendSiteAction('stop', 'shortcut');
-                            break;
-                          case 'open-command-bar':
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:open-command-bar');
-                            }
-
-                            // Ctrl+E -> Toggle Notification Tabs
-                            if (key === 'e') {
-                              event.preventDefault();
-                              if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('neutrino:toggle-tabs');
-                              }
-                              return;
-                              break;
-          case 'open-find':
-                            sendSiteAction('open-find', 'shortcut');
-                            break;
-                          case 'toggle-tabs':
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:toggle-tabs');
-                            }
-
-                            // Ctrl+H -> Open Browsing History
-                            if (key === 'h') {
-                              event.preventDefault();
-                              if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('neutrino:open-history');
-                              }
-                              return;
-                              break;
-          case 'open-history':
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:open-history');
-                            }
-
-                            // Ctrl+R -> Reload
-                            if (key === 'r') {
-                              event.preventDefault();
-                              if (contents.getType() === 'webview') {
-                                contents.reload();
-                              } else {
-                                const allWcs = webContents.getAllWebContents();
-                                for (const wc of allWcs) {
-                                  if (wc.getType() === 'webview') {
-                                    wc.reload();
-                                  }
-                                }
-                              }
-                              return;
-                              break;
-          case 'open-settings':
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:open-settings');
-                            }
-
-                            // Zoom Controls: Only for guest webviews, NEVER for host UI
-                            if (contents.getType() === 'webview') {
-                              if (input.key === '-' || input.key === '_' || input.code === 'Minus' || input.code === 'NumpadSubtract') {
-                                event.preventDefault();
-                                const current = contents.getZoomFactor();
-                                const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
-                                contents.setZoomFactor(next);
-                                const active = browserManager.getActiveTab();
-                                if (active) {
-                                  browserManager.updateTab(active.id, { zoomFactor: next });
-                                }
-                                if (mainWindow && !mainWindow.isDestroyed()) {
-                                  mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-                                }
-                              } else if (input.key === '=' || input.key === '+' || input.code === 'Equal' || input.code === 'NumpadAdd') {
-                                event.preventDefault();
-                                const current = contents.getZoomFactor();
-                                const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
-                                contents.setZoomFactor(next);
-                                const active = browserManager.getActiveTab();
-                                if (active) {
-                                  browserManager.updateTab(active.id, { zoomFactor: next });
-                                }
-                                if (mainWindow && !mainWindow.isDestroyed()) {
-                                  mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-                                }
-                              } else if (input.key === '0' || input.code === 'Numpad0' || input.code === 'Digit0') {
-                                event.preventDefault();
-                                contents.setZoomFactor(1.0);
-                                const active = browserManager.getActiveTab();
-                                if (active) {
-                                  browserManager.updateTab(active.id, { zoomFactor: 1.0 });
-                                }
-                                if (mainWindow && !mainWindow.isDestroyed()) {
-                                  mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
-                                }
-                              }
-                              break;
-          case 'zoom-out': {
-                            const current = contents.getZoomFactor();
-                            const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
-                            contents.setZoomFactor(next);
-                            const active = browserManager.getActiveTab();
-                            if (active) browserManager.updateTab(active.id, { zoomFactor: next });
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-                            }
-                            break;
-                          }
-                          case 'zoom-in': {
-                            const current = contents.getZoomFactor();
-                            const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
-                            contents.setZoomFactor(next);
-                            const active = browserManager.getActiveTab();
-                            if (active) browserManager.updateTab(active.id, { zoomFactor: next });
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
-                            }
-                            break;
-                          }
-                          case 'zoom-reset': {
-                            contents.setZoomFactor(1.0);
-                            const active = browserManager.getActiveTab();
-                            if (active) browserManager.updateTab(active.id, { zoomFactor: 1.0 });
-                            if (mainWindow && !mainWindow.isDestroyed()) {
-                              mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
-                            }
-                            break;
-                          }
-                        }
-                      });
-            });
-
-            createWindow();
-            void vpnController.initialize();
-
-            // Configure newly created child browser windows (including OAuth popups)
-            app.on('browser-window-created', (_, win) => {
-              if (win !== mainWindow) {
-                win.show();
-                win.focus();
-              }
-            });
-
-            app.on('activate', () => {
-              if (BrowserWindow.getAllWindows().length === 0) {
-                createWindow();
-              }
-            });
-          });
-
-          app.on('before-quit', () => {
-            historyManager.destroy();
-            void vpnController.cleanupOnQuit();
-          });
-
-          app.on('window-all-closed', () => {
-            historyManager.destroy();
-            void vpnController.cleanupOnQuit();
-            resourceManager.destroy();
-            mcpServer.stop();
-            if (process.platform !== 'darwin') {
-              app.quit();
+          ];
+          if (adblockEngine.isEnabled()) {
+            tasks.push(contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => { }));
+            const url = contents.getURL();
+            if (url.includes('youtube.com')) {
+              tasks.push(contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => { }));
             }
+          }
+          await Promise.allSettled(tasks);
+        } catch { }
+      });
+
+      contents.on('context-menu', (_event, params) => {
+        const template: Electron.MenuItemConstructorOptions[] = [
+          {
+            label: 'Back',
+            enabled: contents.canGoBack(),
+            click: () => {
+              if (!contents.isDestroyed() && contents.canGoBack()) contents.goBack();
+            },
+          },
+          {
+            label: 'Forward',
+            enabled: contents.canGoForward(),
+            click: () => {
+              if (!contents.isDestroyed() && contents.canGoForward()) contents.goForward();
+            },
+          },
+          {
+            label: 'Reload',
+            click: () => {
+              if (!contents.isDestroyed()) contents.reload();
+            },
+          },
+          { type: 'separator' },
+        ];
+
+        if (params.linkURL) {
+          template.push(
+            {
+              label: 'Open Link in New Tab',
+              click: () => {
+                browserManager.createTab(params.linkURL, browserManager.getActiveSpaceId());
+              },
+            },
+            {
+              label: 'Copy Link Address',
+              click: () => clipboard.writeText(params.linkURL),
+            },
+            { type: 'separator' },
+          );
+        }
+
+        if (params.isEditable) {
+          template.push(
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' },
+            { role: 'selectAll' },
+            { type: 'separator' },
+          );
+        } else if (params.selectionText) {
+          template.push(
+            { role: 'copy' },
+            { type: 'separator' },
+          );
+        }
+
+        const pageUrl = contents.getURL();
+        if (pageUrl && pageUrl.startsWith('http')) {
+          template.push({
+            label: 'Copy Page Address',
+            click: () => clipboard.writeText(pageUrl),
           });
+        }
+
+        template.push({
+          label: 'Inspect Element',
+          click: () => {
+            if (!contents.isDestroyed()) {
+              contents.inspectElement(params.x, params.y);
+            }
+          },
+        });
+
+        const menu = Menu.buildFromTemplate(template);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          menu.popup({ window: mainWindow });
+        }
+      });
+    }
+
+    contents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return;
+
+      const isWebview = contents.getType() === 'webview';
+      const action = resolveShortcut(input, { isWebview });
+      if (!action) return;
+
+      if (action.type === 'escape') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('neutrino:escape-pressed');
+        }
+        return;
+      }
+
+      event.preventDefault();
+
+      switch (action.type) {
+        case 'close-tab': {
+          const active = browserManager.getActiveTab();
+          if (active) {
+            browserManager.closeTab(active.id);
+          }
+          break;
+        }
+        case 'reopen-closed-tab':
+          browserManager.reopenLastClosedTab();
+          break;
+        case 'new-tab': {
+          const space = browserManager.getActiveSpaceId();
+          browserManager.createTab('neutrino://newtab', space);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:open-command-bar');
+          }
+          break;
+        }
+        case 'next-tab':
+          browserManager.cycleTab(1);
+          break;
+        case 'prev-tab':
+          browserManager.cycleTab(-1);
+          break;
+        case 'select-space': {
+          if (browserManager.selectSpaceByIndex(action.index) && mainWindow && !mainWindow.isDestroyed()) {
+            const activeSpaceId = browserManager.getActiveSpaceId();
+            const space = browserManager.getSpaces().find((s) => s.id === activeSpaceId);
+            if (space) {
+              mainWindow.webContents.send('neutrino:space-switched', { spaceId: space.id, spaceName: space.name });
+            }
+          }
+          break;
+        }
+        case 'go-back':
+          sendSiteAction('back', 'shortcut');
+          break;
+        case 'go-forward':
+          sendSiteAction('forward', 'shortcut');
+          break;
+        case 'go-home':
+          sendSiteAction('home', 'shortcut');
+          break;
+        case 'reload':
+          sendSiteAction('reload', 'shortcut');
+          break;
+        case 'hard-reload':
+          sendSiteAction('hard-reload', 'shortcut');
+          break;
+        case 'stop':
+          sendSiteAction('stop', 'shortcut');
+          break;
+        case 'open-command-bar':
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:open-command-bar');
+          }
+          break;
+        case 'open-find':
+          sendSiteAction('open-find', 'shortcut');
+          break;
+        case 'toggle-tabs':
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:toggle-tabs');
+          }
+          break;
+        case 'open-history':
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:open-history');
+          }
+          break;
+        case 'open-settings':
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:open-settings');
+          }
+          break;
+        case 'zoom-out': {
+          if (!isWebview) break;
+          const current = contents.getZoomFactor();
+          const next = Math.max(0.5, Math.round((current - 0.1) * 100) / 100);
+          contents.setZoomFactor(next);
+          const active = browserManager.getActiveTab();
+          if (active) browserManager.updateTab(active.id, { zoomFactor: next });
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+          }
+          break;
+        }
+        case 'zoom-in': {
+          if (!isWebview) break;
+          const current = contents.getZoomFactor();
+          const next = Math.min(3.0, Math.round((current + 0.1) * 100) / 100);
+          contents.setZoomFactor(next);
+          const active = browserManager.getActiveTab();
+          if (active) browserManager.updateTab(active.id, { zoomFactor: next });
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: next });
+          }
+          break;
+        }
+        case 'zoom-reset': {
+          if (!isWebview) break;
+          contents.setZoomFactor(1.0);
+          const active = browserManager.getActiveTab();
+          if (active) browserManager.updateTab(active.id, { zoomFactor: 1.0 });
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:zoom-updated', { zoomFactor: 1.0 });
+          }
+          break;
+        }
+      }
+    });
+  });
+
+  createWindow();
+  void vpnController.initialize();
+
+  // Configure newly created child browser windows (including OAuth popups)
+  app.on('browser-window-created', (_, win) => {
+    if (win !== mainWindow) {
+      win.show();
+      win.focus();
+    }
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('before-quit', () => {
+  historyManager.destroy();
+  void vpnController.cleanupOnQuit();
+});
+
+app.on('window-all-closed', () => {
+  historyManager.destroy();
+  void vpnController.cleanupOnQuit();
+  resourceManager.destroy();
+  mcpServer.stop();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
 

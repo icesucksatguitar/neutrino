@@ -1019,7 +1019,7 @@ export const BrowserViewport: React.FC<BrowserViewportProps> = ({
                         minHeight: '100%',
                         border: 'none',
                         outline: 'none',
-                        backgroundColor: '#ffffff',
+                        backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff',
                       },
                     })}
                   </div>

@@ -16,13 +16,21 @@ import { decideWindowOpen } from './windowOpen';
 import { AuthHandoffController } from './authHandoff';
 
 // Chromium switches: lean memory footprint without sacrificing rendering quality.
-// Removed enable-low-end-device-mode (causes color banding / tile artifacts on pages),
-// in-process-gpu (degrades compositor quality), and num-raster-threads=1 (sequential tile
-// painting makes partial-render seams visible). Kept shader disk cache for smooth rendering.
+// • Removed enable-low-end-device-mode — it forces reduced color depth and small tiles,
+//   which produces visible banding / rectangular artifact bands on page backgrounds.
+// • Kept in-process-gpu — running the GPU compositor inside the browser process avoids
+//   separate-GPU-process glitches on machines with weaker or integrated GPUs.
+// • Bumped num-raster-threads to 4 and added enable-oop-rasterization so tiles render in
+//   parallel without visible seams; the GPU process stays in-process but raster work fans out.
+// • Kept shader disk cache (removed disable-gpu-shader-disk-cache) for smooth rendering.
+// • Added force-color-profile=srgb to prevent color-space mismatches that cause subtle
+//   banding on displays whose ICC profile doesn't match Chromium's assumed space.
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('num-raster-threads', '2');
+app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
+app.commandLine.appendSwitch('in-process-gpu');
+app.commandLine.appendSwitch('force-color-profile', 'srgb');
 app.commandLine.appendSwitch('renderer-process-limit', '2');
 app.commandLine.appendSwitch('process-per-site');
 app.commandLine.appendSwitch('disk-cache-size', '4194304');
@@ -36,6 +44,10 @@ app.commandLine.appendSwitch('js-flags', '--optimize-for-size --expose-gc');
 app.commandLine.appendSwitch(
   'disable-features',
   'Vulkan,BackForwardCache,SpareRendererForSitePerProcess,AutofillServerCommunication,OptimizationHints,MediaRouter,CertificateTransparencyComponentUpdater'
+);
+app.commandLine.appendSwitch(
+  'enable-features',
+  'CanvasOopRasterization'
 );
 
 let mainWindow: BrowserWindow | null = null;

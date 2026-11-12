@@ -3,24 +3,31 @@ import {
   ArrowRightLeft,
   BookOpen,
   Briefcase,
+  ChevronRight,
   Code,
   Coffee,
   Copy,
+  Edit2,
   Eye,
   EyeOff,
   Folder,
+  FolderOpen,
+  FolderPlus,
   Globe,
   Heart,
   Home,
   Moon,
+  MoreHorizontal,
   Music,
   PanelLeftClose,
   PanelLeftOpen,
   Pin,
   PinOff,
+  Plus,
   Sparkles,
   Star,
   StarOff,
+  Trash2,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -40,7 +47,7 @@ import {
   type SidebarSource,
   type SidebarView,
 } from '../utils/sidebarModel';
-import type { MoveOp, Profile, SidebarState, Space } from '../types';
+import type { FolderRecord, MoveOp, Profile, SidebarState, Space } from '../types';
 import '../styles/sidebar.css';
 
 export type { SidebarItemKind, SidebarItemRef } from '../utils/sidebarModel';
@@ -60,6 +67,10 @@ export interface SidebarActions {
   removeFavorite: (favoriteId: string) => unknown;
   duplicateTab: (id: string, spaceId?: string) => unknown;
   moveTab: (op: MoveOp) => unknown;
+  createFolder?: (spaceId: string, name: string) => unknown;
+  updateFolder?: (folderId: string, patch: any) => unknown;
+  deleteFolder?: (folderId: string) => unknown;
+  moveTabToFolder?: (tabId: string, folderId: string | null) => unknown;
   /** New tab control (R12.8): App opens the Command_Bar, which creates the tab in the active space. */
   openCommandBar: () => void;
 }
@@ -169,6 +180,7 @@ const MENU_LABELS: Record<SidebarMenuAction, string> = {
   'add-favorite': 'Add to favorites',
   'remove-favorite': 'Remove from favorites',
   'move-to-space': 'Move to space',
+  'move-to-folder': 'Move to folder',
   duplicate: 'Duplicate',
   close: 'Close',
 };
@@ -179,6 +191,7 @@ const MENU_ICONS: Record<SidebarMenuAction, LucideIcon> = {
   'add-favorite': Star,
   'remove-favorite': StarOff,
   'move-to-space': ArrowRightLeft,
+  'move-to-folder': Folder,
   duplicate: Copy,
   close: X,
 };
@@ -188,6 +201,13 @@ interface MenuState {
   x: number;
   y: number;
   showSpaces: boolean;
+  showFolders?: boolean;
+}
+
+interface FolderMenuState {
+  folder: FolderRecord;
+  x: number;
+  y: number;
 }
 
 const MENU_WIDTH = 210;
@@ -216,6 +236,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [pointerX, setPointerX] = useState<number | null>(null);
   const [overSidebar, setOverSidebar] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [folderMenu, setFolderMenu] = useState<FolderMenuState | null>(null);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
     if (!autoHide) return;
@@ -231,13 +256,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
   }, [autoHide]);
 
+  useEffect(() => {
+    if (!folderMenu) return;
+    const close = () => setFolderMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('blur', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('blur', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [folderMenu]);
+
   // An open context menu keeps an auto-hidden sidebar visible.
   // An active drag keeps it visible too.
-  const visible = sidebarVisibility(autoHide, pointerX, overSidebar || menu !== null || drag.dragging);
+  const visible = sidebarVisibility(autoHide, pointerX, overSidebar || menu !== null || folderMenu !== null || drag.dragging);
 
   // --- Hover previews (R18.1, R18.2) -------------------------------------------
   // Nothing shows while dragging, while a context menu is open or while the sidebar is hidden.
-  const preview = useHoverPreview(drag.dragging || menu !== null || !visible);
+  const preview = useHoverPreview(drag.dragging || menu !== null || folderMenu !== null || !visible);
   const hidePreview = preview.hide;
   const previewKey = preview.state?.target.key;
   useEffect(() => {
@@ -261,7 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     trackRef,
     order: swipeOrder,
     activeId: activeSpaceId,
-    blocked: drag.dragging || menu !== null,
+    blocked: drag.dragging || menu !== null || folderMenu !== null,
     onCommit: actions.selectSpace,
     onStart: hidePreview,
   });
@@ -340,6 +381,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         break;
       case 'move-to-space':
         setMenu((m) => (m ? { ...m, showSpaces: true } : m));
+        return;
+      case 'move-to-folder':
+        setMenu((m) => (m ? { ...m, showFolders: true } : m));
         return;
     }
     setMenu(null);
@@ -459,17 +503,209 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </div>
   );
 
+  const renderPinnedContent = (v: SidebarView, inert: boolean) => {
+    const folders = v.folders || [];
+    const rootPinned = v.pinned.filter((t) => !t.folderId);
+
+    return (
+      <div className="nsb-pinned-container">
+        {expanded && (
+          <div className="nsb-pinned-section-header">
+            <span className="nsb-pinned-section-label">Pinned</span>
+            {!inert && (
+              <button
+                type="button"
+                className="nsb-folder-add-btn"
+                title="New Folder"
+                aria-label="New Folder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreatingFolder(true);
+                }}
+              >
+                <FolderPlus size={12} />
+              </button>
+            )}
+          </div>
+        )}
+        {!inert && creatingFolder && (
+          <form
+            className="nsb-folder-create-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newFolderName.trim()) {
+                actions.createFolder?.(activeSpaceId, newFolderName.trim());
+              }
+              setNewFolderName('');
+              setCreatingFolder(false);
+            }}
+          >
+            <Folder size={13} className="nsb-folder-form-icon" />
+            <input
+              autoFocus
+              type="text"
+              className="nsb-folder-create-input"
+              placeholder="Folder name..."
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setCreatingFolder(false);
+                  setNewFolderName('');
+                }
+              }}
+              onBlur={() => {
+                if (newFolderName.trim()) {
+                  actions.createFolder?.(activeSpaceId, newFolderName.trim());
+                }
+                setNewFolderName('');
+                setCreatingFolder(false);
+              }}
+            />
+          </form>
+        )}
+        {folders.map((folder) => {
+          const folderTabs = v.pinned.filter((t) => t.folderId === folder.id);
+          return (
+            <div
+              className={`nsb-folder ${folder.collapsed ? 'collapsed' : 'expanded'}`}
+              key={folder.id}
+            >
+              <div
+                className="nsb-folder-header"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (!inert) actions.updateFolder?.(folder.id, { collapsed: !folder.collapsed });
+                }}
+                onContextMenu={(e) => {
+                  if (inert) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setFolderMenu({
+                    folder,
+                    x: Math.max(4, Math.min(e.clientX, window.innerWidth - MENU_WIDTH - 4)),
+                    y: Math.max(4, Math.min(e.clientY, window.innerHeight - 200)),
+                  });
+                }}
+              >
+                <button
+                  type="button"
+                  className="nsb-folder-chevron-btn"
+                  title={folder.collapsed ? 'Expand folder' : 'Collapse folder'}
+                  aria-label={folder.collapsed ? 'Expand folder' : 'Collapse folder'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!inert) actions.updateFolder?.(folder.id, { collapsed: !folder.collapsed });
+                  }}
+                >
+                  <ChevronRight
+                    size={11}
+                    className={`nsb-folder-chevron ${!folder.collapsed ? 'expanded' : ''}`}
+                  />
+                </button>
+                <span className="nsb-folder-icon">
+                  {!folder.collapsed ? <FolderOpen size={13} /> : <Folder size={13} />}
+                </span>
+                {!inert && renamingFolderId === folder.id ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    className="nsb-folder-rename-input"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (renameValue.trim()) {
+                          actions.updateFolder?.(folder.id, { name: renameValue.trim() });
+                        }
+                        setRenamingFolderId(null);
+                      } else if (e.key === 'Escape') {
+                        setRenamingFolderId(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (renameValue.trim()) {
+                        actions.updateFolder?.(folder.id, { name: renameValue.trim() });
+                      }
+                      setRenamingFolderId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    className="nsb-folder-title"
+                    onDoubleClick={(e) => {
+                      if (inert) return;
+                      e.stopPropagation();
+                      setRenamingFolderId(folder.id);
+                      setRenameValue(folder.name);
+                    }}
+                  >
+                    {folder.name}
+                  </span>
+                )}
+                {folderTabs.length > 0 && (
+                  <span className="nsb-folder-badge">{folderTabs.length}</span>
+                )}
+                {!inert && (
+                  <button
+                    type="button"
+                    className="nsb-folder-menu-trigger"
+                    title="Folder actions"
+                    aria-label="Folder actions"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setFolderMenu({
+                        folder,
+                        x: Math.max(4, Math.min(r.left, window.innerWidth - MENU_WIDTH - 4)),
+                        y: Math.max(4, Math.min(r.bottom + 4, window.innerHeight - 200)),
+                      });
+                    }}
+                  >
+                    <MoreHorizontal size={12} />
+                  </button>
+                )}
+              </div>
+              {!folder.collapsed && (
+                <div className="nsb-folder-children">
+                  {folderTabs.length > 0 ? (
+                    folderTabs.map((item) => renderTabRow(item, inert))
+                  ) : (
+                    <div className="nsb-folder-empty-hint">Drop tabs here</div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {rootPinned.map((item) => renderTabRow(item, inert))}
+      </div>
+    );
+  };
+
   /** Current pane: a real drop-target section. Neighbour panes: plain markup. */
-  const paneSection = (kind: SidebarItemKind, items: SidebarItemRef[], cls: string, current: boolean) =>
+  const paneSection = (kind: SidebarItemKind, items: SidebarItemRef[], cls: string, current: boolean, v?: SidebarView) =>
     current ? (
-      section(kind, items.map((i) => (kind === 'favorite' ? renderFavorite(i) : renderTabRow(i))), cls)
+      section(
+        kind,
+        kind === 'pinned' && v
+          ? renderPinnedContent(v, false)
+          : items.map((i) => (kind === 'favorite' ? renderFavorite(i) : renderTabRow(i))),
+        cls,
+      )
     ) : (
-      <div className={cls}>{items.map((i) => (kind === 'favorite' ? renderFavorite(i, true) : renderTabRow(i, true)))}</div>
+      <div className={cls}>
+        {kind === 'pinned' && v
+          ? renderPinnedContent(v, true)
+          : items.map((i) => (kind === 'favorite' ? renderFavorite(i, true) : renderTabRow(i, true)))}
+      </div>
     );
   const renderPane = (id: string | undefined, slot: 'prev' | 'next' | 'current', v: SidebarView | null) => {
     if (!id || !v) return <div key={`empty-${slot}`} className="nsb-pane" aria-hidden="true" />;
     const current = slot === 'current';
-    const showPinnedOrToday = v.pinned.length > 0 || v.today.length > 0;
+    const showPinnedOrToday = v.pinned.length > 0 || v.today.length > 0 || (v.folders && v.folders.length > 0);
     return (
       <div
         key={id}
@@ -478,7 +714,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         style={current ? undefined : { pointerEvents: 'none' }}
       >
         {favoritesInPanes && (current || v.favorites.length > 0) && paneSection('favorite', v.favorites, 'nsb-favorites', current)}
-        {paneSection('pinned', v.pinned, 'nsb-list nsb-pinned', current)}
+        {paneSection('pinned', v.pinned, 'nsb-list nsb-pinned', current, v)}
         {showPinnedOrToday && <div className="nsb-divider" role="separator" />}
         {paneSection('today', v.today, 'nsb-list nsb-today', current)}
       </div>
@@ -630,8 +866,70 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onMouseDown={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {!menu.showSpaces ? (
-            contextMenuActions(menu.item).map((action) => {
+          {menu.showFolders ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="nsb-menu-item nsb-menu-back"
+                onClick={() => setMenu((m) => (m ? { ...m, showFolders: false } : m))}
+              >
+                <span>‹ Move to folder</span>
+              </button>
+              {menu.item.folderId && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="nsb-menu-item"
+                  onClick={() => {
+                    actions.moveTabToFolder?.(menu.item.id, null);
+                    setMenu(null);
+                  }}
+                >
+                  <Pin size={13} />
+                  <span>No folder (Root)</span>
+                </button>
+              )}
+              {view.folders.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="menuitem"
+                  className="nsb-menu-item"
+                  disabled={f.id === menu.item.folderId}
+                  onClick={() => {
+                    actions.moveTabToFolder?.(menu.item.id, f.id);
+                    setMenu(null);
+                  }}
+                >
+                  <Folder size={13} />
+                  <span>{f.name}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                role="menuitem"
+                className="nsb-menu-item"
+                onClick={() => {
+                  const name = prompt('New folder name:', 'New Folder');
+                  if (name && name.trim()) {
+                    const res: any = actions.createFolder?.(activeSpaceId, name.trim());
+                    Promise.resolve(res).then((r: any) => {
+                      const createdId = r?.folder?.id || r?.id;
+                      if (createdId) {
+                        actions.moveTabToFolder?.(menu.item.id, createdId);
+                      }
+                    });
+                  }
+                  setMenu(null);
+                }}
+              >
+                <FolderPlus size={13} />
+                <span>+ New Folder with Tab</span>
+              </button>
+            </>
+          ) : !menu.showSpaces ? (
+            contextMenuActions(menu.item, { hasFolders: view.folders.length > 0 || menu.item.kind === 'pinned' }).map((action) => {
               const Icon = MENU_ICONS[action];
               return (
                 <button
@@ -644,7 +942,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <Icon size={13} />
                   <span>{MENU_LABELS[action]}</span>
-                  {action === 'move-to-space' && <span className="nsb-menu-more">›</span>}
+                  {(action === 'move-to-space' || action === 'move-to-folder') && <span className="nsb-menu-more">›</span>}
                 </button>
               );
             })
@@ -680,6 +978,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {folderMenu && (
+        <div
+          className="nsb-menu"
+          role="menu"
+          style={{ left: folderMenu.x, top: folderMenu.y, width: MENU_WIDTH }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="nsb-menu-item"
+            onClick={() => {
+              const tabPromise = actions.createTab('neutrino://newtab', activeSpaceId);
+              Promise.resolve(tabPromise).then((newTab: any) => {
+                if (newTab?.id) {
+                  actions.moveTabToFolder?.(newTab.id, folderMenu.folder.id);
+                }
+              });
+              setFolderMenu(null);
+            }}
+          >
+            <Plus size={13} />
+            <span>New Tab Inside</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="nsb-menu-item"
+            onClick={() => {
+              setRenamingFolderId(folderMenu.folder.id);
+              setRenameValue(folderMenu.folder.name);
+              setFolderMenu(null);
+            }}
+          >
+            <Edit2 size={13} />
+            <span>Rename Folder</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="nsb-menu-item danger"
+            onClick={() => {
+              actions.deleteFolder?.(folderMenu.folder.id);
+              setFolderMenu(null);
+            }}
+          >
+            <Trash2 size={13} />
+            <span>Delete Folder</span>
+          </button>
         </div>
       )}
     </>

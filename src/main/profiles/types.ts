@@ -27,6 +27,17 @@ export interface SpaceRecord {
 
 export type TabSection = 'pinned' | 'today';
 
+export interface FolderRecord {
+  id: string;
+  /** Owning space. Folders exist within the pinned section of a space. */
+  spaceId: string;
+  name: string;
+  order: number;
+  collapsed?: boolean;
+  icon?: string;
+  color?: string;
+}
+
 export interface TabEntry {
   id: string;
   spaceId: string;
@@ -39,6 +50,8 @@ export interface TabEntry {
   lastActiveAt: number;
   /** A closed pinned tab keeps its entry with `unloaded: true`. */
   unloaded?: boolean;
+  /** Folder within the pinned section; undefined for root pinned tabs. */
+  folderId?: string;
 }
 
 export interface FavoriteEntry {
@@ -67,6 +80,7 @@ export interface ProfilesFile {
   profiles: Profile[];
   spaces: SpaceRecord[];
   tabs: TabEntry[];
+  folders?: FolderRecord[];
   favorites: FavoriteEntry[];
   archive: ArchivedTab[];
   /** profileId -> origins the user chose "Never" save passwords for. */

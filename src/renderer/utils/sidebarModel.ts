@@ -7,12 +7,12 @@ import {
   visibleTabsForSpace,
 } from '../../main/sidebar/layout';
 import type { ProfilesFile, SpaceRecord, TabEntry } from '../../main/profiles/types';
-import type { BrowserAppState, FavoriteEntry, MoveOp, Profile, Space, TabState } from '../types';
+import type { BrowserAppState, FavoriteEntry, FolderRecord, MoveOp, Profile, Space, TabState } from '../types';
 
 /** Fields of the renderer state the sidebar reads. */
 export type SidebarSource = Pick<
   BrowserAppState,
-  'tabs' | 'spaces' | 'activeSpaceId' | 'activeTabId' | 'favorites' | 'profiles' | 'activeProfileId'
+  'tabs' | 'spaces' | 'activeSpaceId' | 'activeTabId' | 'favorites' | 'profiles' | 'activeProfileId' | 'folders'
 >;
 
 /** Profile id used for spaces/profiles before the first `state-update` arrives. */
@@ -32,6 +32,8 @@ export interface SidebarItemRef {
   /** Live tab for pinned/Today rows, or the open tab of a favorite (if any). */
   tab?: TabState;
   favorite?: FavoriteEntry;
+  /** Optional folder id if nested inside a pinned folder. */
+  folderId?: string;
 }
 
 export interface SwitcherGroup {
@@ -43,6 +45,8 @@ export interface SidebarView {
   favorites: SidebarItemRef[];
   pinned: SidebarItemRef[];
   today: SidebarItemRef[];
+  /** Pinned folders belonging to the active space. */
+  folders: FolderRecord[];
   /** Space_Switcher: profiles in creation order, spaces by order (R13.1). */
   groups: SwitcherGroup[];
   /** Flat switcher order (swipe, Ctrl+1..9). */
@@ -87,12 +91,14 @@ export function toProfilesFile(src: SidebarSource): ProfilesFile {
     lastActiveAt: t.lastActiveAt ?? 0,
     ...(t.favicon !== undefined ? { favicon: t.favicon } : {}),
     ...(t.unloaded ? { unloaded: true } : {}),
+    ...(t.folderId ? { folderId: t.folderId } : {}),
   }));
   return {
     schemaVersion: 1,
     profiles: profiles.map(({ id, name, createdAt }) => ({ id, name, createdAt })),
     spaces,
     tabs,
+    folders: src.folders ?? [],
     favorites: src.favorites ?? [],
     archive: [],
     neverList: {},
@@ -149,6 +155,7 @@ export function buildSidebarView(src: SidebarSource): SidebarView {
     title: e.title,
     ...(e.favicon !== undefined ? { favicon: e.favicon } : {}),
     tab: tabById.get(e.id),
+    ...(e.folderId ? { folderId: e.folderId } : {}),
   });
 
   const favorites = layout.favorites.map((f, index): SidebarItemRef => {
@@ -172,11 +179,15 @@ export function buildSidebarView(src: SidebarSource): SidebarView {
 
   const activeSpace = spaceById.get(src.activeSpaceId);
   const activeOwner = file.spaces.find((s) => s.id === src.activeSpaceId)?.profileId;
+  const folders = (src.folders ?? [])
+    .filter((f) => f.spaceId === src.activeSpaceId)
+    .sort((a, b) => a.order - b.order);
 
   return {
     favorites,
     pinned: layout.pinned.map(tabRef('pinned')),
     today: layout.today.map(tabRef('today')),
+    folders,
     groups,
     spaceOrder: groups.flatMap((g) => g.spaces),
     activeSpace,
@@ -205,16 +216,22 @@ export type SidebarMenuAction =
   | 'add-favorite'
   | 'remove-favorite'
   | 'move-to-space'
+  | 'move-to-folder'
   | 'duplicate'
   | 'close';
 
 /** Context-menu actions offered for an item (R12.10). */
-export function contextMenuActions(item: Pick<SidebarItemRef, 'kind' | 'tab'>): SidebarMenuAction[] {
+export function contextMenuActions(
+  item: Pick<SidebarItemRef, 'kind' | 'tab'>,
+  options?: { hasFolders?: boolean },
+): SidebarMenuAction[] {
   switch (item.kind) {
     case 'today':
       return ['pin', 'add-favorite', 'move-to-space', 'duplicate', 'close'];
     case 'pinned':
-      return ['unpin', 'add-favorite', 'move-to-space', 'duplicate', 'close'];
+      return options?.hasFolders
+        ? ['unpin', 'move-to-folder', 'add-favorite', 'move-to-space', 'duplicate', 'close']
+        : ['unpin', 'add-favorite', 'move-to-space', 'duplicate', 'close'];
     case 'favorite':
       // A favorite has no tab of its own; "close" closes its open tab, if any.
       return item.tab

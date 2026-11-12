@@ -1313,6 +1313,62 @@ function updateSettings(patch: unknown): BrowserSettings {
               return { ok: true, tab: browserManager.getTabs().find((t) => t.id === newId) };
             });
 
+            // ----- Persistent Folders in Pinned Section ---------------------------------
+            ipcMain.handle('neutrino:create-folder', async (_, payload: unknown) => {
+              const { spaceId, name } =
+                payload !== null && typeof payload === 'object'
+                  ? (payload as { spaceId?: unknown; name?: unknown })
+                  : {};
+              const sid = asId(spaceId) || browserManager.getActiveSpaceId();
+              if (!isKnownSpace(sid)) return { ok: false, error: 'unknown-space' };
+              const clean = asName(name) || 'New Folder';
+              const folder = browserManager.createFolder(sid, clean);
+              return { ok: true, folder };
+            });
+
+            ipcMain.handle('neutrino:update-folder', async (_, payload: unknown) => {
+              const { folderId, patch } =
+                payload !== null && typeof payload === 'object'
+                  ? (payload as { folderId?: unknown; patch?: unknown })
+                  : {};
+              const fid = asId(folderId);
+              if (!fid) return { ok: false, error: 'unknown-folder' };
+              const safePatch: Record<string, unknown> = {};
+              if (patch && typeof patch === 'object') {
+                const p = patch as Record<string, unknown>;
+                if (typeof p.name === 'string') safePatch.name = p.name;
+                if (typeof p.collapsed === 'boolean') safePatch.collapsed = p.collapsed;
+                if (typeof p.icon === 'string') safePatch.icon = p.icon;
+                if (typeof p.color === 'string') safePatch.color = p.color;
+                if (typeof p.order === 'number') safePatch.order = p.order;
+              }
+              try {
+                const folder = browserManager.updateFolder(fid, safePatch);
+                return { ok: true, folder };
+              } catch {
+                return { ok: false, error: 'unknown-folder' };
+              }
+            });
+
+            ipcMain.handle('neutrino:delete-folder', async (_, folderId: unknown) => {
+              const fid = asId(folderId);
+              if (!fid) return { ok: false, error: 'unknown-folder' };
+              const ok = browserManager.deleteFolder(fid);
+              return { ok };
+            });
+
+            ipcMain.handle('neutrino:move-tab-to-folder', async (_, payload: unknown) => {
+              const { tabId, folderId } =
+                payload !== null && typeof payload === 'object'
+                  ? (payload as { tabId?: unknown; folderId?: unknown })
+                  : {};
+              const tid = asId(tabId);
+              if (!tid || !isKnownTab(tid)) return { ok: false, error: 'unknown-tab' };
+              const fid = folderId ? asId(folderId) : null;
+              const ok = browserManager.moveTabToFolder(tid, fid);
+              return { ok };
+            });
+
             // ----- Archive (R16.7, R16.8): main UI only -----------------------------------
             ipcMain.handle('neutrino:list-archive', async (event) => {
               if (!isMainUi(event)) return [];

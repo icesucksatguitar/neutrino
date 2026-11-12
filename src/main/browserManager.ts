@@ -8,7 +8,7 @@ import { HistoryRegistry } from './history/registry';
 import { ProfileStore } from './profiles/store';
 import { migrateToProfiles } from './profiles/migration';
 import { DEFAULT_PARTITION } from './profiles/partition';
-import type { Profile, ProfilesFile, SpaceRecord, TabEntry, TabSection } from './profiles/types';
+import type { FolderRecord, Profile, ProfilesFile, SpaceRecord, TabEntry, TabSection } from './profiles/types';
 import {
   activationTarget,
   move,
@@ -40,6 +40,8 @@ export interface TabState {
   unloaded?: boolean;
   /** Epoch ms of the last time this tab was the active tab (R16.4). */
   lastActiveAt: number;
+  /** Optional folder in the pinned section of this space. */
+  folderId?: string | null;
 }
 
 export type BrowserSpace = Space & { profileId: string; order: number };
@@ -176,6 +178,7 @@ export class BrowserManager {
             partition: this.partitionFor(lt.spaceId),
             section: lt.isPinned ? 'pinned' : 'today',
             lastActiveAt: typeof (lt as any).lastActiveAt === 'number' ? (lt as any).lastActiveAt : this.now(),
+            folderId: typeof (lt as any).folderId === 'string' ? (lt as any).folderId : undefined,
           });
         }
       }
@@ -285,6 +288,41 @@ export class BrowserManager {
       this.setActiveSpace(this.getActiveSpaceId());
       return true;
     }
+    this.notifyState();
+    return true;
+  }
+
+  public createFolder(spaceId: string, name: string): FolderRecord {
+    const folder = this.profileStore.createFolder(spaceId, name);
+    this.notifyState();
+    return folder;
+  }
+
+  public updateFolder(folderId: string, patch: Partial<FolderRecord>): FolderRecord {
+    const folder = this.profileStore.updateFolder(folderId, patch);
+    this.notifyState();
+    return folder;
+  }
+
+  public deleteFolder(folderId: string): boolean {
+    const ok = this.profileStore.deleteFolder(folderId);
+    if (ok) {
+      for (const tab of this.tabs.values()) {
+        if (tab.folderId === folderId) {
+          delete tab.folderId;
+        }
+      }
+      this.persistTabs();
+      this.notifyState();
+    }
+    return ok;
+  }
+
+  public moveTabToFolder(tabId: string, folderId: string | null): boolean {
+    const tab = this.tabs.get(tabId);
+    if (!tab) return false;
+    tab.folderId = folderId || undefined;
+    this.persistTabs();
     this.notifyState();
     return true;
   }
@@ -698,6 +736,7 @@ export class BrowserManager {
       };
       if (t.favicon !== undefined) entry.favicon = t.favicon;
       if (t.unloaded) entry.unloaded = true;
+      if (t.folderId !== undefined) entry.folderId = t.folderId || undefined;
       out.push(entry);
     }
     return out;
@@ -729,6 +768,7 @@ export class BrowserManager {
         isSleeping: Boolean(t.isSleeping),
         order: idx,
         lastActiveAt: t.lastActiveAt,
+        folderId: t.folderId,
       }));
       this.storage.saveState({
         spaces: existingSpaces,
@@ -756,6 +796,7 @@ export class BrowserManager {
         tab.spaceId = entry.spaceId;
         tab.section = entry.section;
         tab.isPinned = entry.section === 'pinned';
+        tab.folderId = entry.folderId;
         const partition = this.partitionFor(entry.spaceId);
         if (partition !== tab.partition) this.reloadInPartition(tab, partition);
       } else {
@@ -849,6 +890,7 @@ export class BrowserManager {
       partition: this.partitionFor(entry.spaceId),
       section: entry.section,
       lastActiveAt: entry.lastActiveAt,
+      folderId: entry.folderId,
     };
     if (entry.favicon !== undefined) tab.favicon = entry.favicon;
     if (unloaded) tab.unloaded = true;
@@ -896,6 +938,7 @@ export class BrowserManager {
         activeProfileId: this.getActiveProfileId(),
         // Every profile's favorites; the renderer shows the active space's owner's (R14.2).
         favorites: this.profileStore.snapshot().favorites,
+        folders: this.profileStore.listFolders(),
         tabs: Array.from(this.tabs.values()),
         activeTabId: this.activeTabId,
         shieldStats: this.adblockEngine.getStats(),

@@ -26,10 +26,10 @@ export type {
   ThemePalette,
 };
 
-import type { FavoriteEntry, TabSection } from '../main/profiles/types';
+import type { FavoriteEntry, FolderRecord, TabSection } from '../main/profiles/types';
 import type { LayoutSection, MoveOp } from '../main/sidebar/layout';
 
-export type { FavoriteEntry, TabSection, LayoutSection, MoveOp };
+export type { FavoriteEntry, FolderRecord, TabSection, LayoutSection, MoveOp };
 
 export interface Space {
   id: string;
@@ -105,6 +105,8 @@ export interface TabState {
   unloaded?: boolean;
   /** Epoch ms of the last time this tab was active (R16.4). */
   lastActiveAt?: number;
+  /** Optional folder in the pinned section of this space. */
+  folderId?: string | null;
 }
 
 export interface ActiveMediaState {
@@ -151,6 +153,7 @@ export interface BrowserAppState {
   profiles?: Profile[];
   activeProfileId?: string;
   favorites?: FavoriteEntry[];
+  folders?: FolderRecord[];
 }
 
 export interface ThemeConfig {
@@ -238,6 +241,12 @@ declare global {
       addFavorite?: (tabId: string) => Promise<IpcResult>;
       removeFavorite?: (favoriteId: string) => Promise<IpcResult>;
       duplicateTab?: (id: string, spaceId?: string) => Promise<IpcResult<{ tab: TabState }>>;
+
+      // Persistent Folders in Pinned section
+      createFolder?: (spaceId: string, name: string) => Promise<IpcResult<{ folder: FolderRecord }>>;
+      updateFolder?: (folderId: string, patch: Partial<FolderRecord>) => Promise<IpcResult<{ folder: FolderRecord }>>;
+      deleteFolder?: (folderId: string) => Promise<IpcResult>;
+      moveTabToFolder?: (tabId: string, folderId: string | null) => Promise<IpcResult>;
 
       // Sidebar state, persisted through the settings IPC
       updateSidebarState?: (patch: Partial<SidebarState>) => Promise<BrowserSettings>;

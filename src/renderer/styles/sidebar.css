@@ -344,6 +344,211 @@
   display: none;
 }
 
+/* Pinned section & Persistent Folders (Arc-style) */
+.nsb-pinned-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.nsb-pinned-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--nsb-fg-faint);
+  user-select: none;
+}
+
+.nsb-folder-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--nsb-fg-faint);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.nsb-pane:hover .nsb-folder-add-btn,
+.nsb-folder-add-btn:focus-visible {
+  opacity: 1;
+}
+
+.nsb-folder-add-btn:hover {
+  background: var(--nsb-hover);
+  color: var(--nsb-fg);
+}
+
+.nsb-folder-create-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  margin: 2px 4px;
+  background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--theme-border-subtle, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+}
+
+.nsb-folder-form-icon {
+  color: var(--theme-accent, #7c9cff);
+  flex-shrink: 0;
+}
+
+.nsb-folder-create-input,
+.nsb-folder-rename-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--nsb-fg);
+  font-size: 12px;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.nsb-folder {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+}
+
+.nsb-folder-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 4px;
+  border-radius: 6px;
+  color: var(--nsb-fg-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nsb-folder-header:hover {
+  background: var(--nsb-hover);
+  color: var(--nsb-fg);
+}
+
+.nsb-folder-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.nsb-folder-chevron {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nsb-folder-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.nsb-folder-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--theme-accent, #7c9cff);
+  opacity: 0.85;
+}
+
+.nsb-folder-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nsb-folder-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--surface, rgba(255, 255, 255, 0.08));
+  color: var(--nsb-fg-faint);
+  line-height: 1.2;
+}
+
+.nsb-folder-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--nsb-fg-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.nsb-folder-header:hover .nsb-folder-menu-trigger,
+.nsb-folder-menu-trigger:focus-visible {
+  opacity: 1;
+}
+
+.nsb-folder-menu-trigger:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.12));
+  color: var(--nsb-fg);
+}
+
+.nsb-folder-children {
+  position: relative;
+  margin-left: 14px;
+  padding-left: 6px;
+  border-left: 1px solid var(--nsb-border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nsb-folder-empty-hint {
+  font-size: 11px;
+  color: var(--nsb-fg-faint);
+  font-style: italic;
+  padding: 4px 8px;
+  user-select: none;
+}
+
+.nsb.collapsed .nsb-pinned-section-header,
+.nsb.collapsed .nsb-folder-title,
+.nsb.collapsed .nsb-folder-badge,
+.nsb.collapsed .nsb-folder-menu-trigger,
+.nsb.collapsed .nsb-folder-children,
+.nsb.collapsed .nsb-folder-chevron-btn {
+  display: none !important;
+}
+
+.nsb.collapsed .nsb-folder-header {
+  justify-content: center;
+  padding: 0;
+}
+
 /* Space_Switcher: one scrollable row of icons; profile groups split by a thin divider */
 .nsb-switcher {
   display: flex;

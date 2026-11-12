@@ -2,14 +2,16 @@
 // No Electron import: the renderer imports this module too (Vite resolves it), and tests run it directly.
 
 import {
+  type CustomSpaceThemePreset,
   type SpaceTheme,
   type SpaceThemesMap,
   getDefaultSpaceTheme,
+  normalizeCustomThemePresets,
   normalizeSpaceThemesMap,
   validateAndClampSpaceTheme,
 } from './spaceTheme';
 
-export type { SpaceTheme, SpaceThemesMap };
+export type { CustomSpaceThemePreset, SpaceTheme, SpaceThemesMap };
 
 export type SearchEngineId = 'google' | 'duckduckgo' | 'bing' | 'brave';
 
@@ -21,11 +23,62 @@ export const SEARCH_ENGINES: Readonly<Record<SearchEngineId, { readonly label: s
     brave: Object.freeze({ label: 'Brave Search', prefix: 'https://search.brave.com/search?q=' }),
   });
 
+export type ReducedEffectsMode = 'auto' | 'on' | 'off';
+
+export interface PerformanceStatus {
+  hardwareAcceleration: boolean;
+  gpuDisabledFlag: boolean;
+  softwareRasterized: boolean;
+  reducedEffectsMode: ReducedEffectsMode;
+  reducedEffectsActive: boolean;
+  gpuFeatureStatus: Record<string, string>;
+}
+
+export function normalizeReducedEffectsMode(value: unknown): ReducedEffectsMode {
+  return value === 'on' || value === 'off' || value === 'auto' ? value : 'auto';
+}
+
+function isStatusSoftwareOrDisabled(val: unknown): boolean {
+  if (typeof val !== 'string') return false;
+  const lower = val.toLowerCase();
+  return (
+    lower.includes('software') ||
+    lower.includes('disabled') ||
+    lower === 'unavailable_off' ||
+    lower === 'unavailable_software'
+  );
+}
+
+export function isSoftwareGpuStatus(gpuStatus?: Record<string, unknown> | null): boolean {
+  if (!gpuStatus || typeof gpuStatus !== 'object') return false;
+  const direct3d = gpuStatus['direct_rendering_display_compositor'];
+  const raster = gpuStatus['rasterization'];
+  const comp = gpuStatus['gpu_compositing'];
+  if (isStatusSoftwareOrDisabled(direct3d) || isStatusSoftwareOrDisabled(raster) || isStatusSoftwareOrDisabled(comp)) {
+    return true;
+  }
+  return false;
+}
+
+export function resolveReducedEffectsActive(
+  mode: unknown,
+  gpuDisabledFlag: boolean,
+  gpuStatus?: Record<string, unknown> | null
+): boolean {
+  const normalized = normalizeReducedEffectsMode(mode);
+  if (normalized === 'on') return true;
+  if (normalized === 'off') return false;
+  return Boolean(gpuDisabledFlag) || isSoftwareGpuStatus(gpuStatus);
+}
+
 export interface BrowserSettings {
   adblockEnabled: boolean;
   zenSleepEnabled: boolean;
   searchEngine: SearchEngineId;
+  reducedEffectsMode?: ReducedEffectsMode;
   spaceThemes?: SpaceThemesMap;
+  customThemePresets?: CustomSpaceThemePreset[];
+  shieldWhitelist?: string[];
   archiveIntervalHours: ArchiveIntervalHours;
   rightPinsDockVisible: boolean;
   sidebarExpanded: boolean;
@@ -42,6 +95,7 @@ export const DEFAULT_SETTINGS: Readonly<BrowserSettings> = Object.freeze({
   adblockEnabled: true,
   zenSleepEnabled: true,
   searchEngine: 'google' as SearchEngineId,
+  reducedEffectsMode: 'auto' as ReducedEffectsMode,
   archiveIntervalHours: 12 as ArchiveIntervalHours,
   rightPinsDockVisible: true,
   sidebarExpanded: true,
@@ -119,6 +173,28 @@ export function resolveSpaceTheme(settings: BrowserSettings | Record<string, unk
   return fallback;
 }
 
+function normalizeShieldDomain(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+  try {
+    const parsed = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`);
+    return parsed.hostname.replace(/\.$/, '');
+  } catch {
+    return trimmed.replace(/^\.+|\.+$/g, '');
+  }
+}
+
+function normalizeShieldWhitelist(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const host = normalizeShieldDomain(item);
+    if (host) seen.add(host);
+  }
+  return Array.from(seen).sort();
+}
+
 /** Fills missing or invalid fields with defaults, keeps unknown keys. Idempotent. */
 export function normalizeSettings(raw: unknown): BrowserSettings {
   const source: Record<string, unknown> =
@@ -129,7 +205,10 @@ export function normalizeSettings(raw: unknown): BrowserSettings {
     zenSleepEnabled:
       typeof source.zenSleepEnabled === 'boolean' ? source.zenSleepEnabled : DEFAULT_SETTINGS.zenSleepEnabled,
     searchEngine: normalizeSearchEngine(source.searchEngine),
+    reducedEffectsMode: normalizeReducedEffectsMode(source.reducedEffectsMode),
     spaceThemes: buildSpaceThemes(source.spaceThemes, source),
+    customThemePresets: normalizeCustomThemePresets(source.customThemePresets),
+    shieldWhitelist: normalizeShieldWhitelist(source.shieldWhitelist),
     archiveIntervalHours: isArchiveIntervalHours(source.archiveIntervalHours)
       ? source.archiveIntervalHours
       : DEFAULT_SETTINGS.archiveIntervalHours,

@@ -162,6 +162,7 @@
   width: 100%;
   transform: translateX(-100%); /* current pane; useSpaceSwipe overrides it while sliding */
   will-change: transform;
+  transition: none !important;
 }
 .nsb-pane {
   flex: 0 0 100%;

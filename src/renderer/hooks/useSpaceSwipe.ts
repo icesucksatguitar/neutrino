@@ -112,13 +112,22 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
   const animate = (to: number, done: () => void) => {
     stopAnim();
     const from = s.offset;
+    if (Math.abs(to - from) < 0.5) {
+      apply(to);
+      done();
+      return;
+    }
     const t0 = performance.now();
+    // Dynamically scale duration with distance: full pane is SNAP_MS (~220ms), tiny adjustments take ~130ms
+    const dist = Math.abs(to - from);
+    const duration = Math.min(SNAP_MS, Math.max(130, (dist / (s.width || 260)) * SNAP_MS));
     const step = (t: number) => {
-      const p = Math.min(1, (t - t0) / SNAP_MS);
+      const p = Math.min(1, (t - t0) / duration);
       apply(from + (to - from) * easeOutCubic(p));
       if (p < 1) s.raf = requestAnimationFrame(step);
       else {
         s.raf = 0;
+        apply(to);
         done();
       }
     };
@@ -131,10 +140,17 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
     const { trackRef, activeId } = optsRef.current;
     if (trackRef.current) trackRef.current.style.transform = '';
     s.offset = 0;
+    s.raw = 0;
+    s.accX = 0;
+    s.accY = 0;
+    s.axis = null;
+    s.samples = [];
+    s.vHist = [];
     s.otherColor = null;
     s.phase = 'idle';
     s.pendingId = null;
     window.clearTimeout(s.pendingTimer);
+    window.clearTimeout(s.endTimer);
     plainTint(activeId);
   };
 
@@ -146,10 +162,10 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
   const finishGesture = () => {
     if (s.phase !== 'drag') return;
     const { order, onCommit, activeId } = optsRef.current;
+    const now = performance.now();
     const last = s.samples[s.samples.length - 1];
-    const cutoff = (last?.t ?? 0) - 300;
-    // Momentum tails decay, so the release speed is the fastest recent window.
-    const velocity = s.vHist.filter((h) => h.t >= cutoff).reduce((m, h) => (Math.abs(h.v) > Math.abs(m) ? h.v : m), 0);
+    // Evaluate velocity over the most recent active window before release
+    const velocity = estimateVelocity(s.samples, last?.t ?? now);
     const offset = resolveOffset(s.raw, s.index, order.length, s.width);
     const target = decideTarget({ offset, velocity, width: s.width, index: s.index, count: order.length });
     const targetId = order[target]?.id;
@@ -164,15 +180,19 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
       return;
     }
     s.phase = 'anim';
+    s.pendingId = targetId;
     animate(settleOffset(target, s.index, s.width), () => {
       // Hold the slid position until the state change lands (see the layout effect).
       s.phase = 'pending';
-      s.pendingId = targetId;
       plainTint(targetId);
       s.pendingTimer = window.setTimeout(() => {
         if (s.phase === 'pending') springBack();
-      }, PENDING_TIMEOUT_MS);
+      }, 400);
       onCommit(targetId);
+      // If state updated synchronously during onCommit:
+      if (optsRef.current.activeId === targetId) {
+        rest();
+      }
     });
   };
 
@@ -181,19 +201,42 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
     if (e.ctrlKey || e.deltaMode !== 0) return; // pinch zoom / line-based wheels
     if ((e.target as Element | null)?.closest?.('.nsb-switcher')) return; // the icon row scrolls itself
     const now = performance.now();
-    if (now - s.lastAt > GESTURE_END_MS) {
+    const dt = now - s.lastAt;
+    s.lastAt = now;
+    const horizontalish = Math.abs(e.deltaX) >= Math.abs(e.deltaY);
+
+    if (s.axis === 'spent') {
+      // Momentum of a finished gesture: prevent page back/forward navigation
+      if (horizontalish) e.preventDefault();
+      // Allow a new swipe if there was a pause OR user made a clear swipe movement
+      if (dt > GESTURE_END_MS || Math.abs(e.deltaX) >= 4) {
+        s.axis = null;
+        s.accX = 0;
+        s.accY = 0;
+      } else {
+        return;
+      }
+    }
+
+    if (dt > GESTURE_END_MS && s.phase === 'idle') {
       s.axis = null;
       s.accX = 0;
       s.accY = 0;
     }
-    s.lastAt = now;
-    const horizontalish = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
     if (s.axis === 'v') return;
-    if (s.axis === 'spent') {
-      // Momentum of a finished gesture: keep it from navigating the page.
-      if (horizontalish) e.preventDefault();
-      return;
+
+    // Fluid interruption: if user starts a horizontal swipe while the track is animating, catch it immediately!
+    if (s.phase === 'anim' && horizontalish) {
+      stopAnim();
+      s.phase = 'drag';
+      s.raw = s.offset;
+      s.axis = 'h';
+      s.samples = [{ t: now, x: s.raw }];
+      s.vHist = [];
+      o.onStart();
     }
+
     if (s.axis === null) {
       if (o.blocked) return;
       s.accX += e.deltaX;
@@ -205,7 +248,7 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
       }
       if (horizontalish) e.preventDefault();
       if (axis === null) return;
-      if (s.phase !== 'idle') {
+      if (s.phase !== 'idle' && s.phase !== 'drag') {
         s.axis = 'spent';
         return;
       }
@@ -214,7 +257,9 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
       s.axis = 'h';
       s.phase = 'drag';
       s.index = Math.max(0, idx);
-      s.width = o.trackRef.current?.parentElement?.clientWidth ?? 0;
+      const measuredWidth =
+        o.trackRef.current?.parentElement?.clientWidth || o.trackRef.current?.clientWidth || 260;
+      s.width = measuredWidth;
       s.reduced = reducedMotion();
       s.raw = -s.accX;
       s.samples = [];
@@ -222,6 +267,9 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
       o.onStart();
     } else {
       s.raw -= e.deltaX;
+      // Bound accumulated raw displacement to avoid deadzones on direction reversal
+      const maxRaw = (s.width || 260) * 1.35;
+      s.raw = Math.max(-maxRaw, Math.min(maxRaw, s.raw));
     }
     e.preventDefault();
     s.samples.push({ t: now, x: s.raw });
@@ -236,7 +284,6 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
     }
     window.clearTimeout(s.endTimer);
     s.endTimer = window.setTimeout(() => {
-      s.axis = 'spent';
       finishGesture();
     }, GESTURE_END_MS);
   };
@@ -262,7 +309,7 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
     const { activeId, order, trackRef } = optsRef.current;
     s.prevActive = activeId;
     if (prev === activeId) return;
-    if (s.phase === 'pending' && s.pendingId === activeId) {
+    if ((s.phase === 'pending' || s.phase === 'anim') && s.pendingId === activeId) {
       rest();
       setOutgoing(null);
       return;
@@ -270,17 +317,18 @@ export function useSpaceSwipe(opts: SpaceSwipeOptions): OutgoingSpace | null {
     stopAnim();
     window.clearTimeout(s.endTimer);
     window.clearTimeout(s.pendingTimer);
-    s.axis = 'spent';
+    s.axis = null;
     const iNew = order.findIndex((x) => x.id === activeId);
     const iOld = order.findIndex((x) => x.id === prev);
     const track = trackRef.current;
-    if (!track || iNew < 0 || iOld < 0 || reducedMotion()) {
+    const measuredWidth = track?.parentElement?.clientWidth || track?.clientWidth || 260;
+    s.width = measuredWidth;
+    if (!track || iNew < 0 || iOld < 0 || reducedMotion() || measuredWidth <= 0) {
       rest();
       setOutgoing(null);
       return;
     }
     const dir = iNew > iOld ? 1 : -1;
-    s.width = track.parentElement?.clientWidth ?? 0;
     s.otherColor = order[iOld].color;
     s.phase = 'anim';
     setOutgoing({ id: prev, side: dir > 0 ? 'prev' : 'next' });

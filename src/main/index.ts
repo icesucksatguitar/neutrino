@@ -1,13 +1,21 @@
 import { app, BrowserWindow, ipcMain, session, screen, webContents, nativeTheme, Menu, clipboard, shell, safeStorage, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { BraveShieldEngine } from './adblock/engine';
+import { BraveShieldEngine, isHostOrSubdomain, isYouTubePlaybackCritical } from './adblock/engine';
 import { ZenResourceManager } from './resourceManager';
 import { McpServer } from './mcp/server';
 import { LocalStorageManager } from './sync/storage';
 import { BrowserManager } from './browserManager';
 import { isGoogleAuthUrl, isAuthOrSecurityUrl, isMediaStreamingUrl } from './urlClassifier';
-import { BrowserSettings, normalizeSettings } from './settings';
+import {
+  BrowserSettings,
+  PerformanceStatus,
+  isSoftwareGpuStatus,
+  normalizeReducedEffectsMode,
+  normalizeSettings,
+  resolveReducedEffectsActive,
+  resolveSpaceTheme,
+} from './settings';
 import { resolveShortcut } from './shortcuts';
 import { randomUUID } from 'crypto';
 import { HistoryClearRange, HistoryQueryOptions } from './history';
@@ -64,18 +72,22 @@ import {
 // Fallback for a machine whose driver still misrenders: start with NEUTRINO_DISABLE_GPU=1 or
 // --neutrino-disable-gpu to use software rendering.
 const gpuDisabled =
-  process.env.NEUTRINO_DISABLE_GPU === '1' || process.argv.includes('--neutrino-disable-gpu');
+  process.env.NEUTRINO_DISABLE_GPU === '1' ||
+  process.argv.includes('--neutrino-disable-gpu') ||
+  process.argv.includes('--disable-gpu');
 if (gpuDisabled) {
   app.disableHardwareAcceleration();
 }
 app.commandLine.appendSwitch('high-dpi-support', '1');
+app.commandLine.appendSwitch('num-raster-threads', '4');
 app.commandLine.appendSwitch('enable-quic');
 app.commandLine.appendSwitch('enable-fast-unload');
+app.commandLine.appendSwitch('in-process-gpu');
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 app.commandLine.appendSwitch('renderer-process-limit', '2');
 app.commandLine.appendSwitch('process-per-site');
-app.commandLine.appendSwitch('disk-cache-size', '4194304');
-app.commandLine.appendSwitch('media-cache-size', '4194304');
+app.commandLine.appendSwitch('disk-cache-size', '67108864');
+app.commandLine.appendSwitch('media-cache-size', '33554432');
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
 app.commandLine.appendSwitch('disable-domain-reliability');
@@ -86,7 +98,12 @@ app.commandLine.appendSwitch(
   'disable-features',
   'Vulkan,BackForwardCache,SpareRendererForSitePerProcess,AutofillServerCommunication,OptimizationHints,MediaRouter,CertificateTransparencyComponentUpdater'
 );
+app.commandLine.appendSwitch(
+  'enable-features',
+  'CanvasOopRasterization'
+);
 
+let gpuProcessCrashed = false;
 let mainWindow: BrowserWindow | null = null;
 
 type MainSiteAction = 'back' | 'forward' | 'reload' | 'hard-reload' | 'stop' | 'home' | 'open-find';
@@ -122,15 +139,92 @@ let settings: BrowserSettings = normalizeSettings(storage.loadState().settings);
 let isDarkMode = settings.theme !== 'light';
 nativeTheme.themeSource = isDarkMode ? 'dark' : 'light';
 adblockEngine.setEnabled(settings.adblockEnabled);
+adblockEngine.setWhitelist(settings.shieldWhitelist ?? []);
 resourceManager.setAutoSleepEnabled(settings.zenSleepEnabled);
+
+const trackedWebviews = new Set<Electron.WebContents>();
+const insertedCssKeyByContents = new WeakMap<Electron.WebContents, string>();
+
+function isYouTubePageUrl(urlStr: string): boolean {
+  const host = adblockEngine.extractHost(urlStr);
+  return Boolean(host) && (isHostOrSubdomain(host, 'youtube.com') || isHostOrSubdomain(host, 'youtu.be'));
+}
+
+async function applyShieldsToWebview(contents: Electron.WebContents): Promise<void> {
+  if (!contents || contents.isDestroyed()) return;
+
+  const prevKey = insertedCssKeyByContents.get(contents);
+  if (prevKey) {
+    insertedCssKeyByContents.delete(contents);
+    await contents.removeInsertedCSS(prevKey).catch(() => {});
+  }
+
+  const pageUrl = contents.getURL() || '';
+  if (!pageUrl || pageUrl.startsWith('file://') || pageUrl.startsWith('devtools://')) {
+    return;
+  }
+
+  const activeForPage = adblockEngine.isEnabled() && !adblockEngine.isWhitelisted(pageUrl);
+  await contents.executeJavaScript(`window.__neutrino_shields_active = ${activeForPage ? 'true' : 'false'};`).catch(() => {});
+
+  if (!activeForPage) {
+    return;
+  }
+
+  const nextKey = await contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => undefined);
+  if (nextKey) {
+    insertedCssKeyByContents.set(contents, nextKey);
+  }
+  if (isYouTubePageUrl(pageUrl)) {
+    await contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => {});
+  }
+}
+
+function syncShieldsAcrossWebviews(): void {
+  for (const wc of Array.from(trackedWebviews)) {
+    if (wc.isDestroyed()) {
+      trackedWebviews.delete(wc);
+      continue;
+    }
+    void applyShieldsToWebview(wc);
+  }
+}
+
+function getPerformanceStatus(): PerformanceStatus {
+  let rawStatus: Record<string, string> = {};
+  try {
+    const info = app.getGPUFeatureStatus();
+    if (info && typeof info === 'object') {
+      rawStatus = info as unknown as Record<string, string>;
+    }
+  } catch { }
+  const softwareRasterized = isSoftwareGpuStatus(rawStatus);
+  const reducedEffectsMode = normalizeReducedEffectsMode(settings.reducedEffectsMode);
+  return {
+    hardwareAcceleration: !gpuDisabled && !gpuProcessCrashed && !softwareRasterized,
+    gpuDisabledFlag: gpuDisabled || gpuProcessCrashed,
+    softwareRasterized,
+    reducedEffectsMode,
+    reducedEffectsActive: resolveReducedEffectsActive(reducedEffectsMode, gpuDisabled || gpuProcessCrashed, rawStatus),
+    gpuFeatureStatus: rawStatus,
+  };
+}
 
 function applySettings(prev: BrowserSettings, next: BrowserSettings) {
   if (prev.adblockEnabled !== next.adblockEnabled) {
     adblockEngine.setEnabled(next.adblockEnabled);
+    syncShieldsAcrossWebviews();
     propagateSessionSettings();
+  }
+  if (prev.shieldWhitelist !== next.shieldWhitelist) {
+    adblockEngine.setWhitelist(next.shieldWhitelist ?? []);
+    syncShieldsAcrossWebviews();
   }
   if (prev.zenSleepEnabled !== next.zenSleepEnabled) {
     resourceManager.setAutoSleepEnabled(next.zenSleepEnabled);
+  }
+  if (prev.reducedEffectsMode !== next.reducedEffectsMode && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
   }
   // A shorter interval takes effect now rather than on the next tick (R16.2).
   if (prev.archiveIntervalHours !== next.archiveIntervalHours && browserManager) {
@@ -1023,6 +1117,10 @@ function updateSettings(patch: unknown): BrowserSettings {
               browserManager.toggleSleepTab(tabId);
             });
 
+            ipcMain.handle('neutrino:get-state', async () => {
+              return browserManager.getStateSnapshot();
+            });
+
             ipcMain.handle('neutrino:select-space', async (_, spaceId: unknown) => {
               const id = asId(spaceId);
               if (!id) return;
@@ -1278,6 +1376,10 @@ function updateSettings(patch: unknown): BrowserSettings {
               return settings;
             });
 
+            ipcMain.handle('neutrino:get-performance-status', async () => {
+              return getPerformanceStatus();
+            });
+
             ipcMain.handle('neutrino:update-settings', async (_, patch: unknown) => {
               return updateSettings(patch);
             });
@@ -1306,6 +1408,28 @@ function updateSettings(patch: unknown): BrowserSettings {
 
             ipcMain.handle('neutrino:get-shield-stats', async () => {
               return adblockEngine.getStats();
+            });
+
+            ipcMain.handle('neutrino:toggle-site-whitelist', async (_, domainOrUrl: string) => {
+              const domain = adblockEngine.extractHost(domainOrUrl);
+              if (!domain) {
+                return { domain: '', whitelisted: false, shieldWhitelist: settings.shieldWhitelist ?? [] };
+              }
+              const current = new Set(settings.shieldWhitelist ?? []);
+              let whitelisted = false;
+              if (current.has(domain)) {
+                current.delete(domain);
+              } else {
+                current.add(domain);
+                whitelisted = true;
+              }
+              const updated = Array.from(current);
+              updateSettings({ shieldWhitelist: updated });
+              return { domain, whitelisted, shieldWhitelist: updated };
+            });
+
+            ipcMain.handle('neutrino:reset-shield-stats', async () => {
+              return adblockEngine.resetStats();
             });
 
             ipcMain.handle('neutrino:mcp-call', async (_, { method, params }: { method: string; params?: unknown }) => {
@@ -1470,6 +1594,20 @@ function updateSettings(patch: unknown): BrowserSettings {
 app.whenReady().then(() => {
   // One line per launch so artifact reports from different PCs can be compared.
   console.log('[GPU] hardware acceleration:', gpuDisabled ? 'off (fallback)' : 'on', JSON.stringify(app.getGPUFeatureStatus()));
+  app.on('gpu-info-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
+    }
+  });
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU' && details.reason !== 'clean-exit') {
+      console.warn('[GPU] child-process-gone:', details.reason, 'exitCode=', details.exitCode);
+      gpuProcessCrashed = true;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('neutrino:performance-updated', getPerformanceStatus());
+      }
+    }
+  });
   if (process.platform === 'darwin') {
     Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }]));
   } else {
@@ -1510,6 +1648,26 @@ app.whenReady().then(() => {
     // windows (window.opener intact), regular links open as Neutrino tabs. Both stay in the
     // opener's profile (popup partition, new tab's space). See windowOpen.ts.
     contents.setWindowOpenHandler((details) => {
+      if (adblockEngine.isEnabled() && !isAuthOrSecurityUrl(details.url)) {
+        const openerUrl = contents.getURL() || '';
+        const popupDecision = adblockEngine.checkRequest({
+          url: details.url,
+          resourceType: 'subFrame',
+          pageUrl: openerUrl,
+        });
+        if (popupDecision.blocked) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('neutrino:tracker-blocked', {
+              url: details.url,
+              domain: popupDecision.domain,
+              category: popupDecision.category,
+              rule: popupDecision.rule || 'Popup Blocked',
+            });
+          }
+          return { action: 'deny' };
+        }
+      }
+
       const opener = openerContextFor(contents);
       const decision = decideWindowOpen(details, {
         isAuthOrSecurityUrl,
@@ -1528,26 +1686,29 @@ app.whenReady().then(() => {
     // Enforce VPN WebRTC policy, cosmetic adblock, YouTube skipper, and site context menus.
     vpnController.applyWebRtcPolicy(contents);
     if (contents.getType() === 'webview') {
+      contents.setBackgroundThrottling(true);
+      trackedWebviews.add(contents);
+      contents.once('destroyed', () => {
+        trackedWebviews.delete(contents);
+      });
+
       contents.on('dom-ready', async () => {
         try {
-          const tasks: Promise<unknown>[] = [
-            contents.executeJavaScript(`
-              try {
-                if (!window.dataLayer) window.dataLayer = [];
-                if (!window.google_tag_manager) window.google_tag_manager = {};
-                if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
-              } catch(e) {}
-            `).catch(() => { }),
-          ];
-          if (adblockEngine.isEnabled()) {
-            tasks.push(contents.insertCSS(adblockEngine.getCosmeticFilterCSS()).catch(() => { }));
-            const url = contents.getURL();
-            if (url.includes('youtube.com')) {
-              tasks.push(contents.executeJavaScript(adblockEngine.getYouTubeAdSkipperScript()).catch(() => { }));
-            }
-          }
-          await Promise.allSettled(tasks);
+          await contents.executeJavaScript(`
+            try {
+              if (!window.dataLayer) window.dataLayer = [];
+              if (!window.google_tag_manager) window.google_tag_manager = {};
+              if (!window.fbq) { window.fbq = function() { (window.fbq.q = window.fbq.q || []).push(arguments); }; }
+            } catch(e) {}
+          `).catch(() => { });
+          await applyShieldsToWebview(contents);
         } catch { }
+      });
+
+      contents.on('did-navigate-in-page', (_event, _url, isMainFrame) => {
+        if (isMainFrame) {
+          void applyShieldsToWebview(contents);
+        }
       });
 
       contents.on('context-menu', (_event, params) => {
@@ -1789,12 +1950,14 @@ function disposePasswords() {
 }
 
 app.on('before-quit', () => {
+  browserManager?.flushSessionState();
   disposePasswords();
   historyRegistry.destroyAll();
   void vpnController.cleanupOnQuit();
 });
 
 app.on('window-all-closed', () => {
+  browserManager?.flushSessionState();
   disposePasswords();
   historyRegistry.destroyAll();
   void vpnController.cleanupOnQuit();

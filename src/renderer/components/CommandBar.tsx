@@ -394,17 +394,38 @@ export const CommandBar: React.FC<CommandBarProps> = ({
     });
   }
 
+  // Add spaces switching items (when query starts with '>' or matches a Space name)
+  const matchingSpaces = (spaces || []).filter((sp) => {
+    const q = query.trim().toLowerCase().replace(/^>\s*/, '');
+    if (!q) return query.trim().startsWith('>');
+    return sp.name.toLowerCase().includes(q) || 'space switch'.includes(q);
+  });
+
   // Add tabs
   matchingTabs.forEach((tab) => {
+    const spaceName = spaces.find((s) => s.id === tab.spaceId)?.name;
     items.push({
       type: 'tab',
       id: tab.id,
       title: tab.title || 'Untitled Tab',
       subline: tab.url,
-      hint: 'Switch to tab',
+      hint: spaceName ? `${spaceName} · Switch to tab` : 'Switch to tab',
       favicon: tab.favicon,
       action: () => {
         onSelectTab(tab.id);
+        onClose();
+      },
+    });
+  });
+
+  matchingSpaces.forEach((sp) => {
+    items.push({
+      type: 'command',
+      id: `switch-space-${sp.id}`,
+      title: `> Switch Space: ${sp.name}`,
+      hint: 'Space',
+      action: () => {
+        onSelectSpace(sp.id);
         onClose();
       },
     });

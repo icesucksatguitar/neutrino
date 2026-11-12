@@ -97,6 +97,32 @@ export class ZenResourceManager {
     }
   }
 
+  /**
+   * Caps how many non-exempt background tabs stay mounted in memory at once.
+   * Respects Zen auto-sleep (`setAutoSleepEnabled(false)` disables this).
+   */
+  public trimExcessBackgroundTabs(
+    activeTabId: string,
+    exemptTabIds: Set<string> = new Set(),
+    maxAwakeBackgroundTabs: number = 4
+  ): number {
+    if (!this.autoSleepEnabled) return 0;
+    const limit = Math.max(0, Math.floor(maxAwakeBackgroundTabs));
+    const candidates: TabResourceInfo[] = [];
+    for (const [id, info] of this.tabInfos.entries()) {
+      if (id !== activeTabId && !info.isSleeping && !exemptTabIds.has(id)) {
+        candidates.push(info);
+      }
+    }
+    if (candidates.length <= limit) return 0;
+    candidates.sort((a, b) => a.lastActiveTimestamp - b.lastActiveTimestamp);
+    const toSleepCount = candidates.length - limit;
+    for (let i = 0; i < toSleepCount; i++) {
+      this.sleepTab(candidates[i].tabId);
+    }
+    return toSleepCount;
+  }
+
   private startMonitor() {
     this.checkInterval = setInterval(() => {
       if (!this.autoSleepEnabled) return;

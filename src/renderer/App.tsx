@@ -12,7 +12,7 @@ import { AuthHandoffNotice } from './components/AuthHandoffNotice';
 import { PasswordPrompt } from './components/PasswordPrompt';
 import type { UserProfile } from './components/WelcomeModal';
 import { useSettings } from './hooks/useSettings';
-import { resolveSpaceTheme } from '../main/settings';
+import { resolveSpaceTheme, resolveReducedEffectsActive } from '../main/settings';
 import { type SpaceTheme, getDefaultSpaceTheme } from '../main/spaceTheme';
 import { applySpaceThemeToRoot, getOsPrefersDark } from './utils/applySpaceTheme';
 import { computeTopBarTint, type PageColorReport, type TabPageColor } from './utils/topBarTint';
@@ -39,6 +39,7 @@ import {
   VpnConfig,
   VpnStatus,
   SiteAction,
+  PerformanceStatus,
 } from './types';
 import './styles/theme.css';
 
@@ -97,6 +98,7 @@ export function App() {
     deleteSpace,
     reorderTabs,
     toggleShields,
+    resetShieldStats,
     zenOptimize,
   } = browser;
   const { activeProfile } = useProfiles();
@@ -109,6 +111,7 @@ export function App() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [isVpnModalOpen, setIsVpnModalOpen] = useState(false);
   const [vpnStatus, setVpnStatus] = useState<VpnStatus | null>(null);
+  const [performanceStatus, setPerformanceStatus] = useState<PerformanceStatus | null>(null);
   const [isCheckingVpnIp, setIsCheckingVpnIp] = useState(false);
   const [vpnIpError, setVpnIpError] = useState<string | null>(null);
 
@@ -212,6 +215,34 @@ export function App() {
     }, 180000);
     return () => clearInterval(interval);
   }, [zenOptimize, zenSleepEnabled]);
+
+  useEffect(() => {
+    void window.neutrino?.getPerformanceStatus?.().then((status) => {
+      if (status) setPerformanceStatus(status);
+    });
+    const unsubPerf = window.neutrino?.onPerformanceStatusUpdated?.((status) => {
+      if (status) setPerformanceStatus(status);
+    });
+    const syncHidden = () => {
+      document.documentElement.setAttribute('data-window-hidden', document.hidden ? 'true' : 'false');
+    };
+    syncHidden();
+    document.addEventListener('visibilitychange', syncHidden);
+    return () => {
+      unsubPerf?.();
+      document.removeEventListener('visibilitychange', syncHidden);
+    };
+  }, []);
+
+  const isReducedEffects = resolveReducedEffectsActive(
+    settings.reducedEffectsMode,
+    Boolean(performanceStatus?.gpuDisabledFlag),
+    performanceStatus?.gpuFeatureStatus ?? null
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-reduced-effects', isReducedEffects ? 'on' : 'off');
+  }, [isReducedEffects]);
 
   // Active webpage detection: on web pages, the viewport is pulled down below the 44px top header
   // so window controls, tabs, and site navigation controls never collide.
@@ -484,6 +515,22 @@ export function App() {
     }, 1100);
   };
 
+  const handleCreateSpace = async (name: string, color?: string) => {
+    const created = await createSpace(name, color);
+    if (created) {
+      triggerThemeCrossFade();
+      setSpaceTransitionClass('space-transition-left');
+      setSpaceOverlay(created.name);
+      setTimeout(() => {
+        setSpaceTransitionClass('');
+      }, 450);
+      setTimeout(() => {
+        setSpaceOverlay(null);
+      }, 1100);
+    }
+    return created;
+  };
+
   // Keyboard shortcuts & events
   useEffect(() => {
     const handleOpenCommandBar = () => openCommandBar();
@@ -523,8 +570,12 @@ export function App() {
     const unsubIpcHistory = window.neutrino?.onOpenHistory?.(() => {
       setIsHistoryModalOpen(true);
     });
-    const unsubIpcSpaceSwitched = window.neutrino?.onSpaceSwitched?.(() => {
+    const unsubIpcSpaceSwitched = window.neutrino?.onSpaceSwitched?.((payload) => {
       triggerThemeCrossFade();
+      if (payload?.spaceName) {
+        setSpaceOverlay(payload.spaceName);
+        setTimeout(() => setSpaceOverlay(null), 1100);
+      }
     });
     // neutrino://settings, neutrino://history, neutrino://vpn from useBrowser.navigate
     const handleOpenSettingsEvent = () => setIsSettingsOpen(true);
@@ -874,8 +925,16 @@ return (
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
             <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
-          <span className="macos-tabs-label">Tabs</span>
-          <span className="macos-tabs-count">{state.tabs.length}</span>
+          <span
+            className="macos-tabs-space-dot"
+            style={{ backgroundColor: activeSpace?.color || '#E4E4E7' }}
+          />
+          <span className="macos-tabs-space-name" data-testid="active-space-indicator">
+            {activeSpace?.name || 'Study'}
+          </span>
+          <span className="macos-tabs-count" data-testid="active-space-tab-count">
+            {currentSpaceTabs.length}
+          </span>
         </button>
 
         {/* Compact Site Navigation Controls */}
@@ -955,19 +1014,47 @@ return (
           <span>{vpnStatus?.state === 'connected' ? 'VPN ON' : 'VPN'}</span>
         </button>
 
-        <button
-          className="minimal-pill-btn"
-          onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
-          title={
-            settings.adblockEnabled
-              ? `Shields active: ${shieldsBlockedCount} blocked`
-              : `Shields off: ${shieldsBlockedCount} blocked`
-          }
-          aria-label="Shields"
-        >
-          <Shield size={14} className="modern-btn-icon" />
-          <span>{shieldsBlockedCount}</span>
-        </button>
+        {(() => {
+          const activeHost = (() => {
+            try {
+              const parsed = activeTab?.url ? new URL(activeTab.url) : null;
+              return parsed && (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+                ? parsed.hostname.toLowerCase()
+                : '';
+            } catch {
+              return '';
+            }
+          })();
+          const isSiteWhitelisted =
+            !!activeHost &&
+            (settings.shieldWhitelist ?? []).some(
+              (allowed) => activeHost === allowed || activeHost.endsWith(`.${allowed}`),
+            );
+          return (
+            <button
+              className="minimal-pill-btn"
+              onClick={() => setIsShieldModalOpen(!isShieldModalOpen)}
+              title={
+                !settings.adblockEnabled
+                  ? `Shields off: ${shieldsBlockedCount} blocked`
+                  : isSiteWhitelisted
+                    ? `Shields paused on ${activeHost}`
+                    : `Shields active: ${shieldsBlockedCount} blocked`
+              }
+              aria-label="Shields"
+              style={
+                !settings.adblockEnabled
+                  ? { opacity: 0.55 }
+                  : isSiteWhitelisted
+                    ? { color: '#f59e0b' }
+                    : undefined
+              }
+            >
+              <Shield size={14} className="modern-btn-icon" />
+              <span>{shieldsBlockedCount}</span>
+            </button>
+          );
+        })()}
 
         <button
           className="minimal-icon-btn"
@@ -1021,7 +1108,7 @@ return (
 
     {/* Edge-to-Edge Web Canvas Viewport (pulled down on web pages so site controls never collide;
         pushed right of a docked sidebar) */}
-    <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${isSidebarDocked ? 'with-docked-sidebar' : ''} ${spaceTransitionClass}`}>
+    <main className={`arc-viewport-container edge-to-edge ${isWebpage && !isHtmlFullscreen ? 'with-site-top-offset' : ''} ${isSidebarDocked ? 'with-docked-sidebar' : ''} ${spaceTransitionClass} ${isSettingsOpen ? 'settings-page-blur' : ''}`}>
       <div className="arc-web-canvas-frame seamless">
         <BrowserViewport
           activeTab={activeTab}
@@ -1157,6 +1244,12 @@ return (
           blockedItems={blockedTrackers}
           onToggleShields={toggleShields}
           enabled={settings.adblockEnabled}
+          activeUrl={activeTab?.url}
+          whitelist={settings.shieldWhitelist ?? []}
+          onToggleSiteWhitelist={(domainOrUrl) => {
+            void window.neutrino?.toggleSiteWhitelist?.(domainOrUrl);
+          }}
+          onResetStats={resetShieldStats}
         />
       </Suspense>
     )}
@@ -1201,6 +1294,8 @@ return (
           onClose={() => setIsThemeModalOpen(false)}
           activeSpace={activeSpace}
           spaceTheme={activeSpaceTheme}
+          customPresets={settings.customThemePresets || []}
+          onChangeCustomPresets={(nextPresets) => void updateSettings({ customThemePresets: nextPresets })}
           onChangeSpaceTheme={handleChangeSpaceTheme}
           onResetSpaceTheme={handleResetSpaceTheme}
           isDarkMode={isDarkMode}

@@ -18,6 +18,7 @@ export interface TabData {
   favicon?: string;
   isPinned: boolean;
   isSleeping: boolean;
+  zoomFactor?: number;
   order: number;
 }
 
@@ -47,6 +48,8 @@ export interface PersistedState {
   spaces: Space[];
   bookmarks: Bookmark[];
   settings: Record<string, unknown>;
+  tabs?: TabData[];
+  activeTabBySpace?: Record<string, string>;
 }
 
 function cloneState<T>(value: T): T {
@@ -119,15 +122,15 @@ export class LocalStorageManager {
       const content = fs.readFileSync(this.stateFilePath, 'utf-8');
       const parsed = JSON.parse(content);
       let rawSpaces: Space[] = parsed.spaces || defaultSpaces;
-      // Seamlessly migrate legacy spaces (DEFAULT/PLAN/MAX -> Study/Work/Leisure)
+      // Seamlessly migrate legacy spaces (DEFAULT/PLAN/MAX -> Study/Work/Leisure) without clobbering custom spaces
       rawSpaces = rawSpaces.map((sp) => {
-        if (sp.id === 'space-default' || sp.name === 'DEFAULT' || sp.id === 'space-study') {
+        if (sp.id === 'space-default' || sp.id === 'space-study' || (!sp.id?.startsWith('space-') && sp.name === 'DEFAULT')) {
           return { id: 'space-study', name: 'Study', icon: 'BookOpen', color: '#E4E4E7' };
         }
-        if (sp.id === 'space-plan' || sp.name === 'PLAN' || sp.id === 'space-work') {
+        if (sp.id === 'space-plan' || sp.id === 'space-work' || (!sp.id?.startsWith('space-') && sp.name === 'PLAN')) {
           return { id: 'space-work', name: 'Work', icon: 'Briefcase', color: '#A1A1AA' };
         }
-        if (sp.id === 'space-max' || sp.name === 'MAX' || sp.id === 'space-leisure') {
+        if (sp.id === 'space-max' || sp.id === 'space-leisure' || (!sp.id?.startsWith('space-') && sp.name === 'MAX')) {
           return { id: 'space-leisure', name: 'Leisure', icon: 'Coffee', color: '#71717A' };
         }
         return sp;
@@ -136,6 +139,10 @@ export class LocalStorageManager {
         spaces: rawSpaces,
         bookmarks: parsed.bookmarks || [],
         settings: parsed.settings || {},
+        ...(Array.isArray(parsed.tabs) ? { tabs: parsed.tabs } : {}),
+        ...(parsed.activeTabBySpace && typeof parsed.activeTabBySpace === 'object' && !Array.isArray(parsed.activeTabBySpace)
+          ? { activeTabBySpace: parsed.activeTabBySpace }
+          : {}),
       };
       this.cachedState = cloneState(state);
       return cloneState(state);
@@ -154,13 +161,19 @@ export class LocalStorageManager {
     spaces: Space[];
     bookmarks?: Bookmark[];
     settings?: Record<string, unknown>;
+    tabs?: TabData[];
+    activeTabBySpace?: Record<string, string>;
   }) {
     try {
       const existing = this.loadState();
+      const nextTabs = state.tabs !== undefined ? state.tabs : existing.tabs;
+      const nextActiveBySpace = state.activeTabBySpace !== undefined ? state.activeTabBySpace : existing.activeTabBySpace;
       const payload: PersistedState = {
         spaces: state.spaces,
         bookmarks: state.bookmarks || existing.bookmarks,
         settings: state.settings || existing.settings,
+        ...(nextTabs !== undefined ? { tabs: nextTabs } : {}),
+        ...(nextActiveBySpace !== undefined ? { activeTabBySpace: nextActiveBySpace } : {}),
       };
       writeFileAtomicSync(this.stateFilePath, JSON.stringify(payload, null, 2));
       this.cachedState = cloneState(payload);
@@ -177,6 +190,8 @@ export class LocalStorageManager {
         spaces: existing.spaces,
         bookmarks: existing.bookmarks,
         settings,
+        ...(existing.tabs !== undefined ? { tabs: existing.tabs } : {}),
+        ...(existing.activeTabBySpace !== undefined ? { activeTabBySpace: existing.activeTabBySpace } : {}),
       };
       writeFileAtomicSync(this.stateFilePath, JSON.stringify(payload, null, 2));
       this.cachedState = cloneState(payload);

@@ -83,9 +83,33 @@ function isTransientUrl(url: string): boolean {
 function fallbackStore(storage: LocalStorageManager, now: () => number): ProfileStore {
   const legacy = storage.loadState();
   const file = migrateToProfiles({ spaces: legacy.spaces }, now());
+  if (Array.isArray(legacy.tabs) && legacy.tabs.length > 0) {
+    for (let i = 0; i < legacy.tabs.length; i++) {
+      const lt = legacy.tabs[i];
+      if (lt && lt.id && lt.url) {
+        file.tabs.push({
+          id: lt.id,
+          url: lt.url,
+          title: lt.title || 'New Tab',
+          spaceId: lt.spaceId || file.spaces[0]?.id || 'space-study',
+          section: lt.isPinned ? 'pinned' : 'today',
+          order: i,
+          lastActiveAt: typeof (lt as any).lastActiveAt === 'number' ? (lt as any).lastActiveAt : now() + i,
+        });
+      }
+    }
+  }
   return new ProfileStore({
     read: () => file,
-    write: () => {},
+    write: (updatedFile) => {
+      const browserSpaces = (updatedFile.spaces || []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        color: s.color,
+        icon: s.icon,
+      }));
+      storage.saveState({ spaces: browserSpaces });
+    },
     clearSession: async () => {},
     rmFiles: () => {},
     now,
@@ -95,6 +119,7 @@ function fallbackStore(storage: LocalStorageManager, now: () => number): Profile
 export class BrowserManager {
   private tabs: Map<string, TabState> = new Map();
   private activeTabId: string | null = null;
+  private activeTabBySpace: Map<string, string> = new Map();
   private adblockEngine: BraveShieldEngine;
   private resourceManager: ZenResourceManager;
   private mcpServer: McpServer;
@@ -132,7 +157,47 @@ export class BrowserManager {
 
     this.setupResourceEvents();
     this.restoreTabs();
+
+    const legacyTabs = this.storage.loadState().tabs;
+    if (Array.isArray(legacyTabs) && legacyTabs.length > 0) {
+      for (const lt of legacyTabs) {
+        if (!this.tabs.has(lt.id) && this.hasSpace(lt.spaceId)) {
+          this.tabs.set(lt.id, {
+            id: lt.id,
+            spaceId: lt.spaceId,
+            title: lt.title || 'New Tab',
+            url: lt.url || 'neutrino://newtab',
+            isLoading: false,
+            canGoBack: false,
+            canGoForward: false,
+            isPinned: Boolean(lt.isPinned),
+            isSleeping: Boolean(lt.isSleeping),
+            blockedCount: 0,
+            partition: this.partitionFor(lt.spaceId),
+            section: lt.isPinned ? 'pinned' : 'today',
+            lastActiveAt: typeof (lt as any).lastActiveAt === 'number' ? (lt as any).lastActiveAt : this.now(),
+          });
+        }
+      }
+    }
+
     this.registerMcpTools();
+
+    const savedState = this.storage.loadState();
+    if (savedState.activeTabBySpace && typeof savedState.activeTabBySpace === 'object') {
+      for (const [spId, tabId] of Object.entries(savedState.activeTabBySpace)) {
+        this.activeTabBySpace.set(spId, tabId);
+      }
+    }
+
+    const activeSpace = this.getActiveSpaceId();
+    const rememberedId = this.activeTabBySpace.get(activeSpace);
+    const candidate = rememberedId ? this.tabs.get(rememberedId) : undefined;
+    if (candidate && candidate.spaceId === activeSpace) {
+      this.activeTabId = candidate.id;
+      candidate.isSleeping = false;
+      if (candidate.unloaded) candidate.unloaded = false;
+    }
   }
 
   public setMainWindow(win: BrowserWindow) {
@@ -174,10 +239,16 @@ export class BrowserManager {
   }
 
   /** Activates a space and its last active tab, or a new Today tab (R13.6). */
-  public setActiveSpace(spaceId: string) {
-    if (!this.hasSpace(spaceId)) return;
+  public setActiveSpace(spaceId: string): boolean {
+    if (!this.hasSpace(spaceId)) return false;
     this.profileStore.setActiveSpace(spaceId);
     this.patchSettings({ activeSpaceId: spaceId });
+    const rememberedId = this.activeTabBySpace.get(spaceId);
+    const candidate = rememberedId ? this.tabs.get(rememberedId) : undefined;
+    if (candidate && candidate.spaceId === spaceId) {
+      this.setActiveTab(candidate.id);
+      return true;
+    }
     const target = activationTarget(this.currentFile(), spaceId);
     if (target.type === 'tab' && this.tabs.has(target.tabId)) {
       this.setActiveTab(target.tabId);
@@ -185,23 +256,26 @@ export class BrowserManager {
       this.createTab('neutrino://newtab', spaceId);
     }
     this.notifyState();
+    return true;
   }
 
-  public createSpace(name: string, color: string = '#7c9cff', profileId?: string): BrowserSpace {
-    const created = this.profileStore.createSpace(name, profileId);
+  public createSpace(name: string, color: string = '#7c9cff', profileId?: string): BrowserSpace | null {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) return null;
+    const created = this.profileStore.createSpace(trimmed, profileId);
     const updated = this.profileStore.updateSpace(created.id, { color, icon: 'Folder' });
     this.setActiveSpace(updated.id);
-    return this.getSpaces().find((s) => s.id === updated.id)!;
+    return this.getSpaces().find((s) => s.id === updated.id) || null;
   }
 
-  public deleteSpace(spaceId: string) {
-    if (!this.hasSpace(spaceId)) return;
+  public deleteSpace(spaceId: string): boolean {
+    if (!this.hasSpace(spaceId)) return false;
     const wasActive = this.getActiveSpaceId() === spaceId;
     try {
       this.profileStore.deleteSpace(spaceId);
     } catch {
       // The only space of a profile cannot be deleted (R13.9).
-      return;
+      return false;
     }
     for (const t of Array.from(this.tabs.values())) {
       if (t.spaceId === spaceId) this.dropTab(t.id);
@@ -209,9 +283,10 @@ export class BrowserManager {
     if (wasActive || (this.activeTabId && !this.tabs.has(this.activeTabId))) {
       this.activeTabId = null;
       this.setActiveSpace(this.getActiveSpaceId());
-      return;
+      return true;
     }
     this.notifyState();
+    return true;
   }
 
   /**
@@ -235,6 +310,19 @@ export class BrowserManager {
     }
     this.persistTabs();
     this.notifyState();
+  }
+
+  public flushSessionState() {
+    this.persistTabs();
+  }
+
+  public getStateSnapshot() {
+    return {
+      spaces: this.getSpaces(),
+      activeSpaceId: this.getActiveSpaceId(),
+      tabs: Array.from(this.tabs.values()),
+      activeTabId: this.activeTabId,
+    };
   }
 
   public reorderTabs(draggedTabId: string, targetTabId: string) {
@@ -286,6 +374,16 @@ export class BrowserManager {
 
   public getActiveMediaTabs(): Set<string> {
     return this.activeMediaTabs;
+  }
+
+  private getSleepExemptTabIds(): Set<string> {
+    const exempt = new Set<string>(this.activeMediaTabs);
+    for (const [id, tab] of this.tabs.entries()) {
+      if (tab.isPinned || !tab.url || tab.url === 'neutrino://newtab' || tab.url === 'about:blank') {
+        exempt.add(id);
+      }
+    }
+    return exempt;
   }
 
   public getTabs(): TabState[] {
@@ -448,10 +546,12 @@ export class BrowserManager {
     }
     tab.isSleeping = false;
     tab.lastActiveAt = now;
+    this.activeTabBySpace.set(tab.spaceId, tabId);
     if (this.profileStore.activeSpaceId() !== tab.spaceId && this.hasSpace(tab.spaceId)) {
       this.profileStore.setActiveSpace(tab.spaceId);
     }
     this.resourceManager.wakeTab(tabId);
+    this.resourceManager.trimExcessBackgroundTabs?.(tabId, this.getSleepExemptTabIds(), 4);
     this.emitLifecycle('onWake', tabId);
     this.persistTabs();
     this.notifyState();
@@ -617,6 +717,25 @@ export class BrowserManager {
     } catch (err) {
       console.error('[BrowserManager] Failed to persist tabs:', err);
     }
+    try {
+      const existingSpaces = this.storage.loadState().spaces;
+      const tabData = Array.from(this.tabs.values()).map((t, idx) => ({
+        id: t.id,
+        spaceId: t.spaceId,
+        title: t.title,
+        url: t.url,
+        favicon: t.favicon,
+        isPinned: Boolean(t.isPinned),
+        isSleeping: Boolean(t.isSleeping),
+        order: idx,
+        lastActiveAt: t.lastActiveAt,
+      }));
+      this.storage.saveState({
+        spaces: existingSpaces,
+        tabs: tabData,
+        activeTabBySpace: Object.fromEntries(this.activeTabBySpace.entries()),
+      });
+    } catch {}
   }
 
   /**

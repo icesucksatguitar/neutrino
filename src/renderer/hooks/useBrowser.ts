@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { BrowserAppState, BlockedTrackerItem, MoveOp, SidebarState, SpacePatch, TabState } from '../types';
 
 const INITIAL_STATE: BrowserAppState = {
@@ -48,7 +48,7 @@ export function useBrowser() {
   useEffect(() => {
     if (!window.neutrino) return;
 
-    const unregState = window.neutrino.onStateUpdate((newState) => {
+    const applyIncomingState = (newState: BrowserAppState) => {
       // Spaces come from the ProfileStore as-is: legacy ids (DEFAULT/PLAN/MAX) are already
       // migrated in main, and rewriting them here would undo user renames and drop `profileId`.
       const spaces = newState.spaces || [];
@@ -57,7 +57,15 @@ export function useBrowser() {
         spaces: spaces.length > 0 ? spaces : INITIAL_STATE.spaces,
         activeSpaceId: newState.activeSpaceId || spaces[0]?.id || INITIAL_STATE.activeSpaceId,
       });
-    });
+    };
+
+    const unregState = window.neutrino.onStateUpdate(applyIncomingState);
+
+    window.neutrino.getState?.().then((initial) => {
+      if (initial && Array.isArray(initial.spaces)) {
+        applyIncomingState(initial);
+      }
+    }).catch(() => { });
 
     // A tab moved to another profile's space reloads in that profile's session (R1.12, R17.5).
     // The state-update that follows carries the same partition; applying it now lets the
@@ -78,24 +86,48 @@ export function useBrowser() {
       if (trackerQueue.length === 0) return;
 
       const itemsToFlush = trackerQueue.splice(0, trackerQueue.length);
-      const totalCount = itemsToFlush.length;
-      let adsCount = 0;
-      for (const it of itemsToFlush) {
-        if (it.category === 'Advertising') adsCount++;
-      }
 
       setBlockedTrackers((prev) => [
         ...itemsToFlush.map((it) => ({ ...it, timestamp: it.timestamp || Date.now() })),
         ...prev,
       ].slice(0, 50));
 
+      // Pull authoritative stats from the main engine rather than blindly adding deltas on top of
+      // state-update snapshots (which otherwise double-counted bursts until the next state update).
+      if (window.neutrino?.getShieldStats) {
+        window.neutrino.getShieldStats().then((stats: any) => {
+          if (stats) {
+            setState((prev) => ({
+              ...prev,
+              shieldStats: { ...prev.shieldStats, ...stats },
+            }));
+          }
+        }).catch(() => { });
+        return;
+      }
+
+      const totalCount = itemsToFlush.length;
+      let adsCount = 0;
+      let analyticsCount = 0;
+      let fingerprintersCount = 0;
+      let trackersCount = 0;
+      for (const it of itemsToFlush) {
+        if (it.category === 'Advertising') adsCount++;
+        else if (it.category === 'Analytics' || it.category === 'Telemetry') analyticsCount++;
+        else if (it.category === 'Fingerprinting' || it.category === 'Cryptomining') fingerprintersCount++;
+        else trackersCount++;
+      }
+
       setState((prev) => ({
         ...prev,
         shieldStats: {
           ...prev.shieldStats,
           totalBlocked: prev.shieldStats.totalBlocked + totalCount,
-          trackersBlocked: prev.shieldStats.trackersBlocked + totalCount,
+          trackersBlocked: prev.shieldStats.trackersBlocked + trackersCount,
           adsBlocked: prev.shieldStats.adsBlocked + adsCount,
+          analyticsBlocked: prev.shieldStats.analyticsBlocked + analyticsCount,
+          fingerprintersBlocked: prev.shieldStats.fingerprintersBlocked + fingerprintersCount,
+          dataSavedKb: prev.shieldStats.dataSavedKb + totalCount * 54,
         },
       }));
     };
@@ -136,6 +168,15 @@ export function useBrowser() {
       window.removeEventListener('neutrino:mock-tabs', handleMockTabs);
     };
   }, []);
+
+  const activeTabBySpaceRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    const tab = state.tabs.find((t) => t.id === state.activeTabId);
+    if (tab) {
+      activeTabBySpaceRef.current[tab.spaceId] = tab.id;
+    }
+  }, [state.tabs, state.activeTabId]);
 
   const navigate = useCallback((url: string) => {
     if (typeof url === 'string') {
@@ -191,14 +232,65 @@ export function useBrowser() {
 
   const selectSpace = useCallback((spaceId: string) => {
     window.neutrino?.selectSpace(spaceId);
-    setState((prev) => ({
-      ...prev,
-      activeSpaceId: spaceId,
-    }));
+    setState((prev) => {
+      if (!prev.spaces.some((s) => s.id === spaceId)) return prev;
+      const spaceTabs = prev.tabs.filter((t) => t.spaceId === spaceId);
+      const remembered = activeTabBySpaceRef.current[spaceId];
+      const nextActiveTab =
+        (remembered ? spaceTabs.find((t) => t.id === remembered) : undefined) || spaceTabs[0];
+      return {
+        ...prev,
+        activeSpaceId: spaceId,
+        activeTabId: nextActiveTab ? nextActiveTab.id : prev.activeTabId,
+      };
+    });
   }, []);
 
-  const createSpace = useCallback((name: string, color?: string, profileId?: string) => {
-    return window.neutrino?.createSpace?.(name, color, profileId);
+  const createSpace = useCallback(async (name: string, color?: string) => {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) return null;
+
+    if (window.neutrino?.createSpace) {
+      const created = await window.neutrino.createSpace(trimmed, color);
+      if (created) {
+        setState((prev) => ({
+          ...prev,
+          spaces: prev.spaces.some((s) => s.id === created.id) ? prev.spaces : [...prev.spaces, created],
+          activeSpaceId: created.id,
+        }));
+      }
+      return created ?? null;
+    }
+
+    const newSpace = {
+      id: `space-local-${Date.now().toString(36)}`,
+      name: trimmed,
+      icon: 'Sparkles',
+      color: color || '#8B5CF6',
+    };
+    const newTabId = `tab-local-${Date.now().toString(36)}`;
+    setState((prev) => ({
+      ...prev,
+      spaces: [...prev.spaces, newSpace],
+      activeSpaceId: newSpace.id,
+      tabs: [
+        ...prev.tabs,
+        {
+          id: newTabId,
+          spaceId: newSpace.id,
+          title: 'New Tab',
+          url: 'neutrino://newtab',
+          isLoading: false,
+          canGoBack: false,
+          canGoForward: false,
+          isPinned: false,
+          isSleeping: false,
+          blockedCount: 0,
+        },
+      ],
+      activeTabId: newTabId,
+    }));
+    return newSpace;
   }, []);
 
   const deleteSpace = useCallback((spaceId: string) => {
@@ -246,15 +338,32 @@ export function useBrowser() {
   }, []);
 
   const toggleShields = useCallback(() => {
-    window.neutrino?.toggleShields();
+    return window.neutrino?.toggleShields();
+  }, []);
+
+  const resetShieldStats = useCallback(async () => {
+    setBlockedTrackers([]);
+    if (window.neutrino?.resetShieldStats) {
+      const nextStats = await window.neutrino.resetShieldStats();
+      setState((prev) => ({ ...prev, shieldStats: nextStats }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        shieldStats: {
+          totalBlocked: 0,
+          adsBlocked: 0,
+          trackersBlocked: 0,
+          analyticsBlocked: 0,
+          fingerprintersBlocked: 0,
+          dataSavedKb: 0,
+        },
+      }));
+    }
   }, []);
 
   const zenOptimize = useCallback(() => {
     window.neutrino?.zenOptimize();
   }, []);
-
-  const activeTab: TabState | undefined =
-    state.tabs.find((t) => t.id === state.activeTabId) || state.tabs[0];
 
   const currentSpaceTabs = state.tabs.filter(
     (t) => t.spaceId === state.activeSpaceId
@@ -266,6 +375,12 @@ export function useBrowser() {
   const currentFavorites = (state.favorites ?? [])
     .filter((f) => f.profileId === activeSpaceProfileId)
     .sort((a, b) => a.order - b.order);
+
+  const activeTab: TabState | undefined =
+    currentSpaceTabs.find((t) => t.id === state.activeTabId) ||
+    currentSpaceTabs[0] ||
+    state.tabs.find((t) => t.id === state.activeTabId) ||
+    state.tabs[0];
 
   return {
     state,
@@ -303,6 +418,7 @@ export function useBrowser() {
     duplicateTab,
     updateSidebarState,
     toggleShields,
+    resetShieldStats,
     zenOptimize,
   };
 }

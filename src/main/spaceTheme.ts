@@ -40,6 +40,14 @@ export interface SpaceThemePreset {
   theme: SpaceTheme;
 }
 
+export interface CustomSpaceThemePreset {
+  id: string;
+  name: string;
+  theme: SpaceTheme;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ThemePalette {
   effectiveMode: 'light' | 'dark';
   c1: string;
@@ -552,7 +560,16 @@ export function getDefaultSpaceTheme(spaceId: string, rawSettings?: Record<strin
   if (rawSettings && (rawSettings.theme === 'light' || rawSettings.customTheme !== undefined)) {
     return migrateLegacyThemeSettings(rawSettings);
   }
-  const presetId = SPACE_DEFAULT_PRESET_MAP[spaceId] || 'evergreen-mist';
+  let presetId = SPACE_DEFAULT_PRESET_MAP[spaceId];
+  if (!presetId) {
+    // Give custom Spaces distinct default aesthetics deterministically instead of collapsing all of them to one preset.
+    let hash = 0;
+    for (let i = 0; i < spaceId.length; i++) {
+      hash = (hash * 31 + spaceId.charCodeAt(i)) >>> 0;
+    }
+    const preset = SPACE_THEME_PRESETS[hash % SPACE_THEME_PRESETS.length] || SPACE_THEME_PRESETS[0];
+    return cloneSpaceTheme(preset.theme);
+  }
   const preset = SPACE_THEME_PRESETS.find((p) => p.id === presetId) || SPACE_THEME_PRESETS[0];
   return cloneSpaceTheme(preset.theme);
 }
@@ -759,5 +776,127 @@ function rgbaString(hex: string, alpha: number): string {
   const { r, g, b } = hexToRgb(hex);
   const a = Math.max(0, Math.min(1, alpha));
   return `rgba(${r}, ${g}, ${b}, ${Number(a.toFixed(3))})`;
+}
+
+export const MAX_CUSTOM_THEME_PRESETS = 32;
+const MAX_PRESET_NAME_LENGTH = 40;
+
+export function normalizePresetName(raw: unknown, fallback = ''): string {
+  if (typeof raw !== 'string') return fallback;
+  const collapsed = raw.trim().replace(/\s+/g, ' ');
+  if (!collapsed) return fallback;
+  return collapsed.slice(0, MAX_PRESET_NAME_LENGTH);
+}
+
+export function normalizeCustomThemePresets(raw: unknown): CustomSpaceThemePreset[] {
+  if (!Array.isArray(raw)) return [];
+  const seenIds = new Set<string>();
+  const result: CustomSpaceThemePreset[] = [];
+
+  for (let i = 0; i < raw.length && result.length < MAX_CUSTOM_THEME_PRESETS; i++) {
+    const entry = raw[i];
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const obj = entry as Record<string, unknown>;
+    const rawId = typeof obj.id === 'string' ? obj.id.trim() : '';
+    const name = normalizePresetName(obj.name);
+    if (!rawId || !name || seenIds.has(rawId)) continue;
+    seenIds.add(rawId);
+
+    const createdAt =
+      typeof obj.createdAt === 'number' && Number.isFinite(obj.createdAt) && obj.createdAt >= 0
+        ? obj.createdAt
+        : i;
+    const updatedAt =
+      typeof obj.updatedAt === 'number' && Number.isFinite(obj.updatedAt) && obj.updatedAt >= 0
+        ? obj.updatedAt
+        : createdAt;
+
+    result.push({
+      id: rawId,
+      name,
+      theme: cloneSpaceTheme(validateAndClampSpaceTheme(obj.theme)),
+      createdAt,
+      updatedAt,
+    });
+  }
+
+  return result;
+}
+
+export function createCustomThemePreset(
+  presets: readonly CustomSpaceThemePreset[],
+  rawName: string,
+  theme: SpaceTheme,
+  now = Date.now(),
+  explicitId?: string
+): CustomSpaceThemePreset[] {
+  const name = normalizePresetName(rawName);
+  if (!name) return normalizeCustomThemePresets(presets);
+
+  const normalized = normalizeCustomThemePresets(presets);
+  if (normalized.length >= MAX_CUSTOM_THEME_PRESETS) {
+    return normalized;
+  }
+
+  let nextId = explicitId?.trim() || `preset-${now}-${Math.random().toString(36).slice(2, 7)}`;
+  const existingIds = new Set(normalized.map((p) => p.id));
+  while (existingIds.has(nextId)) {
+    nextId = `${nextId}-${normalized.length}`;
+  }
+
+  const nextPreset: CustomSpaceThemePreset = {
+    id: nextId,
+    name,
+    theme: cloneSpaceTheme(validateAndClampSpaceTheme(theme)),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return [nextPreset, ...normalized];
+}
+
+export function renameCustomThemePreset(
+  presets: readonly CustomSpaceThemePreset[],
+  presetId: string,
+  rawName: string,
+  now = Date.now()
+): CustomSpaceThemePreset[] {
+  const name = normalizePresetName(rawName);
+  if (!name) return normalizeCustomThemePresets(presets);
+
+  return normalizeCustomThemePresets(presets).map((preset) =>
+    preset.id === presetId ? { ...preset, name, updatedAt: now } : preset
+  );
+}
+
+export function deleteCustomThemePreset(
+  presets: readonly CustomSpaceThemePreset[],
+  presetId: string
+): CustomSpaceThemePreset[] {
+  return normalizeCustomThemePresets(presets).filter((preset) => preset.id !== presetId);
+}
+
+export function themesMatchCustomization(a: SpaceTheme, b: SpaceTheme): boolean {
+  if (a.mode !== b.mode) return false;
+  if (Math.abs(a.intensity - b.intensity) > 0.005) return false;
+  if (Math.abs(a.grain - b.grain) > 0.005) return false;
+  if (a.points.length !== b.points.length) return false;
+
+  for (let i = 0; i < a.points.length; i++) {
+    const pa = a.points[i];
+    const pb = b.points[i];
+    if (normalizeHex(pa.color) !== normalizeHex(pb.color)) return false;
+    if (Math.abs(pa.x - pb.x) > 0.01 || Math.abs(pa.y - pb.y) > 0.01) return false;
+  }
+
+  const ga = validateAndClampSpaceGlow(a.glow, DEFAULT_SPACE_GLOW);
+  const gb = validateAndClampSpaceGlow(b.glow, DEFAULT_SPACE_GLOW);
+  return (
+    ga.style === gb.style &&
+    ga.color === gb.color &&
+    Math.abs(ga.intensity - gb.intensity) <= 0.005 &&
+    Math.abs(ga.speed - gb.speed) <= 0.005 &&
+    Math.abs(ga.size - gb.size) <= 0.005
+  );
 }
 

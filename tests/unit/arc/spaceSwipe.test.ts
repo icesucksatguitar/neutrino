@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 import {
   AXIS_LOCK_PX,
   decideTarget,
@@ -60,6 +61,25 @@ describe('decideTarget', () => {
   it('never wraps', () => {
     expect(decideTarget({ ...base, index: 0, offset: 150, velocity: 2 })).toBe(0);
     expect(decideTarget({ ...base, index: 2, offset: -150, velocity: -2 })).toBe(2);
+  });
+
+  it('property: target index stays in [0, count-1] and differs by at most 1', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 20 }),
+        fc.float({ min: -1000, max: 1000, noNaN: true }),
+        fc.float({ min: -10, max: 10, noNaN: true }),
+        fc.integer({ min: 50, max: 600 }),
+        (count, offset, velocity, width) => {
+          for (let index = 0; index < count; index++) {
+            const target = decideTarget({ offset, velocity, width, index, count });
+            expect(target).toBeGreaterThanOrEqual(0);
+            expect(target).toBeLessThan(count);
+            expect(Math.abs(target - index)).toBeLessThanOrEqual(1);
+          }
+        },
+      ),
+    );
   });
 });
 

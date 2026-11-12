@@ -2,17 +2,24 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SPACE_GLOW,
   DEFAULT_SPACE_THEME,
+  MAX_CUSTOM_THEME_PRESETS,
   SPACE_THEME_PRESETS,
   clampWheelPos,
   computeGlowStops,
   computeThemePalette,
   contrastRatio,
+  createCustomThemePreset,
+  deleteCustomThemePreset,
   getDefaultSpaceTheme,
   hexLuminance,
   hueSatToWheelPos,
   migrateLegacyThemeSettings,
+  normalizeCustomThemePresets,
   normalizeHex,
+  normalizePresetName,
   normalizeSpaceThemesMap,
+  renameCustomThemePreset,
+  themesMatchCustomization,
   validateAndClampSpaceGlow,
   validateAndClampSpaceTheme,
   wheelPosToHueSat,
@@ -311,6 +318,85 @@ describe('spaceTheme: ambient glow customization', () => {
 
     expect(resolveSpaceTheme(saved, 'space-study').glow).toEqual(customStudy.glow);
     expect(resolveSpaceTheme(saved, 'space-work').glow?.style).toBe('prism');
+  });
+});
+
+describe('spaceTheme: custom presets CRUD and settings persistence', () => {
+  it('saves, names, loads/matches, renames, deletes custom presets and rejects empty names', () => {
+    const customTheme = validateAndClampSpaceTheme({
+      points: [
+        { color: '#6366F1', x: 0.72, y: 0.31 },
+        { color: '#EC4899', x: 0.25, y: 0.68 },
+      ],
+      intensity: 0.78,
+      grain: 0.35,
+      mode: 'light',
+      glow: {
+        style: 'custom',
+        color: '#F43F5E',
+        intensity: 0.82,
+        speed: 0.65,
+        size: 0.75,
+      },
+    });
+
+    // Ignores blank names
+    expect(createCustomThemePreset([], '   \t  ', customTheme, 1000)).toEqual([]);
+
+    // Creates and trims preset name
+    const created = createCustomThemePreset([], '  Twilight   Rose  ', customTheme, 1000, 'preset-twilight');
+    expect(created).toHaveLength(1);
+    expect(created[0].name).toBe('Twilight Rose');
+    expect(created[0].id).toBe('preset-twilight');
+    expect(themesMatchCustomization(created[0].theme, customTheme)).toBe(true);
+
+    // Mutating theme no longer matches saved preset until re-loaded
+    const changed = { ...customTheme, mode: 'dark' as const };
+    expect(themesMatchCustomization(created[0].theme, changed)).toBe(false);
+
+    // Renames preset and rejects blank rename
+    expect(renameCustomThemePreset(created, 'preset-twilight', '   ', 2000)[0].name).toBe('Twilight Rose');
+    const renamed = renameCustomThemePreset(created, 'preset-twilight', 'Editorial Rose', 2000);
+    expect(renamed[0].name).toBe('Editorial Rose');
+    expect(renamed[0].updatedAt).toBe(2000);
+
+    // Deletes preset cleanly
+    const deleted = deleteCustomThemePreset(renamed, 'preset-twilight');
+    expect(deleted).toEqual([]);
+  });
+
+  it('persists customThemePresets through normalizeSettings idempotently and sanitizes corrupt entries', () => {
+    const customTheme = validateAndClampSpaceTheme({
+      points: [
+        { color: '#10B981', x: 0.8, y: 0.5 },
+        { color: '#3B82F6', x: 0.2, y: 0.6 },
+      ],
+      intensity: 0.64,
+      grain: 0.2,
+      mode: 'dark',
+      glow: { style: 'prism', color: '#F59E0B', intensity: 0.7, speed: 0.5, size: 0.6 },
+    });
+    const list = createCustomThemePreset([], 'Emerald Aurora', customTheme, 1234, 'p1');
+
+    const normalized = normalizeSettings({ customThemePresets: list });
+    expect(normalized.customThemePresets).toHaveLength(1);
+    expect(normalized.customThemePresets?.[0].name).toBe('Emerald Aurora');
+    expect(normalized.customThemePresets?.[0].theme).toEqual(customTheme);
+    expect(normalizeSettings(normalized)).toEqual(normalized);
+
+    // Deduplicates IDs, filters malformed rows, clamps name length & out-of-range theme values
+    const sanitized = normalizeCustomThemePresets([
+      null,
+      { id: '', name: 'Missing ID', theme: customTheme },
+      { id: 'dup', name: '   ', theme: customTheme },
+      { id: 'dup', name: 'A'.repeat(60), theme: { intensity: 99, mode: 'bad' } },
+      { id: 'dup', name: 'Duplicate ID dropped', theme: customTheme },
+    ]);
+    expect(sanitized).toHaveLength(1);
+    expect(sanitized[0].name).toBe(normalizePresetName('A'.repeat(60)));
+    expect(sanitized[0].name.length).toBe(40);
+    expect(sanitized[0].theme.intensity).toBe(1);
+    expect(MAX_CUSTOM_THEME_PRESETS).toBeGreaterThanOrEqual(32);
   });
 });
 

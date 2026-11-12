@@ -1,7 +1,30 @@
-import type { BrowserSettings, SpaceTheme, SpaceThemesMap } from '../main/settings';
-import type { SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette } from '../main/spaceTheme';
+import type {
+  BrowserSettings,
+  PerformanceStatus,
+  ReducedEffectsMode,
+  SpaceTheme,
+  SpaceThemesMap,
+} from '../main/settings';
+import type {
+  CustomSpaceThemePreset,
+  SpaceThemeMode,
+  SpaceThemePoint,
+  SpaceThemePreset,
+  ThemePalette,
+} from '../main/spaceTheme';
 
-export type { BrowserSettings, SpaceTheme, SpaceThemesMap, SpaceThemeMode, SpaceThemePoint, SpaceThemePreset, ThemePalette };
+export type {
+  BrowserSettings,
+  CustomSpaceThemePreset,
+  PerformanceStatus,
+  ReducedEffectsMode,
+  SpaceTheme,
+  SpaceThemesMap,
+  SpaceThemeMode,
+  SpaceThemePoint,
+  SpaceThemePreset,
+  ThemePalette,
+};
 
 import type { FavoriteEntry, TabSection } from '../main/profiles/types';
 import type { LayoutSection, MoveOp } from '../main/sidebar/layout';
@@ -56,6 +79,8 @@ export type SidebarState = Pick<
   BrowserSettings,
   'sidebarExpanded' | 'sidebarAutoHide' | 'rightPinsDockVisible' | 'archiveIntervalHours'
 >;
+
+export type SpaceState = Space;
 
 export interface TabState {
   id: string;
@@ -183,6 +208,7 @@ declare global {
       openExternalUrl?: (url: string) => Promise<boolean>;
       onSiteAction?: (cb: (payload: { action: SiteAction; source?: string }) => void) => () => void;
       onSpaceSwitched?: (cb: (payload: { spaceId: string; spaceName: string }) => void) => () => void;
+      getState?: () => Promise<BrowserAppState>;
       createTab: (url?: string, spaceId?: string) => Promise<TabState>;
       updateTab?: (tabId: string, partial: Partial<TabState>) => Promise<void>;
       closeTab: (tabId: string) => Promise<void>;
@@ -219,6 +245,8 @@ declare global {
       setZoomFactor?: (factor: number) => Promise<void>;
       onZoomUpdated?: (cb: (data: { zoomFactor: number }) => void) => () => void;
       toggleShields: () => Promise<boolean>;
+      toggleSiteWhitelist?: (domainOrUrl: string) => Promise<{ domain: string; whitelisted: boolean; shieldWhitelist: string[] }>;
+      resetShieldStats?: () => Promise<ShieldStats>;
       zenOptimize: () => Promise<{ memorySavedMb: number; sleepingCount: number }>;
       getShieldStats: () => Promise<ShieldStats>;
       callMcp: (method: string, params?: unknown) => Promise<any>;
@@ -232,8 +260,10 @@ declare global {
       windowControl: (action: 'minimize' | 'maximize' | 'close') => Promise<void>;
       setThemeMode?: (mode: 'dark' | 'light' | 'system') => Promise<{ success: boolean; isDark?: boolean }>;
       getSettings?: () => Promise<BrowserSettings>;
+      getPerformanceStatus?: () => Promise<PerformanceStatus>;
       updateSettings?: (patch: Partial<BrowserSettings>) => Promise<BrowserSettings>;
       onSettingsUpdated?: (cb: (settings: BrowserSettings) => void) => () => void;
+      onPerformanceStatusUpdated?: (cb: (status: PerformanceStatus) => void) => () => void;
       onOpenSettings?: (cb: () => void) => () => void;
       onStateUpdate: (cb: (state: BrowserAppState) => void) => () => void;
       onTrackerBlocked: (cb: (item: BlockedTrackerItem) => void) => () => void;

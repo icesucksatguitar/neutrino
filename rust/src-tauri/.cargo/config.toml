@@ -1,2 +1,3 @@
-[env]
-PATH = { value = "C:\\\\Users\\\\simpl\\\\OneDrive\\\\Desktop\\\\neutrino\\\\rust\\\\src-tauri\\\\.tools", relative = false }
+# Cargo configuration
+[target.x86_64-pc-windows-gnu]
+# Rust GNU target settings

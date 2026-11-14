@@ -109,4 +109,16 @@ The application core, data structures, persistent storage, window management, th
 ## 8. Architecture Notes
 - **`rust/src/adapter/tauriBridge.ts`**: Pure TypeScript bridge shim that provides `window.neutrino` methods (`getBrowserState()`, `selectSpace()`, `createTab()`, etc.) mapped directly to `@tauri-apps/api/core::invoke`.
 - **`rust/src-tauri/src/state.rs`**: Single source of truth managed via `tokio::sync::RwLock<InnerState>`.
-- **`rust/src-tauri/src/importer.rs`**: Safe profile migrator that looks for existing Electron user data in `%APPDATA%\neutrino`, creates a timestamped backup, and migrates custom spaces, tabs, and preferences.
+- **`rust/src-tauri/src/importer.rs`**: Safe profile migrator that looks for existing Electron user data in `%APPDATA%\neutrino-browser` and `%APPDATA%\neutrino`, creates a pre-import backup, and silently migrates spaces, settings, profiles, and tab state.
+
+---
+
+## 9. Next Steps and Decisions
+1. **Multi-Webview Tab Viewport vs Single Swapping Child Webview**:
+   - *Option A (Recommended)*: Use Tauri v2's child webview pattern with hidden/visible visibility toggling for active tabs, preserving memory suspension on sleeping tabs.
+   - *Option B*: Host external web content in an isolated overlay WebviewWindow anchored to the central content pane bounds.
+2. **Deep Filter Rule Engine Integration**:
+   - Integrate Brave's Rust `adblock` engine crate directly into Tauri's custom protocol handler for deep subresource regex matching.
+3. **Parity Verification**:
+   - High-resolution visual parity reports and benchmark results are saved in [`docs/parity/README.md`](../docs/parity/README.md).
+

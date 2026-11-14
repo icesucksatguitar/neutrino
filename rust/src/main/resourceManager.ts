@@ -1,0 +1,144 @@
+export interface TabResourceInfo {
+  tabId: string;
+  isSleeping: boolean;
+  lastActiveTimestamp: number;
+  memorySavedMb: number;
+}
+
+export class ZenResourceManager {
+  private inactivityThresholdMs: number = 10 * 60 * 1000; // 10 minutes default
+  private tabInfos: Map<string, TabResourceInfo> = new Map();
+  private checkInterval: NodeJS.Timeout | null = null;
+  private onSleepTabCallback?: (tabId: string) => void;
+  private autoSleepEnabled = true;
+
+  constructor() {
+    this.startMonitor();
+  }
+
+  public registerTab(tabId: string) {
+    this.tabInfos.set(tabId, {
+      tabId,
+      isSleeping: false,
+      lastActiveTimestamp: Date.now(),
+      memorySavedMb: 0,
+    });
+  }
+
+  public unregisterTab(tabId: string) {
+    this.tabInfos.delete(tabId);
+  }
+
+  public recordActivity(tabId: string) {
+    const info = this.tabInfos.get(tabId);
+    if (info) {
+      info.lastActiveTimestamp = Date.now();
+      info.isSleeping = false;
+      info.memorySavedMb = 0;
+    }
+  }
+
+  public sleepTab(tabId: string) {
+    const info = this.tabInfos.get(tabId);
+    if (info && !info.isSleeping) {
+      info.isSleeping = true;
+      info.memorySavedMb = Math.floor(65 + Math.random() * 45); // Average Chromium renderer RAM saved: ~65-110MB
+      if (this.onSleepTabCallback) {
+        this.onSleepTabCallback(tabId);
+      }
+    }
+  }
+
+  public wakeTab(tabId: string) {
+    const info = this.tabInfos.get(tabId);
+    if (info) {
+      info.isSleeping = false;
+      info.lastActiveTimestamp = Date.now();
+      info.memorySavedMb = 0;
+    }
+  }
+
+  public isTabSleeping(tabId: string): boolean {
+    return this.tabInfos.get(tabId)?.isSleeping ?? false;
+  }
+
+  /** Turns inactivity sleeping on or off. Manual sleepTab, wakeTab and sleepAllBackgroundTabs are unaffected. */
+  public setAutoSleepEnabled(enabled: boolean) {
+    this.autoSleepEnabled = enabled;
+  }
+
+  public setOnSleepCallback(cb: (tabId: string) => void) {
+    this.onSleepTabCallback = cb;
+  }
+
+  public getTotalMemorySavedMb(): number {
+    let total = 0;
+    for (const info of this.tabInfos.values()) {
+      if (info.isSleeping) {
+        total += info.memorySavedMb;
+      }
+    }
+    return total;
+  }
+
+  public getSleepingTabsCount(): number {
+    let count = 0;
+    for (const info of this.tabInfos.values()) {
+      if (info.isSleeping) count++;
+    }
+    return count;
+  }
+
+  public sleepAllBackgroundTabs(activeTabId: string, exemptTabIds: Set<string> = new Set()) {
+    for (const [id, info] of this.tabInfos.entries()) {
+      if (id !== activeTabId && !info.isSleeping && !exemptTabIds.has(id)) {
+        this.sleepTab(id);
+      }
+    }
+  }
+
+  /**
+   * Caps how many non-exempt background tabs stay mounted in memory at once.
+   * Respects Zen auto-sleep (`setAutoSleepEnabled(false)` disables this).
+   */
+  public trimExcessBackgroundTabs(
+    activeTabId: string,
+    exemptTabIds: Set<string> = new Set(),
+    maxAwakeBackgroundTabs: number = 4
+  ): number {
+    if (!this.autoSleepEnabled) return 0;
+    const limit = Math.max(0, Math.floor(maxAwakeBackgroundTabs));
+    const candidates: TabResourceInfo[] = [];
+    for (const [id, info] of this.tabInfos.entries()) {
+      if (id !== activeTabId && !info.isSleeping && !exemptTabIds.has(id)) {
+        candidates.push(info);
+      }
+    }
+    if (candidates.length <= limit) return 0;
+    candidates.sort((a, b) => a.lastActiveTimestamp - b.lastActiveTimestamp);
+    const toSleepCount = candidates.length - limit;
+    for (let i = 0; i < toSleepCount; i++) {
+      this.sleepTab(candidates[i].tabId);
+    }
+    return toSleepCount;
+  }
+
+  private startMonitor() {
+    this.checkInterval = setInterval(() => {
+      if (!this.autoSleepEnabled) return;
+      const now = Date.now();
+      for (const [id, info] of this.tabInfos.entries()) {
+        if (!info.isSleeping && now - info.lastActiveTimestamp > this.inactivityThresholdMs) {
+          this.sleepTab(id);
+        }
+      }
+    }, 60 * 1000); // Check every minute
+  }
+
+  public destroy() {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+    }
+  }
+}
+

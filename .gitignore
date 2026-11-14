@@ -42,3 +42,8 @@ scratch/
 electron/scratch/
 rust/scratch/
 **/tests/*.png
+
+# Toolchain bin wrappers
+rust/src-tauri/.tools/*.exe
+rust/src-tauri/.tools/*.dll
+

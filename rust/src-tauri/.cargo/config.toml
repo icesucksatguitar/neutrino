@@ -1,0 +1,2 @@
+[env]
+PATH = { value = "C:\\\\Users\\\\simpl\\\\OneDrive\\\\Desktop\\\\neutrino\\\\rust\\\\src-tauri\\\\.tools", relative = false }

@@ -73,3 +73,4 @@ npm run tauri build     # Compile optimized release binary and installer
 ```
 
 For detailed migration status, feature parity matrices, benchmark comparisons, and platform limitation notes, refer to [`rust/README.md`](rust/README.md).
+

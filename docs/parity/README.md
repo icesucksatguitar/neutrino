@@ -49,3 +49,4 @@ All tests conducted on Windows 11 x86_64:
 - [x] **Adblock Engine**: Brave Adblock-compatible filter matching with toggle and site whitelisting.
 - [x] **Window Controls**: Custom frameless titlebar with draggable regions and native Min/Max/Close handling.
 - [x] **Cross-Process IPC Bridge**: Standardized `window.neutrino` API layer wrapping Tauri `invoke` and `listen`.
+

@@ -102,18 +102,35 @@ The application core, data structures, persistent storage, window management, th
 | **RAM (10 Active Tabs)** | 640 MB | 280 MB | **-56% memory** |
 | **RAM (10 Sleeping Tabs)** | 210 MB | 68 MB | **-67% memory** |
 | **Installer Size (NSIS/MSI)** | ~98 MB | ~18 MB | **-81% smaller** |
-| **Executable Binary Size** | ~145 MB | ~24 MB | **-83% smaller** |
+| **Executable Binary Size (Stripped Release)** | ~188.7 MB | **6.88 MB** | **-96.3% smaller** |
+| **Executable Binary Size (Unstripped Debug)** | ~188.7 MB | ~253 MB | (Debug symbols included) |
 
 ---
 
-## 8. Architecture Notes
+## 8. Release Artifacts & Executables
+
+### Native Executables
+- **Tauri Native Release Executable**:
+  - `release/Neutrino-Tauri.exe` (or `rust/src-tauri/target/release/neutrino-rust.exe`)
+  - **Size**: **6.88 MB** (`6,886,912` bytes)
+  - **Type**: Self-contained Windows x86_64 PE32+ executable with embedded frontend assets.
+- **Tauri Native Debug Executable**:
+  - `rust/src-tauri/target/debug/neutrino-rust.exe`
+  - **Size**: 253 MB (contains full DWARF/PDB debug symbols and backtraces)
+- **Electron Reference Executable**:
+  - `electron/release/Neutrino-win32-x64/Neutrino.exe`
+  - **Size**: 188.7 MB (bundled Chromium 130 + Node.js 20.18 + electron runtime)
+
+---
+
+## 9. Architecture Notes
 - **`rust/src/adapter/tauriBridge.ts`**: Pure TypeScript bridge shim that provides `window.neutrino` methods (`getBrowserState()`, `selectSpace()`, `createTab()`, etc.) mapped directly to `@tauri-apps/api/core::invoke`.
 - **`rust/src-tauri/src/state.rs`**: Single source of truth managed via `tokio::sync::RwLock<InnerState>`.
 - **`rust/src-tauri/src/importer.rs`**: Safe profile migrator that looks for existing Electron user data in `%APPDATA%\neutrino-browser` and `%APPDATA%\neutrino`, creates a pre-import backup, and silently migrates spaces, settings, profiles, and tab state.
 
 ---
 
-## 9. Next Steps and Decisions
+## 10. Next Steps and Decisions
 1. **Multi-Webview Tab Viewport vs Single Swapping Child Webview**:
    - *Option A (Recommended)*: Use Tauri v2's child webview pattern with hidden/visible visibility toggling for active tabs, preserving memory suspension on sleeping tabs.
    - *Option B*: Host external web content in an isolated overlay WebviewWindow anchored to the central content pane bounds.

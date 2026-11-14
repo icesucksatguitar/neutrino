@@ -41,6 +41,7 @@ export interface PreviewTarget {
   favicon?: string;
   source: PreviewSource;
   anchor: AnchorRect;
+  isSleeping?: boolean;
 }
 
 export interface HoverPreviewState {
@@ -78,6 +79,7 @@ export function previewTargetFor(item: SidebarItemRef, anchor: AnchorRect): Prev
     ...(favicon ? { favicon } : {}),
     source,
     anchor,
+    ...(tab?.isSleeping ? { isSleeping: true } : {}),
   };
 }
 

@@ -329,6 +329,22 @@ export function useBrowser() {
     return window.neutrino?.duplicateTab?.(id, spaceId);
   }, []);
 
+  const createFolder = useCallback((spaceId: string, name: string) => {
+    return window.neutrino?.createFolder?.(spaceId, name);
+  }, []);
+
+  const updateFolder = useCallback((folderId: string, patch: any) => {
+    return window.neutrino?.updateFolder?.(folderId, patch);
+  }, []);
+
+  const deleteFolder = useCallback((folderId: string) => {
+    return window.neutrino?.deleteFolder?.(folderId);
+  }, []);
+
+  const moveTabToFolder = useCallback((tabId: string, folderId: string | null) => {
+    return window.neutrino?.moveTabToFolder?.(tabId, folderId);
+  }, []);
+
   const updateSidebarState = useCallback((patch: Partial<SidebarState>) => {
     return window.neutrino?.updateSidebarState?.(patch);
   }, []);
@@ -416,6 +432,10 @@ export function useBrowser() {
     addFavorite,
     removeFavorite,
     duplicateTab,
+    createFolder,
+    updateFolder,
+    deleteFolder,
+    moveTabToFolder,
     updateSidebarState,
     toggleShields,
     resetShieldStats,

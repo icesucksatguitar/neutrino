@@ -14,6 +14,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   type ArchivedTab,
   type FavoriteEntry,
+  type FolderRecord,
   type Profile,
   type ProfilesFile,
   type SpaceRecord,
@@ -86,7 +87,25 @@ function parseTab(v: unknown): TabEntry | null {
   };
   if (isStr(v.favicon)) tab.favicon = v.favicon;
   if (typeof v.unloaded === 'boolean') tab.unloaded = v.unloaded;
+  if (isStr(v.folderId)) tab.folderId = v.folderId;
   return tab;
+}
+
+function parseFolder(v: unknown): FolderRecord | null {
+  if (
+    !isObj(v) || !isStr(v.id) || !isStr(v.spaceId) ||
+    !isStr(v.name) || !isNum(v.order)
+  ) return null;
+  const folder: FolderRecord = {
+    id: v.id,
+    spaceId: v.spaceId,
+    name: v.name,
+    order: v.order,
+  };
+  if (typeof v.collapsed === 'boolean') folder.collapsed = v.collapsed;
+  if (isStr(v.icon)) folder.icon = v.icon;
+  if (isStr(v.color)) folder.color = v.color;
+  return folder;
 }
 
 function parseFavorite(v: unknown): FavoriteEntry | null {
@@ -154,6 +173,7 @@ export function parseProfilesFile(text: string): ProfilesFile | null {
     archive: parseList(raw.archive, parseArchived),
     neverList,
   };
+  if (Array.isArray(raw.folders)) file.folders = parseList(raw.folders, parseFolder);
   if (isNum(raw.migratedAt)) file.migratedAt = raw.migratedAt;
   return file;
 }
@@ -259,6 +279,7 @@ export class ProfileStore {
     const s = this.state;
     s.profiles = s.profiles.filter((p) => p.id !== id);
     s.spaces = s.spaces.filter((sp) => sp.profileId !== id);
+    s.folders = (s.folders || []).filter((f) => !spaceIds.has(f.spaceId));
     s.tabs = s.tabs.filter((t) => !spaceIds.has(t.spaceId));
     s.favorites = s.favorites.filter((f) => f.profileId !== id);
     s.archive = s.archive.filter((a) => a.profileId !== id);
@@ -291,6 +312,7 @@ export class ProfileStore {
       throw new Error('Each profile needs at least one space');
     }
     this.state.spaces = this.state.spaces.filter((s) => s.id !== id);
+    this.state.folders = (this.state.folders || []).filter((f) => f.spaceId !== id);
     this.state.tabs = this.state.tabs.filter((t) => t.spaceId !== id);
     this.renumber(space.profileId);
     if (this.activeSpace === id) this.activeSpace = this.spacesOf(space.profileId)[0].id;
@@ -330,6 +352,67 @@ export class ProfileStore {
     this.renumber(from);
     this.persist();
     return { ...space };
+  }
+
+  // ----- folders -----------------------------------------------------------
+
+  listFolders(spaceId?: string): FolderRecord[] {
+    const folders = this.state.folders || [];
+    return folders
+      .filter((f) => spaceId === undefined || f.spaceId === spaceId)
+      .sort((a, b) => a.order - b.order)
+      .map((f) => ({ ...f }));
+  }
+
+  createFolder(spaceId: string, name: string): FolderRecord {
+    this.requireSpace(spaceId);
+    if (!this.state.folders) this.state.folders = [];
+    const existing = this.state.folders.filter((f) => f.spaceId === spaceId);
+    const order = existing.reduce((max, f) => Math.max(max, f.order + 1), 0);
+    const folder: FolderRecord = {
+      id: this.freshId('folder-', (id) => !this.state.folders!.some((f) => f.id === id)),
+      spaceId,
+      name: cleanName(name, 'New Folder'),
+      order,
+      collapsed: false,
+    };
+    this.state.folders.push(folder);
+    this.persist();
+    return { ...folder };
+  }
+
+  updateFolder(id: string, patch: Partial<FolderRecord>): FolderRecord {
+    if (!this.state.folders) this.state.folders = [];
+    const folder = this.state.folders.find((f) => f.id === id);
+    if (!folder) throw new Error(`Unknown folder: ${id}`);
+    if (patch.name !== undefined) folder.name = cleanName(patch.name, folder.name);
+    if (patch.collapsed !== undefined) folder.collapsed = Boolean(patch.collapsed);
+    if (patch.icon !== undefined) folder.icon = patch.icon;
+    if (patch.color !== undefined) folder.color = patch.color;
+    if (patch.order !== undefined && Number.isFinite(patch.order)) {
+      const siblings = this.state.folders
+        .filter((f) => f.spaceId === folder.spaceId && f.id !== id)
+        .sort((a, b) => a.order - b.order);
+      const index = clampIndex(patch.order, siblings.length);
+      siblings.splice(index, 0, folder);
+      siblings.forEach((f, idx) => { f.order = idx; });
+    }
+    this.persist();
+    return { ...folder };
+  }
+
+  deleteFolder(id: string): boolean {
+    if (!this.state.folders) return false;
+    const idx = this.state.folders.findIndex((f) => f.id === id);
+    if (idx === -1) return false;
+    this.state.folders.splice(idx, 1);
+    for (const tab of this.state.tabs) {
+      if (tab.folderId === id) {
+        delete tab.folderId;
+      }
+    }
+    this.persist();
+    return true;
   }
 
   setActiveSpace(id: string): void {
@@ -417,9 +500,19 @@ export class ProfileStore {
     let repaired = false;
     const file: ProfilesFile = loaded ?? {
       schemaVersion: CURRENT_SCHEMA_VERSION,
-      profiles: [], spaces: [], tabs: [], favorites: [], archive: [], neverList: {},
+      profiles: [], spaces: [], tabs: [], folders: [], favorites: [], archive: [], neverList: {},
     };
     if (!loaded) repaired = true;
+    if (!file.folders) {
+      file.folders = [];
+    } else {
+      const spaceIds = new Set(file.spaces.map((s) => s.id));
+      const validFolders = file.folders.filter((f) => spaceIds.has(f.spaceId));
+      if (validFolders.length !== file.folders.length) {
+        file.folders = validFolders;
+        repaired = true;
+      }
+    }
     this.state = file;
 
     if (file.profiles.length === 0) {

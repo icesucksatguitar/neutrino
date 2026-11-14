@@ -66,6 +66,13 @@ contextBridge.exposeInMainWorld('neutrino', {
   duplicateTab: (id: string, spaceId?: string) =>
     ipcRenderer.invoke('neutrino:duplicate-tab', spaceId === undefined ? { id } : { id, spaceId }),
 
+  // Persistent Folders in Pinned Section
+  createFolder: (spaceId: string, name: string) => ipcRenderer.invoke('neutrino:create-folder', { spaceId, name }),
+  updateFolder: (folderId: string, patch: any) => ipcRenderer.invoke('neutrino:update-folder', { folderId, patch }),
+  deleteFolder: (folderId: string) => ipcRenderer.invoke('neutrino:delete-folder', folderId),
+  moveTabToFolder: (tabId: string, folderId: string | null) =>
+    ipcRenderer.invoke('neutrino:move-tab-to-folder', { tabId, folderId }),
+
   // Archive of auto-archived Today tabs (R16.7, R16.8)
   listArchive: () => ipcRenderer.invoke('neutrino:list-archive'),
   restoreArchivedTab: (archivedId: string) => ipcRenderer.invoke('neutrino:restore-archived-tab', archivedId),

@@ -9,7 +9,7 @@
     "build": "npm run build:renderer && npm run build:main",
     "start": "npm run build && (set ELECTRON_RUN_AS_NODE=& electron .)",
     "start:packaged": "cmd /c \"set ELECTRON_RUN_AS_NODE=& release\\Neutrino-win32-x64\\Neutrino.exe\"",
-    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --out=release --overwrite --prune=true --icon=assets/icon.ico --ignore=^/tests --ignore=^/docs --ignore=^/scratch --ignore=^/app --ignore=^/native --ignore=^/\\.kiro --ignore=^/\\.github",
+    "package": "npm run build && electron-packager . Neutrino --platform=win32 --arch=x64 --electron-version=33.4.11 --out=release --overwrite --prune=true --icon=assets/icon.ico --ignore=^/tests --ignore=^/docs --ignore=^/scratch --ignore=^/app --ignore=^/native --ignore=^/\\.kiro --ignore=^/\\.github",
     "test": "vitest --run"
   },
   "dependencies": {

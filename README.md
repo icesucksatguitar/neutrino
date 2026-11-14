@@ -27,6 +27,78 @@ This repository hosts two side-by-side implementations of Neutrino:
 └── README.md          # This file
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+# Build Rust release without incrementing version
+python build.py --env rust --bump none
+
+# Build Electron and bump minor version (e.g. 0.2.1 -> 0.3.0)
+```bash
+python build.py --env electron --bump minor
+
+# Build both releases and bump patch version
+python build.py --env all --bump patch
+
+# Optional flags:
+#   --clean   Clean dist/release folders before building
+#   --run     Launch the application immediately after build
+
+# PowerShell wrapper:
+.\build.ps1 -env rust -bump none
+.\build.ps1 -env electron -bump minor
+
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+## Unified Build & Release System
+
+A master orchestrator script is provided at the repository root (`build.py` and `build.ps1` for PowerShell) to build, increment versions, and stage standalone releases for either or both environments:
+
+```bash
+# Build Rust (Tauri v2) release without version bump
+python build.py --env rust --bump none
+
+# Build Electron release and bump minor version (0.2.1 -> 0.3.0)
+python build.py --env electron --bump minor
+
+# Build both environments and bump patch version
+python build.py --env all --bump patch
+
+# PowerShell convenience wrapper
+.\build.ps1 -env rust -bump none
+.\build.ps1 -env electron -bump minor
+```
+
+### Running Release Directory
+
+Build artifacts are staged in the root `release/` directory, allowing side-by-side execution:
+
+```
+release/
+├── electron/          # Standalone packaged Electron release (Neutrino.exe)
+├── rust/              # Standalone compiled Rust/Tauri release (Neutrino.exe)
+└── manifest.json      # Metadata tracking current versions, timestamps, and sizes
+```
+
 ---
 
 ## Quick Start
@@ -73,4 +145,5 @@ npm run tauri build     # Compile optimized release binary and installer
 ```
 
 For detailed migration status, feature parity matrices, benchmark comparisons, and platform limitation notes, refer to [`rust/README.md`](rust/README.md).
+
 

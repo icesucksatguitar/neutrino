@@ -1,28 +1,32 @@
 # ==============================================================================
-# Neutrino Browser - Git Ignore
+# Neutrino Browser - Git Ignore (Root)
+# Covers both electron/ and rust/ (Tauri) workspaces
 # ==============================================================================
 
-# Node / Electron
-node_modules/
-dist/
-dist-*/
-release/
-out/
+# Node / Electron / Web Frontend
+**/node_modules/
+**/dist/
+**/dist-*/
+**/dist-renderer/
+**/dist-main/
+**/release/
+**/out/
+**/.vite/
+*.log
+npm-debug.log*
 yarn-debug.log*
-npm-debug.log*
-npm-debug.log*
 yarn-error.log*
 
-# Rust / Cargo
-native/target/
+# Rust / Cargo / Tauri
+**/target/
 **/*.rs.bk
-Cargo.lock
-
-# Vite & Frontend Build
-.vite/
+**/Cargo.lock
+rust/src-tauri/target/
+native/target/
+electron/native/target/
 
 # Python & Cache
-__pycache__/
+**/__pycache__/
 *.py[cod]
 .venv/
 venv/
@@ -33,7 +37,8 @@ Thumbs.db
 [Dd]esktop.ini
 .DS_Store
 *.tmp
-*.log
+*.temp
 scratch/
-tests/*.png
-src/main/settings.ts
+electron/scratch/
+rust/scratch/
+**/tests/*.png

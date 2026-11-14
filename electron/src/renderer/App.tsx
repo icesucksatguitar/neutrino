@@ -844,8 +844,21 @@ const activeProfilePartition = activeTabInSpace?.partition ?? activeProfile?.par
 const showSidebar = !isHtmlFullscreen;
 const sidebarAutoHide = settings.sidebarAutoHide;
 const isSidebarDocked = showSidebar && !sidebarAutoHide;
+
+const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+  const saved = (settings as any).sidebarWidth;
+  return typeof saved === 'number' && saved >= 160 && saved <= 520 ? saved : 240;
+});
+
+useEffect(() => {
+  const saved = (settings as any).sidebarWidth;
+  if (typeof saved === 'number' && saved >= 160 && saved <= 520 && saved !== sidebarWidth) {
+    setSidebarWidth(saved);
+  }
+}, [(settings as any).sidebarWidth]);
+
 const shellStyle = {
-  '--app-sidebar-width': isSidebarDocked ? (sidebarExpanded ? '240px' : '56px') : '0px',
+  '--app-sidebar-width': isSidebarDocked ? (sidebarExpanded ? `${sidebarWidth}px` : '56px') : '0px',
   '--app-top-offset': isWebpage ? '44px' : '60px',
 } as React.CSSProperties;
 
@@ -865,6 +878,8 @@ return (
         actions={{ ...browser, selectSpace: handleSelectSpace, openCommandBar: openNewTabCommandBar }}
         expanded={sidebarExpanded}
         autoHide={sidebarAutoHide}
+        sidebarWidth={sidebarWidth}
+        onUpdateSidebarWidth={setSidebarWidth}
         onUpdateSidebarState={(patch) => void updateSettings(patch)}
       />
     )}

@@ -111,8 +111,14 @@ pub struct BrowserSettings {
     pub sidebar_expanded: bool,
     #[serde(default = "default_false")]
     pub sidebar_auto_hide: bool,
+    #[serde(default = "default_sidebar_width")]
+    pub sidebar_width: f64,
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
+}
+
+fn default_sidebar_width() -> f64 {
+    240.0
 }
 
 fn default_true() -> bool {
@@ -202,6 +208,7 @@ impl Default for BrowserSettings {
             right_pins_dock_visible: true,
             sidebar_expanded: true,
             sidebar_auto_hide: false,
+            sidebar_width: 240.0,
             extra: HashMap::new(),
         }
     }

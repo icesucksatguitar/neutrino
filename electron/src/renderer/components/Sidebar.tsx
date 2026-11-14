@@ -74,6 +74,10 @@ export interface SidebarProps {
   expanded: boolean;
   /** `settings.sidebarAutoHide`. */
   autoHide: boolean;
+  /** Custom sidebar width in px (defaults to 240). */
+  sidebarWidth?: number;
+  /** Live width change during drag resize. */
+  onUpdateSidebarWidth?: (width: number) => void;
   /** Persists through the settings IPC (`useSettings().updateSettings` or `updateSidebarState`). */
   onUpdateSidebarState: (patch: Partial<SidebarState>) => void;
 
@@ -199,6 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   actions,
   expanded,
   autoHide,
+  sidebarWidth,
+  onUpdateSidebarWidth,
   onUpdateSidebarState,
   itemProps,
   sectionProps,
@@ -207,6 +213,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
   children,
   className,
 }) => {
+  // --- Sidebar Resizing (R12.11) -------------------------------------------
+  const [isResizing, setIsResizing] = useState(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(sidebarWidth ?? 240);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    if (!expanded) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = sidebarWidth ?? 240;
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    document.body.classList.add('sidebar-resizing-active');
+
+    const onMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - startXRef.current;
+      const nextWidth = Math.max(160, Math.min(520, Math.round(startWidthRef.current + delta)));
+      onUpdateSidebarWidth?.(nextWidth);
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+      setIsResizing(false);
+      document.body.classList.remove('sidebar-resizing-active');
+      const delta = e.clientX - startXRef.current;
+      const finalWidth = Math.max(160, Math.min(520, Math.round(startWidthRef.current + delta)));
+      onUpdateSidebarState({ sidebarWidth: finalWidth });
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.body.classList.remove('sidebar-resizing-active');
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isResizing, onUpdateSidebarWidth, onUpdateSidebarState]);
+
   // Drag and drop (R17): renders the optimistic layout while dragging/committing.
   const drag = useSidebarDrag(state, actions.moveTab);
   const view = useMemo(() => buildSidebarView(drag.displayState), [drag.displayState]);
@@ -538,10 +585,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         className={rootClass}
         aria-label="Sidebar"
         aria-hidden={!visible}
-        style={{ '--nsb-space-color': activeSpace?.color ?? 'var(--theme-accent)' } as React.CSSProperties}
+        style={{
+          '--nsb-width-expanded': `${sidebarWidth ?? 240}px`,
+          '--nsb-space-color': activeSpace?.color ?? 'var(--theme-accent)',
+        } as React.CSSProperties}
         onMouseEnter={() => setOverSidebar(true)}
         onMouseLeave={() => setOverSidebar(false)}
       >
+        {expanded && (
+          <div
+            className={`nsb-resizer ${isResizing ? 'active' : ''}`}
+            onMouseDown={handleResizeStart}
+            title="Drag to resize tab holder"
+            role="separator"
+            aria-orientation="vertical"
+          />
+        )}
         {/* Active space: name, icon and color (R13.6) */}
         <div className="nsb-header">
           {activeSpace && (

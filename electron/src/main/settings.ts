@@ -83,6 +83,7 @@ export interface BrowserSettings {
   rightPinsDockVisible: boolean;
   sidebarExpanded: boolean;
   sidebarAutoHide: boolean;
+  sidebarWidth?: number;
   [unknownKey: string]: unknown; // kept as saved, e.g. the legacy `theme` key
 }
 
@@ -100,6 +101,7 @@ export const DEFAULT_SETTINGS: Readonly<BrowserSettings> = Object.freeze({
   rightPinsDockVisible: true,
   sidebarExpanded: true,
   sidebarAutoHide: false,
+  sidebarWidth: 240,
 });
 
 function isArchiveIntervalHours(value: unknown): value is ArchiveIntervalHours {

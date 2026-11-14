@@ -77,7 +77,7 @@ export interface TabPartitionChange {
 /** Sidebar UI preferences persisted through the settings IPC. */
 export type SidebarState = Pick<
   BrowserSettings,
-  'sidebarExpanded' | 'sidebarAutoHide' | 'rightPinsDockVisible' | 'archiveIntervalHours'
+  'sidebarExpanded' | 'sidebarAutoHide' | 'sidebarWidth' | 'rightPinsDockVisible' | 'archiveIntervalHours'
 >;
 
 export type SpaceState = Space;
